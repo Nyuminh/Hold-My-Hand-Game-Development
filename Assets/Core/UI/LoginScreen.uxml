@@ -1,0 +1,30 @@
+<engine:UXML xmlns:engine="UnityEngine.UIElements" xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Nền toàn màn hình là ảnh Banner của bạn -->
+    <engine:VisualElement name="main-container" style="flex-grow: 1; justify-content: flex-end; align-items: flex-start; padding: 60px; background-image: url(&quot;project://database/Assets/Core/UI/bannerrr.png?fileID=2800000&amp;guid=160a7ae721f5f9d47801a3a9f8f6c17e&amp;type=3#bannerrr&quot;); -unity-background-scale-mode: scale-and-crop;">
+        
+        <!-- Khung mờ chứa form nằm ở góc dưới trái -->
+        <engine:VisualElement style="width: 380px; padding: 32px; border-radius: 16px; background-color: rgba(15, 15, 20, 0.85); border-width: 1px; border-color: rgba(255, 255, 255, 0.1);">
+            
+            <!-- Khung Đăng nhập (Hiện ban đầu) -->
+            <engine:VisualElement name="login-form">
+                <engine:Label text="Đăng nhập để tiếp tục" style="font-size: 16px; color: rgba(255,255,255,0.5); margin-bottom: 24px; -unity-font-style: italic;"/>
+                <engine:Label text="Tài khoản" style="color: rgba(255, 255, 255, 0.7); margin-bottom: 4px; font-size: 14px;"/>
+                <engine:TextField name="username-input" style="margin-bottom: 16px; height: 40px; font-size: 16px;"/>
+                <engine:Label text="Mật khẩu" style="color: rgba(255, 255, 255, 0.7); margin-bottom: 4px; font-size: 14px;"/>
+                <engine:TextField name="password-input" password="true" style="margin-bottom: 32px; height: 40px; font-size: 16px;"/>
+                <engine:Button name="login-button" text="ĐĂNG NHẬP" style="height: 50px; background-color: rgb(60, 140, 220); color: white; border-radius: 8px; font-size: 18px; -unity-font-style: bold; border-width: 0;"/>
+            </engine:VisualElement>
+
+            <!-- Khung Đã Đăng Nhập (Ẩn ban đầu, chỉ hiện khi có Token) -->
+            <engine:VisualElement name="logged-in-state" style="display: none; align-items: flex-start;">
+                <engine:Label name="welcome-label" text="Xin chào, Player!" style="font-size: 24px; color: white; margin-bottom: 24px; -unity-font-style: bold; white-space: normal;"/>
+                <engine:Button name="play-button" text="▶ VÀO GAME" style="height: 60px; width: 100%; background-color: rgb(240, 160, 40); color: white; border-radius: 12px; font-size: 20px; -unity-font-style: bold; letter-spacing: 2px; border-width: 0; margin-bottom: 16px;"/>
+                <engine:Button name="logout-button" text="Đăng xuất" style="background-color: transparent; border-width: 0; color: rgba(255, 255, 255, 0.5); font-size: 14px; align-self: center;"/>
+            </engine:VisualElement>
+
+            <!-- Dòng trạng thái báo lỗi -->
+            <engine:Label name="status-label" text="" style="color: rgb(255, 100, 100); -unity-text-align: middle-center; margin-top: 16px; font-size: 14px; white-space: normal;"/>
+        </engine:VisualElement>
+        
+    </engine:VisualElement>
+</engine:UXML>

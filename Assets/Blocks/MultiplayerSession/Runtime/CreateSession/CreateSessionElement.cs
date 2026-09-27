@@ -45,39 +45,18 @@ namespace Blocks.Sessions
             SetBinding(new BindingId(nameof(enabledSelf)), enabledBinding);
             m_Bindings.Add(enabledBinding);
 
-            var sessionNameTextField = new TextField
-            {
-                textEdition =
-                {
-                    placeholder = k_EnterSessionNamePlaceholder,
-                    hidePlaceholderOnFocus = true
-                }
-            };
-            sessionNameTextField.AddToClassList(BlocksTheme.TextField);
-            sessionNameTextField.AddToClassList(BlocksTheme.SpaceRight);
-            var sessionNameBinding = new DataBinding
-            {
-                dataSourcePath = new PropertyPath(nameof(m_ViewModel.SessionName)),
-                bindingMode = BindingMode.ToSource
-            };
-            sessionNameTextField.SetBinding("value", sessionNameBinding);
-            Add(sessionNameTextField);
-            m_Bindings.Add(sessionNameBinding);
+            // Remove text field because we want one-click auto creation.
+            // A random session name will be generated on click.
 
             var createSessionButton = new Button
             {
-                text = k_CreateButtonText
+                text = "TẠO GAME MỚI"
             };
             createSessionButton.AddToClassList(BlocksTheme.Button);
-            var createSessionBinding = new DataBinding
-            {
-                dataSourcePath = new PropertyPath(nameof(m_ViewModel.HasSessionName)),
-                bindingMode = BindingMode.ToTarget
-            };
-            createSessionButton.SetBinding(new BindingId(nameof(enabledSelf)), createSessionBinding);
+            
+            // Remove the HasSessionName binding so the button is always enabled
             createSessionButton.clicked += CreateSession;
             Add(createSessionButton);
-            m_Bindings.Add(createSessionBinding);
 
             RegisterCallback<AttachToPanelEvent>(_ => UpdateBindings());
             RegisterCallback<DetachFromPanelEvent>(_ => CleanupBindings());
@@ -96,7 +75,13 @@ namespace Blocks.Sessions
                 return;
             }
 
-            _ = m_ViewModel.CreateSessionAsync(SessionSettings.ToSessionOptions());
+            // Tự động generate tên session thay vì bắt người chơi gõ
+            string generatedName = $"Player {UnityEngine.Random.Range(1000, 9999)}'s Game";
+            
+            var options = SessionSettings.ToSessionOptions();
+            options.Name = generatedName;
+
+            _ = m_ViewModel.CreateSessionAsync(options);
         }
 
         void UpdateBindings()

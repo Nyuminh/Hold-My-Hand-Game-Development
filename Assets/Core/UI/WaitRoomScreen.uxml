@@ -1,0 +1,37 @@
+<engine:UXML xmlns:engine="UnityEngine.UIElements">
+    <engine:VisualElement name="wait-room-root" style="flex-grow: 1; padding: 40px; justify-content: flex-end; align-items: flex-end; background-color: transparent;">
+
+        <!-- Wait Room Panel (Overlay on top of game) -->
+        <engine:VisualElement style="background-color: rgba(15,15,25,0.85); padding: 32px; border-radius: 16px;
+                   width: 450px; border-width: 1px; border-color: rgba(255,255,255,0.1);
+                   backdrop-filter: blur(10px);">
+
+            <engine:Label text="PHÒNG CHỜ"
+                style="font-size: 24px; color: white; -unity-font-style: bold; letter-spacing: 2px; margin-bottom: 24px; -unity-text-align: middle-center;"/>
+
+            <!-- Room Info -->
+            <engine:VisualElement style="margin-bottom: 24px; background-color: rgba(0,0,0,0.5); border-radius: 8px; padding: 16px;">
+                <engine:Label text="TÊN PHÒNG"
+                    style="font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 2px; margin-bottom: 4px;"/>
+                <engine:Label name="session-name-label" text="Loading..."
+                    style="font-size: 20px; color: rgb(100,200,255); -unity-font-style: bold; margin-bottom: 16px;"/>
+                
+                <engine:Label text="NGƯỜI CHƠI"
+                    style="font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 2px; margin-bottom: 4px;"/>
+                <engine:Label name="player-name-label" text="Loading..."
+                    style="font-size: 20px; color: white; -unity-font-style: bold;"/>
+            </engine:VisualElement>
+
+            <!-- Status & Player Count -->
+            <engine:Label name="status-label" text="Đang đợi người chơi thứ 2... (1/2)"
+                style="font-size: 14px; color: rgb(255,200,100); -unity-text-align: middle-center; margin-bottom: 16px;"/>
+
+            <!-- PLAY Button -->
+            <engine:Button name="play-button" text="PLAY"
+                style="height: 60px; font-size: 24px; -unity-font-style: bold; letter-spacing: 2px;
+                       background-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3);
+                       border-radius: 8px; border-width: 0;"/>
+        </engine:VisualElement>
+
+    </engine:VisualElement>
+</engine:UXML>

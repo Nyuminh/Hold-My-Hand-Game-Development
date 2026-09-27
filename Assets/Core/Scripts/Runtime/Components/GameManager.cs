@@ -33,6 +33,9 @@ namespace Blocks.Gameplay.Core
         [Tooltip("UI Document that displays session/lobby interface.")]
         [SerializeField] private UIDocument sessionUI;
 
+        [Tooltip("Optional WaitRoomManager for the PUBG-style waiting lobby.")]
+        [SerializeField] private WaitRoomManager waitRoomManager;
+
         [Tooltip("Duration in seconds for the session UI fade-out animation.")]
         [SerializeField] private float fadeDuration = 0.5f;
 
@@ -181,10 +184,18 @@ namespace Blocks.Gameplay.Core
                 onStatDepleted.RegisterListener(HandleStatDepleted);
             }
 
-            // Hide session UI and lock cursor for gameplay
+            // Hide session UI
             StartCoroutine(FadeOutAndDisable());
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+
+            if (waitRoomManager != null)
+            {
+                waitRoomManager.EnterWaitRoom("Local Session");
+            }
+            else
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
 
             // Generate and assign player name based on client ID
             string playerPrefix = "Player";
@@ -271,10 +282,18 @@ namespace Blocks.Gameplay.Core
                 onStatDepleted.RegisterListener(HandleStatDepleted);
             }
 
-            // Hide session UI and lock cursor for gameplay
+            // Hide session UI
             StartCoroutine(FadeOutAndDisable());
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+
+            if (waitRoomManager != null)
+            {
+                waitRoomManager.EnterWaitRoom(session.Name);
+            }
+            else
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
 
             // Set player name from session properties
             SetupLocalPlayerName(session);
