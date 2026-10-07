@@ -3,6 +3,11 @@ using UnityEngine.UIElements;
 using UnityEngine.SceneManagement;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using Unity.Services.Core;
+using Unity.Services.Authentication;
+using Unity.Services.Lobbies;
+using Unity.Services.Lobbies.Models;
 
 namespace Blocks.Gameplay.Core
 {
@@ -32,7 +37,7 @@ namespace Blocks.Gameplay.Core
 
         [Header("Polling")]
         [Tooltip("Khoảng cách giữa các lần poll lobby state (giây)")]
-        [SerializeField] private float pollInterval = 3f;
+        [SerializeField] private float pollInterval = 10f;
 
         // ─── UI Elements ────────────────────────────────────────
         // Top
@@ -74,6 +79,7 @@ namespace Blocks.Gameplay.Core
 
         // ─── State ──────────────────────────────────────────────
         private string m_CurrentLobbyCode;
+        private string m_CurrentLobbyId;
         private bool m_IsHost;
         private CancellationTokenSource m_PollCts;
 
@@ -101,30 +107,20 @@ namespace Blocks.Gameplay.Core
             UnityEngine.Cursor.lockState = CursorLockMode.None;
             UnityEngine.Cursor.visible = true;
 
-            await CheckCurrentLobbyAsync();
-        }
-
-        private async Task CheckCurrentLobbyAsync()
-        {
             try
             {
-                var lobby = await ApiClient.GetCurrentLobbyAsync();
-                if (lobby != null && !string.IsNullOrEmpty(lobby.lobbyCode))
-                {
-                    m_CurrentLobbyCode = lobby.lobbyCode;
-                    m_IsHost = (ApiClient.UserId == lobby.player1Id);
-                    
-                    Debug.Log($"[Lobby3D] Restored lobby: {lobby.lobbyCode}");
-                    UpdateLobbyUI(lobby);
-                    ShowLobbyButtons();
-                    StartPolling();
-                    ShowToast("Đã khôi phục kết nối với phòng cũ!");
-                }
+                if (UnityServices.State == ServicesInitializationState.Uninitialized)
+                    await UnityServices.InitializeAsync();
+                
+                if (!AuthenticationService.Instance.IsSignedIn)
+                    await AuthenticationService.Instance.SignInAnonymouslyAsync();
+                
+                Debug.Log($"[Lobby3D] Signed in to Unity Services: {AuthenticationService.Instance.PlayerId}");
             }
             catch (System.Exception ex)
             {
-                // Không ở trong phòng nào, hoặc lỗi mạng -> Bỏ qua
-                Debug.Log($"[Lobby3D] No active lobby to restore. ({ex.Message})");
+                Debug.LogError($"[Lobby3D] Unity Services Error: {ex.Message}");
+                ShowToast("Lỗi kết nối máy chủ Unity!");
             }
         }
 
@@ -274,37 +270,33 @@ namespace Blocks.Gameplay.Core
 
             try
             {
-                var lobby = await ApiClient.CreateLobbyAsync();
-                m_CurrentLobbyCode = lobby.lobbyCode;
+                var options = new CreateLobbyOptions {
+                    IsPrivate = false,
+                    Data = new Dictionary<string, DataObject> {
+                        { "dadUserId", new DataObject(DataObject.VisibilityOptions.Public, AuthenticationService.Instance.PlayerId) },
+                        { "childUserId", new DataObject(DataObject.VisibilityOptions.Public, "") },
+                        { "status", new DataObject(DataObject.VisibilityOptions.Public, "Waiting") }
+                    }
+                };
+                var lobby = await LobbyService.Instance.CreateLobbyAsync("HoldMyHand", 2, options);
+                
+                m_CurrentLobbyId = lobby.Id;
+                m_CurrentLobbyCode = lobby.LobbyCode;
                 m_IsHost = true;
 
-                Debug.Log($"[Lobby3D] Created lobby: {lobby.lobbyCode}");
-                UpdateLobbyUI(lobby);
+                Debug.Log($"[Lobby3D] Created Unity lobby: {lobby.LobbyCode}");
+                UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
                 StartPolling();
                 ShowToast("Phòng đã được tạo!");
             }
-            catch (ApiException apiEx)
+            catch (LobbyServiceException ex)
             {
-                if (apiEx.StatusCode == 401)
-                {
-                    ShowToast("Phiên đăng nhập hết hạn! Vui lòng quay lại LoginScene để đăng nhập lại.");
-                }
-                else if (apiEx.StatusCode == 400 && apiEx.ResponseBody != null && apiEx.ResponseBody.Contains("already in a lobby"))
-                {
-                    ShowToast("Bạn đang bị kẹt ở phòng cũ. Hãy đợi 30 phút hoặc reset backend.");
-                }
-                else
-                {
-                    ShowToast($"Tạo phòng thất bại: {apiEx.Message}");
-                }
-                Debug.LogError($"[Lobby3D] Create lobby error: {apiEx}");
-                if (m_CreateRoomButton != null) m_CreateRoomButton.SetEnabled(true);
-            }
-            catch (System.Exception ex)
-            {
-                ShowToast("Không thể kết nối server!");
+                ShowToast($"Tạo phòng thất bại: {ex.Message}");
                 Debug.LogError($"[Lobby3D] Create lobby error: {ex}");
+            }
+            finally
+            {
                 if (m_CreateRoomButton != null) m_CreateRoomButton.SetEnabled(true);
             }
         }
@@ -334,39 +326,42 @@ namespace Blocks.Gameplay.Core
 
             try
             {
-                // Nếu đã có lobby, rời trước
-                if (!string.IsNullOrEmpty(m_CurrentLobbyCode))
+                if (!string.IsNullOrEmpty(m_CurrentLobbyId))
                 {
                     StopPolling();
-                    try { await ApiClient.LeaveLobbyAsync(m_CurrentLobbyCode); } catch { }
+                    try { await LobbyService.Instance.RemovePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId); } catch { }
                 }
 
-                var lobby = await ApiClient.JoinLobbyAsync(code);
-                m_CurrentLobbyCode = lobby.lobbyCode;
+                var lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(code);
+                
+                if (!lobby.Data.ContainsKey("childUserId") || string.IsNullOrEmpty(lobby.Data["childUserId"].Value))
+                {
+                    var options = new UpdateLobbyOptions {
+                        Data = new Dictionary<string, DataObject> {
+                            { "childUserId", new DataObject(DataObject.VisibilityOptions.Public, AuthenticationService.Instance.PlayerId) }
+                        }
+                    };
+                    lobby = await LobbyService.Instance.UpdateLobbyAsync(lobby.Id, options);
+                }
+
+                m_CurrentLobbyId = lobby.Id;
+                m_CurrentLobbyCode = lobby.LobbyCode;
                 m_IsHost = false;
 
-                Debug.Log($"[Lobby3D] Joined lobby: {lobby.lobbyCode}");
+                Debug.Log($"[Lobby3D] Joined Unity lobby: {lobby.LobbyCode}");
                 HideJoinCodePanel();
-                UpdateLobbyUI(lobby);
+                UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
                 StartPolling();
                 ShowToast("Đã vào phòng!");
             }
-            catch (ApiException apiEx)
+            catch (LobbyServiceException ex)
             {
-                string errorMsg = apiEx.StatusCode switch
-                {
-                    404 => "Phòng không tồn tại!",
-                    400 => "Phòng đã đầy hoặc không khả dụng!",
-                    _ => $"Lỗi: {apiEx.Message}"
-                };
-                ShowToast(errorMsg);
-                if (m_ConfirmJoinButton != null) m_ConfirmJoinButton.SetEnabled(true);
-            }
-            catch (System.Exception ex)
-            {
-                ShowToast("Không thể kết nối!");
+                ShowToast($"Lỗi: {ex.Message}");
                 Debug.LogError($"[Lobby3D] Join error: {ex}");
+            }
+            finally
+            {
                 if (m_ConfirmJoinButton != null) m_ConfirmJoinButton.SetEnabled(true);
             }
         }
@@ -382,13 +377,24 @@ namespace Blocks.Gameplay.Core
 
         private async void OnSwapRoleClicked()
         {
-            if (string.IsNullOrEmpty(m_CurrentLobbyCode)) return;
+            if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
             if (m_SwapRoleButton != null) m_SwapRoleButton.SetEnabled(false);
 
             try
             {
-                var lobby = await ApiClient.SwapRolesAsync(m_CurrentLobbyCode);
-                UpdateLobbyUI(lobby);
+                var lobby = await LobbyService.Instance.GetLobbyAsync(m_CurrentLobbyId);
+                var currentDad = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : "";
+                var currentChild = lobby.Data.ContainsKey("childUserId") ? lobby.Data["childUserId"].Value : "";
+
+                var options = new UpdateLobbyOptions {
+                    Data = new Dictionary<string, DataObject> {
+                        { "dadUserId", new DataObject(DataObject.VisibilityOptions.Public, currentChild) },
+                        { "childUserId", new DataObject(DataObject.VisibilityOptions.Public, currentDad) }
+                    }
+                };
+                lobby = await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, options);
+
+                UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowToast("Đã đổi vai!");
             }
             catch (System.Exception ex)
@@ -404,34 +410,38 @@ namespace Blocks.Gameplay.Core
 
         private async void OnLeaveRoomClicked()
         {
-            if (string.IsNullOrEmpty(m_CurrentLobbyCode)) return;
+            if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
             StopPolling();
             if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(false);
 
             try
             {
-                await ApiClient.LeaveLobbyAsync(m_CurrentLobbyCode);
-                Debug.Log($"[Lobby3D] Left lobby: {m_CurrentLobbyCode}");
+                await LobbyService.Instance.RemovePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId);
+                Debug.Log($"[Lobby3D] Left Unity lobby.");
+                
+                m_CurrentLobbyId = null;
                 m_CurrentLobbyCode = null;
 
-                // Ẩn player 2 preview
                 if (player2Preview != null) player2Preview.SetActive(false);
 
                 ShowMainButtons();
-                if (m_CreateRoomButton != null) m_CreateRoomButton.SetEnabled(true);
                 ShowToast("Đã rời phòng.");
             }
             catch (System.Exception ex)
             {
                 ShowToast("Rời phòng thất bại!");
                 Debug.LogError($"[Lobby3D] Leave error: {ex}");
+            }
+            finally
+            {
+                if (m_CreateRoomButton != null) m_CreateRoomButton.SetEnabled(true);
                 if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(true);
             }
         }
 
         private async void OnPlayClicked()
         {
-            if (string.IsNullOrEmpty(m_CurrentLobbyCode)) return;
+            if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
             if (m_PlayButton != null) m_PlayButton.SetEnabled(false);
             if (m_SwapRoleButton != null) m_SwapRoleButton.SetEnabled(false);
             if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(false);
@@ -439,13 +449,15 @@ namespace Blocks.Gameplay.Core
 
             try
             {
-                var result = await ApiClient.ReadyAsync(m_CurrentLobbyCode);
+                var options = new UpdateLobbyOptions {
+                    Data = new Dictionary<string, DataObject> {
+                        { "status", new DataObject(DataObject.VisibilityOptions.Public, "InGame") }
+                    }
+                };
+                await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, options);
                 StopPolling();
 
-                Debug.Log($"[Lobby3D] Game started! SessionId={result.sessionId}, Relay={result.relayJoinCode}");
                 ShowToast("🎮 Game bắt đầu!");
-
-                // Load game scene
                 SceneManager.LoadScene(gameSceneName);
             }
             catch (System.Exception ex)
@@ -520,7 +532,7 @@ namespace Blocks.Gameplay.Core
 
         private async Task PollLobbyLoop(CancellationToken ct)
         {
-            while (!ct.IsCancellationRequested && !string.IsNullOrEmpty(m_CurrentLobbyCode))
+            while (!ct.IsCancellationRequested && !string.IsNullOrEmpty(m_CurrentLobbyId))
             {
                 try { await Task.Delay((int)(pollInterval * 1000), ct); }
                 catch (TaskCanceledException) { break; }
@@ -528,22 +540,21 @@ namespace Blocks.Gameplay.Core
 
                 try
                 {
-                    var lobby = await ApiClient.GetLobbyAsync(m_CurrentLobbyCode);
-                    UpdateLobbyUI(lobby);
+                    var lobby = await LobbyService.Instance.GetLobbyAsync(m_CurrentLobbyId);
+                    UpdateLobbyUI(MapToFakeResponse(lobby));
 
-                    // Nếu host đã bấm PLAY (status = InGame), joiner cũng auto load game
-                    if (lobby.status == "InGame" && !m_IsHost)
+                    if (lobby.Data.ContainsKey("status") && lobby.Data["status"].Value == "InGame" && !m_IsHost)
                     {
                         StopPolling();
                         ShowToast("🎮 Host đã bắt đầu game!");
-                        await Task.Delay(500); // Chờ chút cho người chơi thấy thông báo
+                        await Task.Delay(500); 
                         SceneManager.LoadScene(gameSceneName);
                         break;
                     }
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogWarning($"[Lobby3D] Poll: {ex.Message}");
+                    Debug.LogWarning($"[Lobby3D] Poll Unity Lobby: {ex.Message}");
                 }
             }
         }
@@ -552,6 +563,19 @@ namespace Blocks.Gameplay.Core
 
         // ────────────────────────────────────────────────────────
         #region UI Helpers
+
+        private ApiClient.LobbyResponseData MapToFakeResponse(Lobby lobby)
+        {
+            return new ApiClient.LobbyResponseData
+            {
+                lobbyCode = lobby.LobbyCode,
+                player1Id = lobby.HostId,
+                player2Id = lobby.Players.Count > 1 ? lobby.Players[1].Id : null,
+                dadUserId = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : null,
+                childUserId = lobby.Data.ContainsKey("childUserId") ? lobby.Data["childUserId"].Value : null,
+                status = lobby.Data.ContainsKey("status") ? lobby.Data["status"].Value : "Waiting"
+            };
+        }
 
         private void UpdateLobbyUI(ApiClient.LobbyResponseData lobby)
         {
@@ -578,7 +602,7 @@ namespace Blocks.Gameplay.Core
             // Role display
             if (m_PlayerRoleLabel != null)
             {
-                string myId = ApiClient.UserId;
+                string myId = AuthenticationService.Instance.IsSignedIn ? AuthenticationService.Instance.PlayerId : null;
                 if (!string.IsNullOrEmpty(myId))
                 {
                     if (myId == lobby.dadUserId)
