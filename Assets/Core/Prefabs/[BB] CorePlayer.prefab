@@ -213,7 +213,7 @@ MonoBehaviour:
   Interpolate: 1
   SlerpPosition: 0
   directionMode: 2
-  moveSpeed: 3
+  moveSpeed: 10
   sprintSpeed: 9
   rotationSmoothTime: 0.1
   speedChangeRate: 15
