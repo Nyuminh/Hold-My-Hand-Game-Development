@@ -295,21 +295,29 @@ namespace Blocks.Gameplay.Core
                 Cursor.visible = false;
             }
 
-            // Set player name from session properties
-            SetupLocalPlayerName(session);
+            // Cài đặt tên và các thông số khác (đưa vào Coroutine để đợi PlayerObject spawn xong)
+            StartCoroutine(WaitAndSetupLocalPlayer(session));
+        }
 
-            if (NetworkManager.Singleton == null || NetworkManager.Singleton.LocalClient == null)
+        private IEnumerator WaitAndSetupLocalPlayer(ISession session)
+        {
+            // Đợi NetworkManager và LocalClient sẵn sàng
+            while (NetworkManager.Singleton == null || NetworkManager.Singleton.LocalClient == null || NetworkManager.Singleton.LocalClient.PlayerObject == null)
             {
-                Debug.LogWarning("[GameManager] NetworkManager.Singleton or LocalClient is null during session setup.", this);
-                return;
+                yield return null;
             }
 
             var localPlayer = NetworkManager.Singleton.LocalClient.PlayerObject;
-            if (localPlayer == null)
+            
+            // Đợi cho đến khi IsSpawned = true
+            var networkObject = localPlayer.GetComponent<NetworkObject>();
+            while (networkObject != null && !networkObject.IsSpawned)
             {
-                Debug.LogWarning("[GameManager] LocalClient.PlayerObject is null. Cannot setup player.", this);
-                return;
+                yield return null;
             }
+
+            // Set player name from session properties
+            SetupLocalPlayerName(session);
 
             // Set spawn position and rotation based on client ID
             if (localPlayer.TryGetComponent<CoreMovement>(out var movement))
