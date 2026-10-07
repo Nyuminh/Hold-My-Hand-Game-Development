@@ -1182,7 +1182,7 @@ PrefabInstance:
     - target: {fileID: 8095685718527813370, guid: 011b03a6f560b45ccb17a870289c9b35, type: 3}
       propertyPath: NetworkConfig.PlayerPrefab
       value: 
-      objectReference: {fileID: 3674992884758451413, guid: d8318d049188e1247a58833fd4807317, type: 3}
+      objectReference: {fileID: 0}
     - target: {fileID: 8095685718527813370, guid: 011b03a6f560b45ccb17a870289c9b35, type: 3}
       propertyPath: NetworkConfig.AutoSpawnPlayerPrefabClientSide
       value: 0

@@ -21,10 +21,8 @@ public class RoleBasedSpawner : MonoBehaviour
     private void OnServerStarted()
     {
         // Khi Server/Host bật lên, nó sẽ lắng nghe sự kiện có người kết nối vào
+        // (Trong Unity Netcode, OnClientConnectedCallback cũng sẽ tự động kích hoạt cho chính Host khi Host tham gia)
         NetworkManager.Singleton.OnClientConnectedCallback += SpawnForClient;
-        
-        // Host tự kết nối vào ngay khi tạo phòng, nên ta phải đẻ nhân vật cho Host luôn
-        SpawnForClient(NetworkManager.Singleton.LocalClientId);
     }
 
     private void SpawnForClient(ulong clientId)
