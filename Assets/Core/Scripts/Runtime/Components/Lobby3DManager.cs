@@ -429,7 +429,7 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        public static bool HostIsDad = true; // Lưu role của Host để dùng lúc Spawn
+        public static bool AmIDad = true; // Lưu role của bản thân để dùng lúc Spawn
 
         private async void OnPlayClicked()
         {
@@ -442,7 +442,7 @@ namespace Blocks.Gameplay.Core
             try
             {
                 var lobby = await LobbyService.Instance.GetLobbyAsync(m_CurrentLobbyId);
-                HostIsDad = (AuthenticationService.Instance.PlayerId == lobby.Data["dadUserId"].Value);
+                AmIDad = (AuthenticationService.Instance.PlayerId == lobby.Data["dadUserId"].Value);
 
                 var options = new UpdateLobbyOptions {
                     Data = new Dictionary<string, DataObject> {
@@ -549,6 +549,8 @@ namespace Blocks.Gameplay.Core
                     {
                         StopPolling();
                         ShowToast("🎮 Đang Load Game Scene...");
+
+                        AmIDad = lobby.Data.ContainsKey("dadUserId") && (AuthenticationService.Instance.PlayerId == lobby.Data["dadUserId"].Value);
 
                         // Sinh ra bộ tự động Start Session cho Client mang sang Game Scene
                         GameObject bootstrapper = new GameObject("AutoSessionBootstrapper");

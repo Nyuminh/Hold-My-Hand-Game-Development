@@ -15,26 +15,17 @@ public class PlayerRoleVisuals : NetworkBehaviour
     private NetworkVariable<bool> m_IsDad = new NetworkVariable<bool>(
         true, 
         NetworkVariableReadPermission.Everyone, 
-        NetworkVariableWritePermission.Server
+        NetworkVariableWritePermission.Owner
     );
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
 
-        if (IsServer)
+        if (IsOwner)
         {
-            // Server sẽ quyết định Role cho nhân vật vừa spawn
-            // Nếu đây là nhân vật của Host (ServerClientId), Role của nó sẽ = HostIsDad
-            // Nếu là của Client, Role sẽ ngược lại (!HostIsDad)
-            if (OwnerClientId == NetworkManager.ServerClientId)
-            {
-                m_IsDad.Value = Lobby3DManager.HostIsDad;
-            }
-            else
-            {
-                m_IsDad.Value = !Lobby3DManager.HostIsDad;
-            }
+            // Tự quyết định Role của chính mình dựa trên Lobby
+            m_IsDad.Value = Lobby3DManager.AmIDad;
         }
 
         // Lắng nghe sự kiện đổi role (nếu có)
