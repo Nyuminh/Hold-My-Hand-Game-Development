@@ -12,6 +12,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Armature_Core
       objectReference: {fileID: 0}
+    - target: {fileID: 3747493943479594404, guid: d44e26f98f3e448988291f85f97cc468, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4560480999191295774, guid: d44e26f98f3e448988291f85f97cc468, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
