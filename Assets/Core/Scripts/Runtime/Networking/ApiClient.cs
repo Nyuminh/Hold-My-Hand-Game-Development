@@ -143,6 +143,13 @@ namespace Blocks.Gameplay.Core
 
         // ─── Lobby ────────────────────────────────────────────────
 
+        public static async Task<LobbyResponseData> GetCurrentLobbyAsync()
+        {
+            var json = await GetAsync("/game/lobby/current");
+            return JsonUtility.FromJson<LobbyResponseData>(json);
+        }
+
+
         /// <summary>Tạo lobby mới. Player tạo lobby = Dad.</summary>
         public static async Task<LobbyResponseData> CreateLobbyAsync(string chapterId = null)
         {

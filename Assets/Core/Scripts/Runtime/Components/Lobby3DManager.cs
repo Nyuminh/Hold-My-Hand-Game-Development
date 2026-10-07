@@ -95,11 +95,37 @@ namespace Blocks.Gameplay.Core
             UpdatePlayerInfo();
         }
 
-        private void Start()
+        private async void Start()
         {
             // RẤT QUAN TRỌNG: Đảm bảo chuột hiện lên để có thể click UI
             UnityEngine.Cursor.lockState = CursorLockMode.None;
             UnityEngine.Cursor.visible = true;
+
+            await CheckCurrentLobbyAsync();
+        }
+
+        private async Task CheckCurrentLobbyAsync()
+        {
+            try
+            {
+                var lobby = await ApiClient.GetCurrentLobbyAsync();
+                if (lobby != null && !string.IsNullOrEmpty(lobby.lobbyCode))
+                {
+                    m_CurrentLobbyCode = lobby.lobbyCode;
+                    m_IsHost = (ApiClient.UserId == lobby.player1Id);
+                    
+                    Debug.Log($"[Lobby3D] Restored lobby: {lobby.lobbyCode}");
+                    UpdateLobbyUI(lobby);
+                    ShowLobbyButtons();
+                    StartPolling();
+                    ShowToast("Đã khôi phục kết nối với phòng cũ!");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                // Không ở trong phòng nào, hoặc lỗi mạng -> Bỏ qua
+                Debug.Log($"[Lobby3D] No active lobby to restore. ({ex.Message})");
+            }
         }
 
         private void OnDisable()
