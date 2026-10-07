@@ -48,6 +48,12 @@ public class PlayerRoleVisuals : NetworkBehaviour
 
     private void UpdateVisuals(bool isDadActive)
     {
+        if (dadModel == this.gameObject || childModel == this.gameObject)
+        {
+            Debug.LogError("[LỖI] Bạn đã kéo NHẦM cả gốc nhân vật (Root) vào ô dadModel hoặc childModel! Bạn chỉ được phép kéo cái MODEL (Mesh/Hình ảnh) nằm bên trong (làm con) của nhân vật vào thôi!");
+            return;
+        }
+
         if (dadModel != null) dadModel.SetActive(isDadActive);
         if (childModel != null) childModel.SetActive(!isDadActive);
     }
