@@ -13,7 +13,7 @@ namespace Blocks.Gameplay.Core
     public static class ApiClient
     {
         // TODO: Đổi thành URL thật khi deploy
-        private static string BaseUrl = "http://localhost:5181/api";
+        private static string BaseUrl = "https://hold-my-hand-backend.vercel.app/api";
 
         // JWT token nhận từ login response
         private static string _accessToken;
