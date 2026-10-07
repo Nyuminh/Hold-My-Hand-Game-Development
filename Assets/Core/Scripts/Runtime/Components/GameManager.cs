@@ -593,11 +593,31 @@ namespace Blocks.Gameplay.Core
             var playerState = NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<CorePlayerState>();
             if (playerState != null)
             {
-                playerState.SetPlayerName(playerName);
+                if (playerState.IsSpawned)
+                {
+                    playerState.SetPlayerName(playerName);
+                }
+                else
+                {
+                    // Đợi cho đến khi NetworkObject được spawn hoàn toàn thì mới gọi RPC
+                    StartCoroutine(WaitUntilSpawnedAndSetName(playerState, playerName));
+                }
             }
             else
             {
                 Debug.LogWarning("[GameManager] CorePlayerState component not found on local player. Cannot set player name.", this);
+            }
+        }
+
+        private IEnumerator WaitUntilSpawnedAndSetName(CorePlayerState playerState, string playerName)
+        {
+            while (playerState != null && !playerState.IsSpawned)
+            {
+                yield return null;
+            }
+            if (playerState != null)
+            {
+                playerState.SetPlayerName(playerName);
             }
         }
 
