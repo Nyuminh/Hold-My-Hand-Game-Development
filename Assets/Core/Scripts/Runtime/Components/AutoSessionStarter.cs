@@ -42,7 +42,11 @@ public class AutoSessionStarter : MonoBehaviour
         try 
         {
             Debug.Log("[AutoSessionStarter] Host đang tạo Multiplayer Session...");
-            var options = new SessionOptions { MaxPlayers = 2, Name = $"Game_{Random.Range(1000,9999)}" };
+            var options = new SessionOptions { 
+                MaxPlayers = 2, 
+                Name = $"Game_{Random.Range(1000,9999)}",
+                Type = "default-session"
+            }.WithRelayNetwork();
             var session = await MultiplayerService.Instance.CreateSessionAsync(options);
             
             Debug.Log($"[AutoSessionStarter] Đã tạo Session: {session.Id}. Đang báo cho Client...");
@@ -92,7 +96,8 @@ public class AutoSessionStarter : MonoBehaviour
                 // Rời sảnh matchmaking cũ để tránh kẹt
                 try { await LobbyService.Instance.RemovePlayerAsync(m_LobbyId, Unity.Services.Authentication.AuthenticationService.Instance.PlayerId); } catch { }
 
-                await MultiplayerService.Instance.JoinSessionByIdAsync(sessionId, new JoinSessionOptions());
+                var joinOptions = new JoinSessionOptions { Type = "default-session" };
+                await MultiplayerService.Instance.JoinSessionByIdAsync(sessionId, joinOptions);
                 Debug.Log("[AutoSessionStarter] Client hoàn tất tự động vào game!");
             }
             Destroy(gameObject);
