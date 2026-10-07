@@ -285,16 +285,6 @@ namespace Blocks.Gameplay.Core
             // Hide session UI
             StartCoroutine(FadeOutAndDisable());
 
-            if (waitRoomManager != null)
-            {
-                waitRoomManager.EnterWaitRoom(session.Name);
-            }
-            else
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
-
             // Cài đặt tên và các thông số khác (đưa vào Coroutine để đợi PlayerObject spawn xong)
             StartCoroutine(WaitAndSetupLocalPlayer(session));
         }
@@ -318,6 +308,17 @@ namespace Blocks.Gameplay.Core
 
             // Set player name from session properties
             SetupLocalPlayerName(session);
+
+            // Hiện phòng chờ sau khi player đã spawn xong
+            if (waitRoomManager != null)
+            {
+                waitRoomManager.EnterWaitRoom(session.Name);
+            }
+            else
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
 
             // Set spawn position and rotation based on client ID
             if (localPlayer.TryGetComponent<CoreMovement>(out var movement))
