@@ -334,16 +334,6 @@ namespace Blocks.Gameplay.Core
 
                 var lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(code);
                 
-                if (!lobby.Data.ContainsKey("childUserId") || string.IsNullOrEmpty(lobby.Data["childUserId"].Value))
-                {
-                    var options = new UpdateLobbyOptions {
-                        Data = new Dictionary<string, DataObject> {
-                            { "childUserId", new DataObject(DataObject.VisibilityOptions.Public, AuthenticationService.Instance.PlayerId) }
-                        }
-                    };
-                    lobby = await LobbyService.Instance.UpdateLobbyAsync(lobby.Id, options);
-                }
-
                 m_CurrentLobbyId = lobby.Id;
                 m_CurrentLobbyCode = lobby.LobbyCode;
                 m_IsHost = false;
@@ -458,6 +448,15 @@ namespace Blocks.Gameplay.Core
                 StopPolling();
 
                 ShowToast("🎮 Game bắt đầu!");
+
+                // Đợi 1 chút để Client kịp nhận trạng thái InGame
+                await Task.Delay(1000);
+
+                // Rời khỏi Lobby Matchmaking để tránh xung đột với Session của Game Scene
+                try { await LobbyService.Instance.RemovePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId); } catch { }
+                m_CurrentLobbyId = null;
+                m_CurrentLobbyCode = null;
+
                 SceneManager.LoadScene(gameSceneName);
             }
             catch (System.Exception ex)
@@ -547,6 +546,12 @@ namespace Blocks.Gameplay.Core
                     {
                         StopPolling();
                         ShowToast("🎮 Host đã bắt đầu game!");
+
+                        // Rời khỏi Lobby Matchmaking để tránh xung đột với Session của Game Scene
+                        try { await LobbyService.Instance.RemovePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId); } catch { }
+                        m_CurrentLobbyId = null;
+                        m_CurrentLobbyCode = null;
+
                         await Task.Delay(500); 
                         SceneManager.LoadScene(gameSceneName);
                         break;
@@ -566,13 +571,30 @@ namespace Blocks.Gameplay.Core
 
         private ApiClient.LobbyResponseData MapToFakeResponse(Lobby lobby)
         {
+            var p2Id = lobby.Players.Count > 1 ? lobby.Players[1].Id : null;
+            
+            string dadId = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : "";
+            string childId = lobby.Data.ContainsKey("childUserId") ? lobby.Data["childUserId"].Value : "";
+
+            // Nếu 1 trong 2 role đang trống, tự động điền bằng Host hoặc P2
+            if (string.IsNullOrEmpty(dadId)) 
+            {
+                if (string.IsNullOrEmpty(childId) || childId != lobby.HostId) dadId = lobby.HostId;
+                else dadId = p2Id;
+            }
+            if (string.IsNullOrEmpty(childId))
+            {
+                if (string.IsNullOrEmpty(dadId) || dadId != lobby.HostId) childId = lobby.HostId;
+                else childId = p2Id;
+            }
+
             return new ApiClient.LobbyResponseData
             {
                 lobbyCode = lobby.LobbyCode,
                 player1Id = lobby.HostId,
-                player2Id = lobby.Players.Count > 1 ? lobby.Players[1].Id : null,
-                dadUserId = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : null,
-                childUserId = lobby.Data.ContainsKey("childUserId") ? lobby.Data["childUserId"].Value : null,
+                player2Id = p2Id,
+                dadUserId = dadId,
+                childUserId = childId,
                 status = lobby.Data.ContainsKey("status") ? lobby.Data["status"].Value : "Waiting"
             };
         }
@@ -614,9 +636,17 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
-            // Player 2 preview — hiện/ẩn nhân vật thứ 2 trong 3D
+            // Player Previews:
+            // player1Preview = Dad model
+            // player2Preview = Child model
+            bool hasDad = !string.IsNullOrEmpty(lobby.dadUserId);
+            bool hasChild = !string.IsNullOrEmpty(lobby.childUserId);
+            
+            if (player1Preview != null)
+                player1Preview.SetActive(hasDad);
+
             if (player2Preview != null)
-                player2Preview.SetActive(hasPlayer2);
+                player2Preview.SetActive(hasChild);
 
             // PLAY button — chỉ enable khi đủ 2 người + status Waiting
             bool canPlay = hasPlayer2 && lobby.status == "Waiting";
@@ -635,9 +665,9 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
-            // Swap chỉ khi đủ 2 người
+            // Swap: Chỉ Host mới được phép Swap (vì chỉ Host mới có quyền update Unity Lobby)
             if (m_SwapRoleButton != null)
-                m_SwapRoleButton.SetEnabled(canPlay);
+                m_SwapRoleButton.SetEnabled(m_IsHost);
         }
 
         private void ShowToast(string message)
