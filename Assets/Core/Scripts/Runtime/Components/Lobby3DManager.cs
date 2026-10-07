@@ -429,35 +429,57 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        public static bool HostIsDad = true; // Lưu role của Host để dùng lúc Spawn
+
         private async void OnPlayClicked()
         {
             if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
             if (m_PlayButton != null) m_PlayButton.SetEnabled(false);
             if (m_SwapRoleButton != null) m_SwapRoleButton.SetEnabled(false);
             if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(false);
-            ShowToast("Đang khởi động game...");
+            ShowToast("Đang tạo Session Server...");
 
             try
             {
-                var options = new UpdateLobbyOptions {
+                var lobby = await LobbyService.Instance.GetLobbyAsync(m_CurrentLobbyId);
+                HostIsDad = (AuthenticationService.Instance.PlayerId == lobby.Data["dadUserId"].Value);
+
+                // Tạo Multiplayer Session (tự động bật Relay + Host Netcode)
+                var sessionOptions = new Unity.Services.Multiplayer.SessionOptions { 
+                    MaxPlayers = 2, 
+                    Name = $"Game_{Random.Range(1000,9999)}" 
+                };
+                var session = await Unity.Services.Multiplayer.MultiplayerService.Instance.CreateSessionAsync(sessionOptions);
+
+                // Báo cho Client biết SessionId để tự động Join
+                var updateOptions = new UpdateLobbyOptions {
                     Data = new Dictionary<string, DataObject> {
-                        { "status", new DataObject(DataObject.VisibilityOptions.Public, "InGame") }
+                        { "status", new DataObject(DataObject.VisibilityOptions.Public, "InGame") },
+                        { "sessionId", new DataObject(DataObject.VisibilityOptions.Public, session.Id) }
                     }
                 };
-                await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, options);
+                await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, updateOptions);
                 StopPolling();
 
                 ShowToast("🎮 Game bắt đầu!");
 
-                // Đợi 1 chút để Client kịp nhận trạng thái InGame
+                // Đợi 1 chút để Client kịp nhận trạng thái InGame và đọc SessionId
                 await Task.Delay(1000);
 
-                // Rời khỏi Lobby Matchmaking để tránh xung đột với Session của Game Scene
+                // Rời khỏi Lobby Matchmaking
                 try { await LobbyService.Instance.RemovePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId); } catch { }
                 m_CurrentLobbyId = null;
                 m_CurrentLobbyCode = null;
 
-                SceneManager.LoadScene(gameSceneName);
+                // Load Game Scene qua Netcode SceneManager để đồng bộ
+                if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsServer)
+                {
+                    Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene(gameSceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
+                }
+                else
+                {
+                    SceneManager.LoadScene(gameSceneName);
+                }
             }
             catch (System.Exception ex)
             {
@@ -545,15 +567,26 @@ namespace Blocks.Gameplay.Core
                     if (lobby.Data.ContainsKey("status") && lobby.Data["status"].Value == "InGame" && !m_IsHost)
                     {
                         StopPolling();
-                        ShowToast("🎮 Host đã bắt đầu game!");
+                        ShowToast("🎮 Đang kết nối tới Server...");
 
-                        // Rời khỏi Lobby Matchmaking để tránh xung đột với Session của Game Scene
+                        string sessionId = lobby.Data.ContainsKey("sessionId") ? lobby.Data["sessionId"].Value : null;
+
+                        // Rời khỏi Lobby Matchmaking
                         try { await LobbyService.Instance.RemovePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId); } catch { }
                         m_CurrentLobbyId = null;
                         m_CurrentLobbyCode = null;
 
-                        await Task.Delay(500); 
-                        SceneManager.LoadScene(gameSceneName);
+                        if (!string.IsNullOrEmpty(sessionId))
+                        {
+                            await Unity.Services.Multiplayer.MultiplayerService.Instance.JoinSessionByIdAsync(sessionId, new Unity.Services.Multiplayer.JoinSessionOptions());
+                            // Mạng Netcode sẽ tự động connect và Load Scene theo Host!
+                        }
+                        else
+                        {
+                            // Fallback nếu có lỗi
+                            SceneManager.LoadScene(gameSceneName);
+                        }
+                        
                         break;
                     }
                 }

@@ -171,14 +171,17 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3893294197879345259, guid: c4414f7e7a6b54c8aad22f8437ac1f41, type: 3}
       insertIndex: -1
       addedObject: {fileID: 3198425083791458546}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4416926081852918481, guid: c4414f7e7a6b54c8aad22f8437ac1f41, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -5403607481576840570}
   m_SourcePrefab: {fileID: 100100000, guid: c4414f7e7a6b54c8aad22f8437ac1f41, type: 3}
 --- !u!114 &799035554649851749 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7875331226141230548, guid: c4414f7e7a6b54c8aad22f8437ac1f41, type: 3}
   m_PrefabInstance: {fileID: 7375896304662037169}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 6561850496875694176}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 10ca60937c7c74c6e8916c48f1cb0f67, type: 3}
@@ -189,3 +192,23 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3893294197879345259, guid: c4414f7e7a6b54c8aad22f8437ac1f41, type: 3}
   m_PrefabInstance: {fileID: 7375896304662037169}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &6561850496875694176 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4416926081852918481, guid: c4414f7e7a6b54c8aad22f8437ac1f41, type: 3}
+  m_PrefabInstance: {fileID: 7375896304662037169}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &-5403607481576840570
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6561850496875694176}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b18955b4fc066942845b8a711afb30c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Core::PlayerRoleVisuals
+  ShowTopMostFoldoutHeaderGroup: 1
+  dadModel: {fileID: 6561850496875694176}
+  childModel: {fileID: 4416926081852918481, guid: c4414f7e7a6b54c8aad22f8437ac1f41, type: 3}
