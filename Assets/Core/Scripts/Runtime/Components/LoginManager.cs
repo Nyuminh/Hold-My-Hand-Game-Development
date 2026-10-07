@@ -16,7 +16,7 @@ namespace Blocks.Gameplay.Core
 
         [Header("Scene")]
         [Tooltip("Tên scene lobby sẽ load sau khi đăng nhập thành công")]
-        [SerializeField] private string lobbySceneName = "[BB] Core MultiplayerSession";
+        [SerializeField] private string lobbySceneName = "LobbyScene3D";
 
         // UI Elements - Login Form
         private VisualElement m_LoginForm;
