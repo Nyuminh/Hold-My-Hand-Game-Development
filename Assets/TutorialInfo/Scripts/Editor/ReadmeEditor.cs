@@ -10,10 +10,8 @@ using System.Reflection;
 [InitializeOnLoad]
 public class ReadmeEditor : Editor
 {
-#pragma warning disable UDR0001
     static string s_ShowedReadmeSessionStateName = "ReadmeEditor.showedReadme";
-
-
+    
     static string s_ReadmeSourceDirectory = "Assets/TutorialInfo";
 
     const float k_Space = 16f;
@@ -22,35 +20,34 @@ public class ReadmeEditor : Editor
     {
         EditorApplication.delayCall += SelectReadmeAutomatically;
     }
-#pragma warning restore UDR0001
 
     static void RemoveTutorial()
     {
         if (EditorUtility.DisplayDialog("Remove Readme Assets",
-
-            $"All contents under {s_ReadmeSourceDirectory} and all Readme assets will be removed, are you sure you want to proceed?",
+            
+            $"All contents under {s_ReadmeSourceDirectory} will be removed, are you sure you want to proceed?",
             "Proceed",
             "Cancel"))
         {
             if (Directory.Exists(s_ReadmeSourceDirectory))
             {
-                AssetDatabase.DeleteAsset(s_ReadmeSourceDirectory);
+                FileUtil.DeleteFileOrDirectory(s_ReadmeSourceDirectory);
+                FileUtil.DeleteFileOrDirectory(s_ReadmeSourceDirectory + ".meta");
             }
             else
             {
                 Debug.Log($"Could not find the Readme folder at {s_ReadmeSourceDirectory}");
             }
 
-            // Find and delete ALL Readme assets
-            string[] readmeGuids = AssetDatabase.FindAssets("t:Readme");
-            foreach (string guid in readmeGuids)
+            var readmeAsset = SelectReadme();
+            if (readmeAsset != null)
             {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                if (!string.IsNullOrEmpty(path))
-                {
-                    AssetDatabase.DeleteAsset(path);
-                }
+                var path = AssetDatabase.GetAssetPath(readmeAsset);
+                FileUtil.DeleteFileOrDirectory(path + ".meta");
+                FileUtil.DeleteFileOrDirectory(path);
             }
+
+            AssetDatabase.Refresh();
         }
     }
 
@@ -79,36 +76,20 @@ public class ReadmeEditor : Editor
 
     static Readme SelectReadme()
     {
-        string[] readmeGuids = AssetDatabase.FindAssets("t:Readme");
-        
-        // Prioritize the main readme at root level
-        foreach (string guid in readmeGuids)
+        var ids = AssetDatabase.FindAssets("Readme t:Readme");
+        if (ids.Length == 1)
         {
-            string path = AssetDatabase.GUIDToAssetPath(guid);
-            if (path == "Assets/Readme.asset")
-            {
-                var readme = AssetDatabase.LoadAssetAtPath<Readme>(path);
-                if (readme != null)
-                {
-                    Selection.objects = new UnityEngine.Object[] { readme };
-                    return readme;
-                }
-            }
+            var readmeObject = AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(ids[0]));
+
+            Selection.objects = new UnityEngine.Object[] { readmeObject };
+
+            return (Readme)readmeObject;
         }
-        
-        // Fallback to first available readme
-        if (readmeGuids.Length > 0)
+        else
         {
-            string path = AssetDatabase.GUIDToAssetPath(readmeGuids[0]);
-            var readme = AssetDatabase.LoadAssetAtPath<Readme>(path);
-            if (readme != null)
-            {
-                Selection.objects = new UnityEngine.Object[] { readme };
-                return readme;
-            }
+            Debug.Log("Couldn't find a readme");
+            return null;
         }
-        
-        return null;
     }
 
     protected override void OnHeaderGUI()
@@ -160,23 +141,7 @@ public class ReadmeEditor : Editor
             {
                 if (LinkLabel(new GUIContent(section.linkText)))
                 {
-                    // Check for asset reference first
-                    if (!string.IsNullOrEmpty(section.assetGuid))
-                    {
-                        string assetPath = AssetDatabase.GUIDToAssetPath(section.assetGuid);
-                        if (!string.IsNullOrEmpty(assetPath))
-                        {
-                            var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
-                            if (asset != null)
-                            {
-                                EditorGUIUtility.PingObject(asset);
-                            }
-                        }
-                    }
-                    else if (!string.IsNullOrEmpty(section.url))
-                    {
-                        Application.OpenURL(section.url);
-                    }
+                    Application.OpenURL(section.url);
                 }
             }
 
