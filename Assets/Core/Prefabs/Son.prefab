@@ -213,8 +213,8 @@ MonoBehaviour:
   Interpolate: 1
   SlerpPosition: 0
   directionMode: 2
-  moveSpeed: 3
-  sprintSpeed: 15
+  moveSpeed: 4
+  sprintSpeed: 20
   rotationSmoothTime: 0.1
   speedChangeRate: 15
   forceDecayRate: 5
@@ -430,6 +430,18 @@ PrefabInstance:
     - target: {fileID: 386522604490557491, guid: 464ba1a78787ce2439ebac7e4c53f81b, type: 3}
       propertyPath: m_Name
       value: Son
+      objectReference: {fileID: 0}
+    - target: {fileID: 1015250478228951689, guid: 464ba1a78787ce2439ebac7e4c53f81b, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 1015250478228951689, guid: 464ba1a78787ce2439ebac7e4c53f81b, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 1015250478228951689, guid: 464ba1a78787ce2439ebac7e4c53f81b, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.7
       objectReference: {fileID: 0}
     - target: {fileID: 1015250478228951689, guid: 464ba1a78787ce2439ebac7e4c53f81b, type: 3}
       propertyPath: m_LocalPosition.x
