@@ -28,13 +28,14 @@ public class AutoSessionStarter : MonoBehaviour
 
         m_HasStarted = true;
         
-        await Task.Delay(500); // Give the game scene a moment to fully initialize
+        // Đợi lâu hơn để cho SDK Lobby hoàn tất cleanup nội bộ trước khi bắt đầu Session mới
+        await Task.Delay(1500);
 
         if (Unity.Netcode.NetworkManager.Singleton.IsListening)
         {
             Debug.LogWarning("[AutoSessionStarter] NetworkManager was already listening! Shutting down...");
             Unity.Netcode.NetworkManager.Singleton.Shutdown();
-            await Task.Delay(1000);
+            await Task.Delay(1500);
         }
 
         if (m_IsHost)
@@ -88,27 +89,59 @@ public class AutoSessionStarter : MonoBehaviour
             string sessionId = null;
             
             // Liên tục kiểm tra sảnh matchmaking xem Host đã đẩy sessionId lên chưa
-            while (string.IsNullOrEmpty(sessionId) && this != null)
+            int pollAttempts = 0;
+            while (string.IsNullOrEmpty(sessionId) && this != null && pollAttempts < 30)
             {
-                var lobby = await LobbyService.Instance.GetLobbyAsync(m_LobbyId);
-                if (lobby.Data.ContainsKey("sessionId") && !string.IsNullOrEmpty(lobby.Data["sessionId"].Value))
+                pollAttempts++;
+                try
                 {
-                    sessionId = lobby.Data["sessionId"].Value;
-                    break;
+                    var lobby = await LobbyService.Instance.GetLobbyAsync(m_LobbyId);
+                    if (lobby.Data.ContainsKey("sessionId") && !string.IsNullOrEmpty(lobby.Data["sessionId"].Value))
+                    {
+                        sessionId = lobby.Data["sessionId"].Value;
+                        break;
+                    }
                 }
-                await Task.Delay(1000);
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[AutoSessionStarter] Poll Lobby attempt {pollAttempts} failed: {ex.Message}");
+                }
+                await Task.Delay(2000);
             }
 
             if (!string.IsNullOrEmpty(sessionId))
             {
-                Debug.Log($"[AutoSessionStarter] Tìm thấy Session: {sessionId}. Bắt đầu Join...");
+                Debug.Log($"[AutoSessionStarter] Tìm thấy Session: {sessionId}. Chờ SDK cleanup rồi Join...");
                 
-                // Rời sảnh matchmaking cũ để tránh kẹt
-                try { await LobbyService.Instance.RemovePlayerAsync(m_LobbyId, Unity.Services.Authentication.AuthenticationService.Instance.PlayerId); } catch { }
+                // Đợi thêm để SDK nội bộ hoàn tất cleanup Lobby session cũ
+                await Task.Delay(2000);
 
                 var joinOptions = new JoinSessionOptions { Type = "default-session" };
-                await MultiplayerService.Instance.JoinSessionByIdAsync(sessionId, joinOptions);
-                Debug.Log("[AutoSessionStarter] Client hoàn tất tự động vào game!");
+                
+                // Thử join với retry
+                int maxRetries = 3;
+                for (int attempt = 1; attempt <= maxRetries; attempt++)
+                {
+                    try
+                    {
+                        Debug.Log($"[AutoSessionStarter] Join attempt {attempt}/{maxRetries}...");
+                        await MultiplayerService.Instance.JoinSessionByIdAsync(sessionId, joinOptions);
+                        Debug.Log("[AutoSessionStarter] Client hoàn tất tự động vào game!");
+                        
+                        // Rời sảnh matchmaking cũ SAU KHI join thành công
+                        try { await LobbyService.Instance.RemovePlayerAsync(m_LobbyId, Unity.Services.Authentication.AuthenticationService.Instance.PlayerId); } catch { }
+                        break;
+                    }
+                    catch (System.Exception ex) when (attempt < maxRetries)
+                    {
+                        Debug.LogWarning($"[AutoSessionStarter] Join attempt {attempt} failed: {ex.Message}. Retrying in 2s...");
+                        await Task.Delay(2000);
+                    }
+                }
+            }
+            else
+            {
+                Debug.LogError("[AutoSessionStarter] Không tìm thấy sessionId sau 30 lần thử!");
             }
             Destroy(gameObject);
         }
