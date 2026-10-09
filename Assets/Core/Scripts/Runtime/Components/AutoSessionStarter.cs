@@ -24,9 +24,19 @@ public class AutoSessionStarter : MonoBehaviour
         // Đợi cho đến khi sang Game Scene và MultiplayerService/NetworkManager đã sẵn sàng
         if (MultiplayerService.Instance == null) return;
         if (Unity.Netcode.NetworkManager.Singleton == null) return;
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby")) return;
 
         m_HasStarted = true;
         
+        await Task.Delay(500); // Give the game scene a moment to fully initialize
+
+        if (Unity.Netcode.NetworkManager.Singleton.IsListening)
+        {
+            Debug.LogWarning("[AutoSessionStarter] NetworkManager was already listening! Shutting down...");
+            Unity.Netcode.NetworkManager.Singleton.Shutdown();
+            await Task.Delay(1000);
+        }
+
         if (m_IsHost)
         {
             await StartHostRoutine();
