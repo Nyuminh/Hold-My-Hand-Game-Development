@@ -205,7 +205,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   NetworkAnimatorExpanded: 0
   AuthorityMode: 0
-  m_Animator: {fileID: 7613961457583713636, guid: d44e26f98f3e448988291f85f97cc468, type: 3}
+  m_Animator: {fileID: 7770423575107433308}
   TransitionStateInfoList:
   - IsCrossFadeExit: 0
     Layer: 0

@@ -472,6 +472,10 @@ PrefabInstance:
       value: The Child
       objectReference: {fileID: 0}
     - target: {fileID: 9046479664873733684, guid: 09465c8c61be1e6428777ff9f5091e49, type: 3}
+      propertyPath: m_Animator
+      value: 
+      objectReference: {fileID: 4573971436018351059}
+    - target: {fileID: 9046479664873733684, guid: 09465c8c61be1e6428777ff9f5091e49, type: 3}
       propertyPath: coreMovement
       value: 
       objectReference: {fileID: 7875331226141230548}
