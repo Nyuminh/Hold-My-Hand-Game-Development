@@ -1213,7 +1213,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::RoleBasedSpawner
   dadPrefab: {fileID: 4416926081852918481, guid: 416a3901474f7ea43bdcee85c53bf83c, type: 3}
-  childPrefab: {fileID: 4416926081852918481, guid: a5e9c32024505fd41b7184a452cc6015, type: 3}
+  childPrefab: {fileID: 4416926081852918481, guid: 3a02b2dd8a196e24db5554b9efb39c7a, type: 3}
 --- !u!1001 &4231823221422156427
 PrefabInstance:
   m_ObjectHideFlags: 0
