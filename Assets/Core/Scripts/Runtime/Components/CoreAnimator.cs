@@ -132,7 +132,7 @@ namespace Blocks.Gameplay.Core
 
             // Set floats for speed and input magnitude to drive blend trees.
             Animator.SetFloat(m_AnimIDSpeed, coreMovement.CurrentSpeed);
-            Animator.SetFloat(m_AnimIDMotionSpeed, coreMovement.InputMagnitude);
+            Animator.SetFloat(m_AnimIDMotionSpeed, coreMovement.InputMagnitude > 0.01f ? coreMovement.InputMagnitude : 1f);
         }
 
         public void TurnInPlaceStart()

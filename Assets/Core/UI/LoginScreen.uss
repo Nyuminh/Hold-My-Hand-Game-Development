@@ -1,0 +1,235 @@
+/* ============================================================
+   LoginScreen.uss — Premium "Hold My Hand" Login UI
+   ============================================================ */
+
+/* ── Root Container ─────────────────────────────────────────── */
+#main-container {
+    flex-grow: 1;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 80px;
+    -unity-background-scale-mode: scale-and-crop;
+}
+
+/* ── Glass Card ─────────────────────────────────────────────── */
+#glass-card {
+    width: 380px;
+    padding: 40px 36px;
+    border-radius: 20px;
+    background-color: rgba(10, 10, 18, 0.82);
+    border-width: 1.5px;
+    border-color: rgba(240, 180, 50, 0.25);
+    align-items: stretch;
+}
+
+/* ── Title / Logo Area ──────────────────────────────────────── */
+#title-container {
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.title-main {
+    font-size: 36px;
+    color: rgb(245, 195, 60);
+    -unity-font-style: bold;
+    letter-spacing: 3px;
+    -unity-text-align: middle-center;
+}
+
+.title-sub {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.45);
+    -unity-font-style: italic;
+    -unity-text-align: middle-center;
+    margin-top: 4px;
+    margin-bottom: 24px;
+}
+
+/* ── Decorative Divider ─────────────────────────────────────── */
+.divider {
+    height: 2px;
+    background-color: rgba(240, 180, 50, 0.20);
+    margin-bottom: 28px;
+    border-radius: 1px;
+    align-self: stretch;
+}
+
+/* ── Form Labels ────────────────────────────────────────────── */
+.field-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.50);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+    -unity-font-style: bold;
+}
+
+/* ── Input Field Wrapper ────────────────────────────────────── */
+.input-wrapper {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.10);
+    padding-left: 14px;
+    margin-bottom: 20px;
+    height: 48px;
+}
+
+.input-wrapper:hover {
+    border-color: rgba(240, 180, 50, 0.40);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Icon inside input */
+.input-icon {
+    font-size: 18px;
+    color: rgba(240, 180, 50, 0.60);
+    margin-right: 10px;
+    width: 24px;
+    -unity-text-align: middle-center;
+}
+
+/* The actual TextField inside the wrapper */
+.input-field {
+    flex-grow: 1;
+    font-size: 15px;
+    color: rgb(230, 230, 235);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    height: 100%;
+    margin: 0;
+    padding: 0 10px 0 0;
+}
+
+/* Remove Unity default TextField visuals */
+.input-field > .unity-text-field__input {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 0;
+    color: rgb(230, 230, 235);
+    padding: 0;
+    margin: 0;
+    -unity-text-align: middle-left;
+}
+
+.input-field:focus > .unity-text-field__input {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+}
+
+/* ── Login Button (Primary CTA) ─────────────────────────────── */
+#login-button {
+    height: 52px;
+    background-color: rgb(230, 170, 40);
+    color: rgb(20, 15, 5);
+    border-radius: 12px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    letter-spacing: 3px;
+    border-width: 0;
+    margin-top: 8px;
+    transition-duration: 0.2s;
+    transition-property: background-color, scale;
+}
+
+#login-button:hover {
+    background-color: rgb(245, 190, 55);
+    scale: 1.02 1.02;
+}
+
+#login-button:active {
+    background-color: rgb(200, 145, 25);
+    scale: 0.98 0.98;
+}
+
+#login-button:disabled {
+    background-color: rgba(230, 170, 40, 0.40);
+    color: rgba(20, 15, 5, 0.50);
+}
+
+/* ── Play Button (After Login) ──────────────────────────────── */
+#play-button {
+    height: 60px;
+    background-color: rgb(230, 170, 40);
+    color: rgb(20, 15, 5);
+    border-radius: 14px;
+    font-size: 22px;
+    -unity-font-style: bold;
+    letter-spacing: 3px;
+    border-width: 0;
+    margin-bottom: 20px;
+    transition-duration: 0.2s;
+    transition-property: background-color, scale;
+}
+
+#play-button:hover {
+    background-color: rgb(245, 190, 55);
+    scale: 1.03 1.03;
+}
+
+#play-button:active {
+    background-color: rgb(200, 145, 25);
+    scale: 0.97 0.97;
+}
+
+/* ── Logout Button ──────────────────────────────────────────── */
+#logout-button {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.50);
+    font-size: 13px;
+    height: 36px;
+    align-self: center;
+    padding: 0 20px;
+    transition-duration: 0.15s;
+    transition-property: color, border-color;
+}
+
+#logout-button:hover {
+    color: rgba(255, 100, 100, 0.90);
+    border-color: rgba(255, 100, 100, 0.40);
+}
+
+/* ── Welcome Label (Logged In) ──────────────────────────────── */
+#welcome-label {
+    font-size: 26px;
+    color: rgb(245, 195, 60);
+    -unity-font-style: bold;
+    margin-bottom: 28px;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+/* ── Logged In State Container ──────────────────────────────── */
+#logged-in-state {
+    display: none;
+    align-items: stretch;
+}
+
+/* ── Status / Error Label ───────────────────────────────────── */
+#status-label {
+    color: rgb(255, 120, 100);
+    -unity-text-align: middle-center;
+    margin-top: 20px;
+    font-size: 13px;
+    white-space: normal;
+}
+
+/* ── Footer Text ────────────────────────────────────────────── */
+.footer-text {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.30);
+    -unity-text-align: middle-center;
+    margin-top: 24px;
+}
+
+/* ── Version Tag ────────────────────────────────────────────── */
+.version-tag {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.15);
+    -unity-text-align: middle-center;
+    margin-top: 12px;
+}

@@ -206,11 +206,26 @@ namespace Blocks.Gameplay.Core
         {
             // Player 1 luôn hiện (nhân vật mình)
             if (player1Preview != null)
+            {
+                EnsurePreviewAnimator(player1Preview);
                 player1Preview.SetActive(true);
+            }
 
             // Player 2 ẩn ban đầu
             if (player2Preview != null)
+            {
+                EnsurePreviewAnimator(player2Preview);
                 player2Preview.SetActive(false);
+            }
+        }
+
+        private void EnsurePreviewAnimator(GameObject preview)
+        {
+            if (preview == null) return;
+            if (!preview.TryGetComponent<LobbyPreviewAnimator>(out _))
+            {
+                preview.AddComponent<LobbyPreviewAnimator>();
+            }
         }
 
         private void UpdatePlayerInfo()
@@ -649,10 +664,16 @@ namespace Blocks.Gameplay.Core
             bool hasChild = !string.IsNullOrEmpty(lobby.childUserId);
             
             if (player1Preview != null)
+            {
+                EnsurePreviewAnimator(player1Preview);
                 player1Preview.SetActive(hasDad);
+            }
 
             if (player2Preview != null)
+            {
+                EnsurePreviewAnimator(player2Preview);
                 player2Preview.SetActive(hasChild);
+            }
 
             // PLAY button — chỉ enable khi đủ 2 người + status Waiting
             bool canPlay = hasPlayer2 && lobby.status == "Waiting";

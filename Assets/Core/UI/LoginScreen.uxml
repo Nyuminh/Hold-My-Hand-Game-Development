@@ -1,20 +1,54 @@
 <engine:UXML xmlns:engine="UnityEngine.UIElements" xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <engine:VisualElement name="main-container" style="flex-grow: 1; justify-content: flex-end; align-items: flex-start; padding: 60px; background-image: url(&quot;project://database/Assets/Core/UI/bannerrr.png?fileID=2800000&amp;guid=160a7ae721f5f9d47801a3a9f8f6c17e&amp;type=3#bannerrr&quot;); -unity-background-scale-mode: scale-and-crop;">
-        <engine:VisualElement style="width: 305px; padding: 32px; border-radius: 16px; background-color: rgba(15, 15, 20, 0.85); border-width: 1px; border-color: rgba(255, 255, 255, 0.1); align-items: stretch; justify-content: space-around;">
+    <engine:Style src="project://database/Assets/Core/UI/LoginScreen.uss" />
+
+    <engine:VisualElement name="main-container" style="background-image: url(&quot;project://database/Assets/Core/UI/bannerrr.png?fileID=2800000&amp;guid=160a7ae721f5f9d47801a3a9f8f6c17e&amp;type=3#bannerrr&quot;);">
+
+        <engine:VisualElement name="glass-card">
+
+            <!-- ══════ Title Area ══════ -->
+            <engine:VisualElement name="title-container">
+                <engine:Label text="HOLD MY HAND" class="title-main" />
+                <engine:Label text="Welcome back" class="title-sub" />
+            </engine:VisualElement>
+
+            <engine:VisualElement class="divider" />
+
+            <!-- ══════ Login Form ══════ -->
             <engine:VisualElement name="login-form">
-                <engine:Label text="Welcome" style="font-size: 16px; color: rgba(255, 255, 255, 0.5); margin-bottom: 24px; -unity-font-style: italic;"/>
-                <engine:Label text="Username" style="color: rgba(255, 255, 255, 0.7); margin-bottom: 4px; font-size: 14px;"/>
-                <engine:TextField name="username-input" style="margin-bottom: 16px; height: 40px; font-size: 16px;"/>
-                <engine:Label text="Password" style="color: rgba(255, 255, 255, 0.7); margin-bottom: 4px; font-size: 14px;"/>
-                <engine:TextField name="password-input" password="true" style="margin-bottom: 32px; height: 40px; font-size: 16px;"/>
-                <engine:Button name="login-button" text="Login" style="height: 50px; background-color: rgb(60, 140, 220); color: white; border-radius: 8px; font-size: 18px; -unity-font-style: bold; border-width: 0;"/>
+
+                <!-- Username -->
+                <engine:Label text="USERNAME" class="field-label" />
+                <engine:VisualElement class="input-wrapper">
+                    <engine:Label text="👤" class="input-icon" />
+                    <engine:TextField name="username-input" class="input-field" />
+                </engine:VisualElement>
+
+                <!-- Password -->
+                <engine:Label text="PASSWORD" class="field-label" />
+                <engine:VisualElement class="input-wrapper">
+                    <engine:Label text="🔒" class="input-icon" />
+                    <engine:TextField name="password-input" password="true" class="input-field" />
+                </engine:VisualElement>
+
+                <!-- Login Button -->
+                <engine:Button name="login-button" text="ĐĂNG NHẬP" />
+
             </engine:VisualElement>
-            <engine:VisualElement name="logged-in-state" style="display: none; align-items: flex-start;">
-                <engine:Label name="welcome-label" text="Xin chào, Player!" style="font-size: 24px; color: white; margin-bottom: 24px; -unity-font-style: bold; white-space: normal;"/>
-                <engine:Button name="play-button" text="▶ VÀO GAME" style="height: 60px; width: 100%; background-color: rgb(240, 160, 40); color: white; border-radius: 12px; font-size: 20px; -unity-font-style: bold; letter-spacing: 2px; border-width: 0; margin-bottom: 16px;"/>
-                <engine:Button name="logout-button" text="Đăng xuất" style="background-color: transparent; border-width: 0; color: rgba(255, 255, 255, 0.5); font-size: 14px; align-self: center;"/>
+
+            <!-- ══════ Logged-In State ══════ -->
+            <engine:VisualElement name="logged-in-state">
+                <engine:Label name="welcome-label" text="Xin chào, Player!" />
+                <engine:Button name="play-button" text="▶  VÀO GAME" />
+                <engine:Button name="logout-button" text="Đăng xuất" />
             </engine:VisualElement>
-            <engine:Label name="status-label" text="" style="color: rgb(255, 100, 100); -unity-text-align: middle-center; margin-top: 16px; font-size: 14px; white-space: normal;"/>
+
+            <!-- ══════ Status Label ══════ -->
+            <engine:Label name="status-label" text="" />
+
+            <!-- ══════ Footer ══════ -->
+            <engine:Label text="v1.0 — Hold My Hand" class="version-tag" />
+
         </engine:VisualElement>
+
     </engine:VisualElement>
 </engine:UXML>
