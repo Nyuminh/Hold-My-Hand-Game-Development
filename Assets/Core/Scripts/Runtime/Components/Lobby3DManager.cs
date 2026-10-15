@@ -168,6 +168,10 @@ namespace Blocks.Gameplay.Core
                 {
                     m_CurrentLobbyId = lobby.Id;
                     m_CurrentLobbyCode = lobby.LobbyCode;
+                    if (AuthenticationService.Instance.IsSignedIn && !string.IsNullOrEmpty(lobby.HostId))
+                    {
+                        m_IsHost = (lobby.HostId == AuthenticationService.Instance.PlayerId);
+                    }
                     LobbySessionContext.SetCurrentLobby(lobby.Id, lobby.LobbyCode, m_IsHost);
 
                     if (m_IsHost)
@@ -785,8 +789,8 @@ namespace Blocks.Gameplay.Core
                 m_PlayButton.SetEnabled(canPlay);
                 if (canPlay)
                 {
-                    m_PlayButton.style.backgroundColor = new StyleColor(new Color(0.94f, 0.63f, 0.16f)); // Vàng cam
-                    m_PlayButton.style.color = new StyleColor(Color.white);
+                    m_PlayButton.style.backgroundColor = new StyleColor(new Color(0.90f, 0.66f, 0.16f)); // Vàng hoàng kim
+                    m_PlayButton.style.color = new StyleColor(new Color(0.08f, 0.06f, 0.02f)); // Chữ tối màu
                 }
                 else
                 {

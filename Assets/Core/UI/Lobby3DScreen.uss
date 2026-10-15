@@ -1,6 +1,6 @@
 /* ============================================================
    Lobby3DScreen.uss — Premium 3D Lobby UI for Hold My Hand
-   Theme: Dark Glassmorphism with Amber & Cyan Accents
+   Theme: Frameless Dark Glassmorphism, Sharp Corners, Amber Accent
    ============================================================ */
 
 /* ── Root Canvas ────────────────────────────────────────────── */
@@ -22,63 +22,62 @@
 .player-profile-card {
     flex-direction: row;
     align-items: center;
-    background-color: rgba(12, 14, 24, 0.82);
-    padding: 12px 22px;
-    border-radius: 16px;
-    border-width: 1.5px;
-    border-color: rgba(240, 180, 50, 0.25);
-    transition-property: border-color, background-color;
+    background-color: rgba(10, 12, 18, 0.88);
+    padding: 10px 18px;
+    border-radius: 0;
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    transition-property: background-color;
     transition-duration: 0.2s;
 }
 
 .player-profile-card:hover {
-    border-color: rgba(240, 180, 50, 0.5);
-    background-color: rgba(18, 22, 38, 0.9);
+    background-color: rgba(16, 20, 32, 0.95);
 }
 
 .avatar-icon-badge {
-    width: 44px;
-    height: 44px;
-    border-radius: 22px;
-    background-color: rgba(240, 180, 50, 0.15);
-    border-width: 1.5px;
-    border-color: rgba(240, 180, 50, 0.4);
+    width: 38px;
+    height: 38px;
+    border-radius: 0;
+    background-color: rgba(240, 180, 50, 0.18);
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
     justify-content: center;
     align-items: center;
-    margin-right: 14px;
+    margin-right: 12px;
 }
 
 .avatar-icon-label {
-    font-size: 22px;
+    font-size: 20px;
     -unity-text-align: middle-center;
 }
 
 #player-name-label {
-    font-size: 17px;
+    font-size: 15px;
     color: rgb(255, 255, 255);
     -unity-font-style: bold;
     letter-spacing: 0.5px;
 }
 
 #player-role-label {
-    font-size: 13px;
+    font-size: 12px;
     color: rgb(245, 195, 60);
-    margin-top: 3px;
+    margin-top: 2px;
     -unity-font-style: bold;
 }
 
 /* ── Room Info Panel (Top Right) ────────────────────────────── */
 #room-info-panel {
     align-items: flex-end;
-    background-color: rgba(12, 14, 24, 0.88);
-    padding: 14px 24px;
-    border-radius: 16px;
-    border-width: 1.5px;
-    border-color: rgba(100, 200, 255, 0.35);
+    background-color: rgba(10, 12, 18, 0.88);
+    padding: 12px 20px;
+    border-radius: 0;
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
 }
 
 .room-tag-label {
-    font-size: 11px;
+    font-size: 10px;
     color: rgba(255, 255, 255, 0.45);
     letter-spacing: 2px;
     -unity-font-style: bold;
@@ -87,26 +86,26 @@
 .room-code-row {
     flex-direction: row;
     align-items: center;
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
 #room-code-label {
-    font-size: 32px;
+    font-size: 28px;
     color: rgb(120, 220, 255);
     -unity-font-style: bold;
-    letter-spacing: 4px;
-    margin-right: 12px;
+    letter-spacing: 3px;
+    margin-right: 10px;
 }
 
 #copy-code-button {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    background-color: rgba(100, 200, 255, 0.15);
-    border-width: 1px;
-    border-color: rgba(100, 200, 255, 0.3);
+    width: 34px;
+    height: 34px;
+    border-radius: 0;
+    background-color: rgba(100, 200, 255, 0.18);
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
     color: rgb(255, 255, 255);
-    font-size: 16px;
+    font-size: 15px;
     justify-content: center;
     align-items: center;
     transition-property: background-color, scale;
@@ -115,7 +114,7 @@
 
 #copy-code-button:hover {
     background-color: rgba(100, 200, 255, 0.35);
-    scale: 1.08;
+    scale: 1.05;
 }
 
 #copy-code-button:active {
@@ -123,9 +122,9 @@
 }
 
 #room-status-label {
-    font-size: 13px;
+    font-size: 12px;
     color: rgb(255, 200, 100);
-    margin-top: 5px;
+    margin-top: 4px;
     -unity-font-style: bold;
 }
 
@@ -140,14 +139,13 @@
 }
 
 #toast-label {
-    background-color: rgba(15, 15, 25, 0.92);
+    background-color: rgba(10, 12, 18, 0.95);
     color: rgb(255, 225, 120);
-    font-size: 15px;
+    font-size: 14px;
     -unity-font-style: bold;
-    padding: 12px 28px;
-    border-radius: 24px;
-    border-width: 1.5px;
-    border-color: rgba(240, 180, 50, 0.4);
+    padding: 10px 24px;
+    border-radius: 0;
+    border-width: 0;
     letter-spacing: 1px;
 }
 
@@ -156,39 +154,39 @@
     flex-direction: row;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 28px 36px;
+    padding: 24px 32px;
 }
 
 /* ── Session List Panel (Bottom Left) ───────────────────────── */
 #session-list-panel {
-    background-color: rgba(12, 14, 24, 0.92);
-    padding: 20px;
-    border-radius: 18px;
-    border-width: 1.5px;
-    border-color: rgba(255, 255, 255, 0.12);
-    width: 420px;
-    max-height: 320px;
+    background-color: rgba(10, 12, 18, 0.94);
+    padding: 16px 18px;
+    border-radius: 0;
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    width: 380px;
+    max-height: 300px;
 }
 
 .session-title-label {
-    font-size: 14px;
+    font-size: 13px;
     color: rgb(245, 195, 60);
     -unity-font-style: bold;
     letter-spacing: 1.5px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 #session-scroll {
     flex-grow: 1;
-    max-height: 200px;
-    margin-bottom: 14px;
+    max-height: 180px;
+    margin-bottom: 12px;
 }
 
 #no-sessions-label {
-    font-size: 13px;
+    font-size: 12px;
     color: rgba(255, 255, 255, 0.45);
     -unity-text-align: middle-center;
-    padding: 24px 12px;
+    padding: 20px 10px;
 }
 
 .session-button-row {
@@ -197,15 +195,14 @@
 
 #refresh-sessions-button {
     flex-grow: 1;
-    height: 40px;
-    font-size: 13px;
+    height: 36px;
+    font-size: 12px;
     -unity-font-style: bold;
     background-color: rgba(255, 255, 255, 0.1);
     color: rgb(255, 255, 255);
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: rgba(255, 255, 255, 0.15);
-    margin-right: 10px;
+    border-radius: 0;
+    border-width: 0;
+    margin-right: 8px;
     transition-property: background-color, scale;
     transition-duration: 0.15s;
 }
@@ -216,58 +213,56 @@
 }
 
 #close-sessions-button {
-    height: 40px;
-    font-size: 13px;
+    height: 36px;
+    font-size: 12px;
     -unity-font-style: bold;
-    background-color: rgba(255, 60, 60, 0.15);
+    background-color: rgba(220, 50, 50, 0.25);
     color: rgb(255, 130, 130);
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: rgba(255, 60, 60, 0.3);
-    padding: 0 20px;
+    border-radius: 0;
+    border-width: 0;
+    padding: 0 16px;
     transition-property: background-color, scale;
     transition-duration: 0.15s;
 }
 
 #close-sessions-button:hover {
-    background-color: rgba(255, 60, 60, 0.3);
+    background-color: rgba(220, 50, 50, 0.45);
     scale: 1.02;
 }
 
 /* ── Join Code Dialog Panel (Bottom Right) ──────────────────── */
 #join-code-panel {
-    background-color: rgba(12, 14, 24, 0.94);
-    padding: 22px;
-    border-radius: 18px;
-    border-width: 1.5px;
-    border-color: rgba(100, 180, 255, 0.35);
-    margin-bottom: 14px;
-    width: 340px;
+    background-color: rgba(10, 12, 18, 0.95);
+    padding: 18px 20px;
+    border-radius: 0;
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    margin-bottom: 12px;
+    width: 300px;
 }
 
 .dialog-heading-label {
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.55);
     letter-spacing: 1.5px;
     -unity-font-style: bold;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 #join-code-input {
-    font-size: 22px;
+    font-size: 20px;
     -unity-text-align: middle-center;
-    letter-spacing: 4px;
-    height: 48px;
-    margin-bottom: 16px;
-    background-color: rgba(255, 255, 255, 0.07);
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: rgba(100, 180, 255, 0.3);
+    letter-spacing: 3px;
+    height: 40px;
+    margin-bottom: 12px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 0;
+    border-width: 0;
     color: rgb(255, 255, 255);
 }
 
 #join-code-input:hover {
-    border-color: rgba(100, 180, 255, 0.6);
+    background-color: rgba(255, 255, 255, 0.12);
 }
 
 #join-code-input .unity-base-text-field__input {
@@ -284,37 +279,38 @@
 
 #confirm-join-button {
     flex-grow: 1;
-    height: 44px;
-    font-size: 14px;
+    height: 38px;
+    font-size: 13px;
     -unity-font-style: bold;
-    background-color: rgb(50, 120, 230);
-    color: rgb(255, 255, 255);
-    border-radius: 10px;
+    background-color: rgb(230, 170, 40);
+    color: rgb(20, 15, 5);
+    border-radius: 0;
     border-width: 0;
-    margin-right: 10px;
+    margin-right: 8px;
     letter-spacing: 1px;
     transition-property: background-color, scale;
     transition-duration: 0.15s;
 }
 
 #confirm-join-button:hover {
-    background-color: rgb(70, 140, 250);
-    scale: 1.03;
+    background-color: rgb(245, 190, 55);
+    scale: 1.02;
 }
 
 #confirm-join-button:active {
-    scale: 0.97;
+    background-color: rgb(200, 145, 25);
+    scale: 0.98;
 }
 
 #cancel-join-button {
-    height: 44px;
-    font-size: 14px;
+    height: 38px;
+    font-size: 13px;
     -unity-font-style: bold;
     background-color: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.65);
-    border-radius: 10px;
+    border-radius: 0;
     border-width: 0;
-    padding: 0 22px;
+    padding: 0 18px;
     transition-property: background-color, scale;
     transition-duration: 0.15s;
 }
@@ -330,29 +326,28 @@
 }
 
 #create-room-button {
-    width: 290px;
-    height: 56px;
-    font-size: 17px;
+    width: 270px;
+    height: 48px;
+    font-size: 15px;
     -unity-font-style: bold;
-    letter-spacing: 1.5px;
-    background-color: rgb(240, 160, 40);
-    color: rgb(255, 255, 255);
-    border-radius: 14px;
-    border-width: 1px;
-    border-color: rgba(255, 220, 120, 0.4);
-    margin-bottom: 12px;
+    letter-spacing: 2px;
+    background-color: rgb(230, 170, 40);
+    color: rgb(20, 15, 5);
+    border-radius: 0;
+    border-width: 0;
+    margin-bottom: 10px;
     transition-property: background-color, scale;
     transition-duration: 0.15s;
 }
 
 #create-room-button:hover {
-    background-color: rgb(255, 175, 55);
-    scale: 1.03;
-    border-color: rgba(255, 240, 180, 0.7);
+    background-color: rgb(245, 190, 55);
+    scale: 1.02;
 }
 
 #create-room-button:active {
-    scale: 0.97;
+    background-color: rgb(200, 145, 25);
+    scale: 0.98;
 }
 
 .secondary-buttons-row {
@@ -360,55 +355,52 @@
 }
 
 #join-room-button {
-    width: 165px;
-    height: 48px;
-    font-size: 14px;
+    width: 150px;
+    height: 40px;
+    font-size: 13px;
     -unity-font-style: bold;
-    background-color: rgba(50, 120, 230, 0.25);
-    color: rgb(150, 210, 255);
-    border-radius: 12px;
-    border-width: 1.5px;
-    border-color: rgba(100, 170, 255, 0.4);
-    margin-right: 10px;
+    background-color: rgba(255, 255, 255, 0.10);
+    color: rgb(240, 240, 245);
+    border-radius: 0;
+    border-width: 0;
+    margin-right: 8px;
     letter-spacing: 0.5px;
-    transition-property: background-color, scale, border-color;
+    transition-property: background-color, scale;
     transition-duration: 0.15s;
 }
 
 #join-room-button:hover {
-    background-color: rgba(50, 120, 230, 0.45);
-    border-color: rgba(140, 200, 255, 0.7);
+    background-color: rgba(255, 255, 255, 0.20);
     color: rgb(255, 255, 255);
-    scale: 1.03;
+    scale: 1.02;
 }
 
 #join-room-button:active {
-    scale: 0.97;
+    scale: 0.98;
 }
 
 #browse-sessions-button {
-    width: 125px;
-    height: 48px;
-    font-size: 14px;
+    width: 112px;
+    height: 40px;
+    font-size: 13px;
     -unity-font-style: bold;
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.75);
-    border-radius: 12px;
-    border-width: 1.5px;
-    border-color: rgba(255, 255, 255, 0.15);
+    border-radius: 0;
+    border-width: 0;
     letter-spacing: 0.5px;
     transition-property: background-color, scale;
     transition-duration: 0.15s;
 }
 
 #browse-sessions-button:hover {
-    background-color: rgba(255, 255, 255, 0.18);
+    background-color: rgba(255, 255, 255, 0.15);
     color: rgb(255, 255, 255);
-    scale: 1.03;
+    scale: 1.02;
 }
 
 #browse-sessions-button:active {
-    scale: 0.97;
+    scale: 0.98;
 }
 
 /* ── Lobby Buttons Panel (Inside Room) ──────────────────────── */
@@ -417,25 +409,24 @@
 }
 
 #play-button {
-    width: 300px;
-    height: 64px;
-    font-size: 22px;
+    width: 270px;
+    height: 52px;
+    font-size: 18px;
     -unity-font-style: bold;
     letter-spacing: 2px;
-    border-radius: 16px;
-    border-width: 1.5px;
-    border-color: rgba(255, 255, 255, 0.15);
-    margin-bottom: 12px;
+    border-radius: 0;
+    border-width: 0;
+    margin-bottom: 10px;
     transition-property: scale, background-color;
     transition-duration: 0.15s;
 }
 
 #play-button:hover {
-    scale: 1.04;
+    scale: 1.02;
 }
 
 #play-button:active {
-    scale: 0.97;
+    scale: 0.98;
 }
 
 .in-room-actions-row {
@@ -443,52 +434,50 @@
 }
 
 #swap-role-button {
-    height: 44px;
-    font-size: 13px;
+    height: 38px;
+    font-size: 12px;
     -unity-font-style: bold;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.10);
     color: rgba(255, 255, 255, 0.85);
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: rgba(255, 255, 255, 0.18);
-    padding: 0 20px;
-    margin-right: 10px;
+    border-radius: 0;
+    border-width: 0;
+    padding: 0 16px;
+    margin-right: 8px;
     letter-spacing: 0.5px;
     transition-property: background-color, scale;
     transition-duration: 0.15s;
 }
 
 #swap-role-button:hover {
-    background-color: rgba(255, 255, 255, 0.22);
+    background-color: rgba(255, 255, 255, 0.20);
     color: rgb(255, 255, 255);
-    scale: 1.03;
+    scale: 1.02;
 }
 
 #swap-role-button:active {
-    scale: 0.97;
+    scale: 0.98;
 }
 
 #leave-room-button {
-    height: 44px;
-    font-size: 13px;
+    height: 38px;
+    font-size: 12px;
     -unity-font-style: bold;
-    background-color: rgba(255, 60, 60, 0.18);
-    color: rgb(255, 130, 130);
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: rgba(255, 60, 60, 0.35);
-    padding: 0 20px;
+    background-color: rgba(220, 50, 50, 0.20);
+    color: rgb(255, 120, 120);
+    border-radius: 0;
+    border-width: 0;
+    padding: 0 16px;
     letter-spacing: 0.5px;
     transition-property: background-color, scale;
     transition-duration: 0.15s;
 }
 
 #leave-room-button:hover {
-    background-color: rgba(255, 60, 60, 0.35);
+    background-color: rgba(220, 50, 50, 0.38);
     color: rgb(255, 180, 180);
-    scale: 1.03;
+    scale: 1.02;
 }
 
 #leave-room-button:active {
-    scale: 0.97;
+    scale: 0.98;
 }

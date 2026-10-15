@@ -423,8 +423,12 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
-            // Cleanup Network & Multiplayer Services
-            CleanupNetworkSession();
+            // Cleanup Network & Multiplayer Services (chờ hoàn tất đóng session và huỷ NetworkManager)
+            var cleanupTask = CleanupNetworkSessionAsync();
+            while (!cleanupTask.IsCompleted)
+            {
+                yield return null;
+            }
 
             // Huỷ GameManager của ván chơi cũ để khi vào ván mới sẽ khởi tạo GameManager với scene references mới tinh
             if (GameManager.Instance != null)
@@ -459,7 +463,7 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        private async void CleanupNetworkSession()
+        private async Task CleanupNetworkSessionAsync()
         {
             try
             {
@@ -479,9 +483,13 @@ namespace Blocks.Gameplay.Core
 
             try
             {
-                if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+                if (NetworkManager.Singleton != null)
                 {
-                    NetworkManager.Singleton.Shutdown();
+                    if (NetworkManager.Singleton.IsListening)
+                    {
+                        NetworkManager.Singleton.Shutdown();
+                    }
+                    Destroy(NetworkManager.Singleton.gameObject);
                 }
             }
             catch (Exception ex)
