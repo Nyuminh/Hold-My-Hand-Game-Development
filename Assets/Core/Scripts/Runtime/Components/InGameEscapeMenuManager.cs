@@ -163,11 +163,16 @@ namespace Blocks.Gameplay.Core
             {
                 escPressed = true;
             }
-#endif
-            if (!escPressed && Input.GetKeyDown(KeyCode.Escape))
+            else if (Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame)
             {
                 escPressed = true;
             }
+#elif ENABLE_LEGACY_INPUT_MANAGER
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                escPressed = true;
+            }
+#endif
 
             if (escPressed)
             {
