@@ -679,6 +679,63 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!1001 &1978097964
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.038932662
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.049999952
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -1.1429199
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.668487
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.6684872
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.23048873
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0.23048878
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: -90
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: -38.048
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
+      propertyPath: m_Name
+      value: vintage_living_room
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 512385523d8806d499f07173c3ed94b4, type: 3}
 --- !u!1001 &2025194672
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -847,3 +904,4 @@ SceneRoots:
   - {fileID: 148165207}
   - {fileID: 2025194672}
   - {fileID: 2069772365}
+  - {fileID: 1978097964}
