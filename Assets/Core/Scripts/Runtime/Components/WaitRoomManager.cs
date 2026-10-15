@@ -118,7 +118,7 @@ namespace Blocks.Gameplay.Core
             // Fallback: Tìm các nhân vật CoreMovement đã xuất hiện trong Scene
             if (count < 2)
             {
-                var movements = FindObjectsByType<CoreMovement>(FindObjectsSortMode.None);
+                var movements = FindObjectsByType<CoreMovement>();
                 if (movements != null && movements.Length > count)
                 {
                     count = movements.Length;

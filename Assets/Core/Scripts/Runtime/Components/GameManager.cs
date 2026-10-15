@@ -511,6 +511,17 @@ namespace Blocks.Gameplay.Core
             return (int)(clientId % (ulong)spawnPoints.Count);
         }
 
+        /// <summary>
+        /// Returns a random spawn index for respawning.
+        /// Used for respawning to add variety and prevent spawn camping.
+        /// </summary>
+        /// <returns>A random spawn point index, or -1 if no spawn points are configured.</returns>
+        private int GetRandomSpawnIndex()
+        {
+            if (spawnPoints == null || spawnPoints.Count == 0) return -1;
+            return Random.Range(0, spawnPoints.Count);
+        }
+
         public Quaternion GetSpawnRotation(ulong clientId)
         {
             int index = GetSpawnIndex(clientId);
