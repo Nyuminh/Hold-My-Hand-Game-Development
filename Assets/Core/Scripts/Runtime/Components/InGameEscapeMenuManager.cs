@@ -1,10 +1,13 @@
 using System;
 using System.Collections;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using Unity.Netcode;
 using Unity.Services.Multiplayer;
+using Unity.Services.Lobbies;
+using Unity.Services.Lobbies.Models;
 using Cursor = UnityEngine.Cursor;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -155,6 +158,12 @@ namespace Blocks.Gameplay.Core
         private void Update()
         {
             if (m_IsQuitting) return;
+
+            // Đảm bảo handlers được đăng ký ngay khi NetworkManager bắt đầu listening
+            if (!m_HandlersRegistered && NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            {
+                RegisterNetworkHandlers();
+            }
 
             bool escPressed = false;
 
@@ -373,8 +382,18 @@ namespace Blocks.Gameplay.Core
 
                 if (NetworkManager.Singleton.IsServer)
                 {
+                    // Host cập nhật UGS Lobby về Waiting trước khi báo Client và chuyển cảnh
+                    if (!string.IsNullOrEmpty(LobbySessionContext.CurrentLobbyId))
+                    {
+                        var updateTask = UpdateLobbyStatusToWaiting(LobbySessionContext.CurrentLobbyId);
+                        while (!updateTask.IsCompleted)
+                        {
+                            yield return null;
+                        }
+                    }
+
                     // Host thông báo cho tất cả Client cùng về
-                    if (isInitiator && msgMgr != null)
+                    if (msgMgr != null)
                     {
                         using (var writer = new FastBufferWriter(sizeof(byte), Unity.Collections.Allocator.Temp))
                         {
@@ -382,8 +401,9 @@ namespace Blocks.Gameplay.Core
                             msgMgr.SendNamedMessageToAll(MsgReturnToLobby, writer);
                             Debug.Log("[InGameEscapeMenu] Host đã phát sóng lệnh ReturnToLobby cho tất cả client.");
                         }
-                        // Chờ 300ms để đảm bảo gói tin mạng được gửi đi
-                        yield return new WaitForSecondsRealtime(0.3f);
+
+                        // Chờ 500ms để đảm bảo gói tin mạng được gửi qua Relay tới tất cả client
+                        yield return new WaitForSecondsRealtime(0.5f);
                     }
                 }
                 else
@@ -398,13 +418,19 @@ namespace Blocks.Gameplay.Core
                             Debug.Log("[InGameEscapeMenu] Client đã gửi yêu cầu ReturnToLobby lên Server.");
                         }
                         // Chờ phản hồi hoặc timeout 1.5s
-                        yield return new WaitForSecondsRealtime(1.0f);
+                        yield return new WaitForSecondsRealtime(1.2f);
                     }
                 }
             }
 
             // Cleanup Network & Multiplayer Services
             CleanupNetworkSession();
+
+            // Huỷ GameManager của ván chơi cũ để khi vào ván mới sẽ khởi tạo GameManager với scene references mới tinh
+            if (GameManager.Instance != null)
+            {
+                Destroy(GameManager.Instance.gameObject);
+            }
 
             yield return new WaitForSecondsRealtime(0.2f);
 
@@ -413,16 +439,36 @@ namespace Blocks.Gameplay.Core
             SceneManager.LoadScene(lobbySceneName);
         }
 
+        private async Task UpdateLobbyStatusToWaiting(string lobbyId)
+        {
+            try
+            {
+                var options = new UpdateLobbyOptions
+                {
+                    Data = new System.Collections.Generic.Dictionary<string, DataObject>
+                    {
+                        { "status", new DataObject(DataObject.VisibilityOptions.Public, "Waiting") },
+                        { "sessionId", new DataObject(DataObject.VisibilityOptions.Public, "") }
+                    }
+                };
+                await LobbyService.Instance.UpdateLobbyAsync(lobbyId, options);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[InGameEscapeMenu] UpdateLobbyStatusToWaiting warning: {ex.Message}");
+            }
+        }
+
         private async void CleanupNetworkSession()
         {
             try
             {
                 if (MultiplayerService.Instance?.Sessions != null)
                 {
-                    var session = MultiplayerService.Instance.Sessions["default-session"];
-                    if (session != null)
+                    var sessionsList = new System.Collections.Generic.List<ISession>(MultiplayerService.Instance.Sessions.Values);
+                    foreach (var s in sessionsList)
                     {
-                        await session.LeaveAsync();
+                        try { await s.LeaveAsync(); } catch { }
                     }
                 }
             }

@@ -61,6 +61,30 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        private void OnEnable()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnDisable()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+
+        private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            RefreshAudioListener();
+        }
+
+        public void RefreshAudioListener()
+        {
+            var audioListener = FindAnyObjectByType<AudioListener>();
+            if (audioListener != null && m_SoundSystem != null)
+            {
+                m_SoundSystem.SetListenerTransform(audioListener.transform);
+            }
+        }
+
         private void Update()
         {
             if (m_SoundSystem != null)

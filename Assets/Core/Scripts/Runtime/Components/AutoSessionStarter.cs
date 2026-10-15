@@ -68,8 +68,15 @@ public class AutoSessionStarter : MonoBehaviour
             };
             await LobbyService.Instance.UpdateLobbyAsync(m_LobbyId, updateOptions);
             
-            // Host có thể rời sảnh matchmaking cũ
-            try { await LobbyService.Instance.RemovePlayerAsync(m_LobbyId, Unity.Services.Authentication.AuthenticationService.Instance.PlayerId); } catch { }
+            
+            // Cập nhật trạng thái Lobby sang Playing (vẫn giữ các player trong phòng để khi thoát game cùng về sảnh)
+            try {
+                await LobbyService.Instance.UpdateLobbyAsync(m_LobbyId, new UpdateLobbyOptions {
+                    Data = new Dictionary<string, DataObject> {
+                        { "status", new DataObject(DataObject.VisibilityOptions.Public, "InGame") }
+                    }
+                });
+            } catch { }
             
             Debug.Log("[AutoSessionStarter] Host hoàn tất tự động vào game!");
             Destroy(gameObject);
@@ -128,8 +135,7 @@ public class AutoSessionStarter : MonoBehaviour
                         await MultiplayerService.Instance.JoinSessionByIdAsync(sessionId, joinOptions);
                         Debug.Log("[AutoSessionStarter] Client hoàn tất tự động vào game!");
                         
-                        // Rời sảnh matchmaking cũ SAU KHI join thành công
-                        try { await LobbyService.Instance.RemovePlayerAsync(m_LobbyId, Unity.Services.Authentication.AuthenticationService.Instance.PlayerId); } catch { }
+                        // Giữ player trong lobby để khi quay về vẫn cùng phòng
                         break;
                     }
                     catch (System.Exception ex) when (attempt < maxRetries)
