@@ -231,7 +231,7 @@ MonoBehaviour:
   player1Preview: {fileID: 2025194673}
   player2Preview: {fileID: 2069772366}
   gameSceneName: '[BB] Core MultiplayerSession'
-  pollInterval: 3
+  pollInterval: 15
 --- !u!4 &376393077
 Transform:
   m_ObjectHideFlags: 0

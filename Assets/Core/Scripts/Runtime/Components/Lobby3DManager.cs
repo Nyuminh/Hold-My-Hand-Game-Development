@@ -37,7 +37,7 @@ namespace Blocks.Gameplay.Core
 
         [Header("Polling")]
         [Tooltip("Khoảng cách giữa các lần poll lobby state (giây)")]
-        [SerializeField] private float pollInterval = 10f;
+        [SerializeField] private float pollInterval = 30f; // increased to reduce lobby request rate
 
         // ─── UI Elements ────────────────────────────────────────
         // Top
@@ -670,6 +670,7 @@ namespace Blocks.Gameplay.Core
                     if (lobby.Data.ContainsKey("status") && lobby.Data["status"].Value == "InGame" && !m_IsHost)
                     {
                         StopPolling();
+                        LobbySessionContext.StopHeartbeat(); // Dừng keep-alive trước khi vào game scene
                         ShowToast("🎮 Đang Load Game Scene...");
 
                         AmIDad = lobby.Data.ContainsKey("dadUserId") && (AuthenticationService.Instance.PlayerId == lobby.Data["dadUserId"].Value);

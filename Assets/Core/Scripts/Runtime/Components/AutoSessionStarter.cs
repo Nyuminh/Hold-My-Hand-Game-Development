@@ -63,20 +63,11 @@ public class AutoSessionStarter : MonoBehaviour
             Debug.Log($"[AutoSessionStarter] Đã tạo Session: {session.Id}. Đang báo cho Client...");
             var updateOptions = new UpdateLobbyOptions {
                 Data = new Dictionary<string, DataObject> {
-                    { "sessionId", new DataObject(DataObject.VisibilityOptions.Public, session.Id) }
+                    { "sessionId", new DataObject(DataObject.VisibilityOptions.Public, session.Id) },
+                    { "status", new DataObject(DataObject.VisibilityOptions.Public, "InGame") }
                 }
             };
             await LobbyService.Instance.UpdateLobbyAsync(m_LobbyId, updateOptions);
-            
-            
-            // Cập nhật trạng thái Lobby sang Playing (vẫn giữ các player trong phòng để khi thoát game cùng về sảnh)
-            try {
-                await LobbyService.Instance.UpdateLobbyAsync(m_LobbyId, new UpdateLobbyOptions {
-                    Data = new Dictionary<string, DataObject> {
-                        { "status", new DataObject(DataObject.VisibilityOptions.Public, "InGame") }
-                    }
-                });
-            } catch { }
             
             Debug.Log("[AutoSessionStarter] Host hoàn tất tự động vào game!");
             Destroy(gameObject);
@@ -93,6 +84,10 @@ public class AutoSessionStarter : MonoBehaviour
         try 
         {
             Debug.Log("[AutoSessionStarter] Client đang chờ Host tạo Session...");
+            
+            // Dừng keep-alive trước khi poll để tránh 429
+            Blocks.Gameplay.Core.LobbySessionContext.StopHeartbeat();
+            
             string sessionId = null;
             
             // Liên tục kiểm tra sảnh matchmaking xem Host đã đẩy sessionId lên chưa
@@ -113,7 +108,7 @@ public class AutoSessionStarter : MonoBehaviour
                 {
                     Debug.LogWarning($"[AutoSessionStarter] Poll Lobby attempt {pollAttempts} failed: {ex.Message}");
                 }
-                await Task.Delay(2000);
+                await Task.Delay(5000);
             }
 
             if (!string.IsNullOrEmpty(sessionId))
@@ -140,8 +135,8 @@ public class AutoSessionStarter : MonoBehaviour
                     }
                     catch (System.Exception ex) when (attempt < maxRetries)
                     {
-                        Debug.LogWarning($"[AutoSessionStarter] Join attempt {attempt} failed: {ex.Message}. Retrying in 2s...");
-                        await Task.Delay(2000);
+                        Debug.LogWarning($"[AutoSessionStarter] Join attempt {attempt} failed: {ex.Message}. Retrying in 4s...");
+                        await Task.Delay(4000);
                     }
                 }
             }

@@ -71,7 +71,7 @@ namespace Blocks.Gameplay.Core
 
                 try
                 {
-                    await Task.Delay(15000, ct);
+                    await Task.Delay(30000, ct); // increased to 30s
                 }
                 catch
                 {
@@ -88,7 +88,7 @@ namespace Blocks.Gameplay.Core
             {
                 try
                 {
-                    await Task.Delay(15000, ct);
+                    await Task.Delay(30000, ct); // increased to 30s
                 }
                 catch
                 {

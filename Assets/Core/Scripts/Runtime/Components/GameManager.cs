@@ -187,6 +187,30 @@ namespace Blocks.Gameplay.Core
             // Hide session UI
             StartCoroutine(FadeOutAndDisable());
 
+            // Đợi player spawn xong trên mạng rồi mới cài đặt
+            StartCoroutine(WaitAndSetupLocalPlayerDirect());
+        }
+
+        private IEnumerator WaitAndSetupLocalPlayerDirect()
+        {
+            while (NetworkManager.Singleton == null || NetworkManager.Singleton.LocalClient == null || NetworkManager.Singleton.LocalClient.PlayerObject == null)
+            {
+                yield return null;
+            }
+
+            var localPlayer = NetworkManager.Singleton.LocalClient.PlayerObject;
+            var networkObject = localPlayer.GetComponent<NetworkObject>();
+            while (networkObject != null && !networkObject.IsSpawned)
+            {
+                yield return null;
+            }
+
+            string playerName = ApiClient.IsLoggedIn ? ApiClient.DisplayName ?? ApiClient.Username : $"Player{NetworkManager.Singleton.LocalClientId}";
+            if (localPlayer.TryGetComponent<CorePlayerState>(out var playerState))
+            {
+                playerState.SetPlayerName(playerName);
+            }
+
             if (waitRoomManager != null)
             {
                 waitRoomManager.EnterWaitRoom("Local Session");
@@ -197,62 +221,17 @@ namespace Blocks.Gameplay.Core
                 Cursor.visible = false;
             }
 
-            // Generate and assign player name based on client ID
-            string playerPrefix = "Player";
-            string playerNumber = NetworkManager.Singleton.LocalClient.ClientId.ToString();
-            string playerName = playerPrefix + playerNumber;
-
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null &&
-                NetworkManager.Singleton.LocalClient.PlayerObject != null)
+            if (localPlayer.TryGetComponent<CoreMovement>(out var movement))
             {
-                var playerState = NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<CorePlayerState>();
-                if (playerState != null)
-                {
-                    playerState.SetPlayerName(playerName);
-                }
-                else
-                {
-                    Debug.LogWarning("[GameManager] CorePlayerState component not found on local player. Cannot set player name.", this);
-                }
+                Vector3 spawnPos = GetSpawnPosition(NetworkManager.Singleton.LocalClientId);
+                movement.transform.rotation = GetSpawnRotation(NetworkManager.Singleton.LocalClientId);
+                movement.SetPosition(spawnPos);
+                movement.ResetMovementForces();
             }
 
-            // Setup player spawn position and health
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null)
+            if (localPlayer.TryGetComponent<CoreStatsHandler>(out var coreStats))
             {
-                var localPlayer = NetworkManager.Singleton.LocalClient.PlayerObject;
-                if (localPlayer == null)
-                {
-                    Debug.LogWarning("[GameManager] LocalClient.PlayerObject is null. Cannot setup player.", this);
-                    return;
-                }
-
-                // Set spawn position and rotation based on client ID
-                if (localPlayer.TryGetComponent<CoreMovement>(out var movement))
-                {
-                    Vector3 spawnPos = GetSpawnPosition(NetworkManager.Singleton.LocalClientId);
-                    int index = GetSpawnIndex(NetworkManager.Singleton.LocalClientId);
-                    if (index >= 0 && spawnPoints != null && spawnPoints.Count > index)
-                    {
-                        movement.transform.rotation = spawnPoints[index].rotation;
-                    }
-
-                    movement.SetPosition(spawnPos);
-                    movement.ResetMovementForces();
-                }
-                else
-                {
-                    Debug.LogWarning("[GameManager] CoreMovement component not found on local player. Cannot set spawn position.", this);
-                }
-
-                // Restore full health on spawn
-                if (localPlayer.TryGetComponent<CoreStatsHandler>(out var coreStats))
-                {
-                    coreStats.ModifyStat(StatKeys.Health, 100, NetworkManager.Singleton.LocalClientId, ModificationSource.Regeneration);
-                }
-                else
-                {
-                    Debug.LogWarning("[GameManager] CoreStatsHandler component not found on local player. Cannot restore health.", this);
-                }
+                coreStats.ModifyStat(StatKeys.Health, 100, NetworkManager.Singleton.LocalClientId, ModificationSource.Regeneration);
             }
         }
 
@@ -526,41 +505,32 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         /// <param name="clientId">The client ID to calculate the spawn index for.</param>
         /// <returns>The spawn point index, or -1 if no spawn points are configured.</returns>
-        private int GetSpawnIndex(ulong clientId)
+        public int GetSpawnIndex(ulong clientId)
         {
             if (spawnPoints == null || spawnPoints.Count == 0) return -1;
             return (int)(clientId % (ulong)spawnPoints.Count);
         }
 
-        /// <summary>
-        /// Returns a random spawn index for respawning.
-        /// Used for respawning to add variety and prevent spawn camping.
-        /// </summary>
-        /// <returns>A random spawn point index, or -1 if no spawn points are configured.</returns>
-        private int GetRandomSpawnIndex()
-        {
-            if (spawnPoints == null || spawnPoints.Count == 0) return -1;
-            return Random.Range(0, spawnPoints.Count);
-        }
-
-        /// <summary>
-        /// Returns the world position for the given ClientID's assigned spawn point.
-        /// Defaults to Vector3.zero if no spawn points are set.
-        /// </summary>
-        /// <param name="clientId">The client ID to get the spawn position for.</param>
-        /// <returns>The world position of the assigned spawn point.</returns>
-        private Vector3 GetSpawnPosition(ulong clientId)
+        public Quaternion GetSpawnRotation(ulong clientId)
         {
             int index = GetSpawnIndex(clientId);
-            if (index == -1)
+            if (index >= 0 && spawnPoints != null && spawnPoints.Count > index && spawnPoints[index] != null)
             {
-                Debug.LogWarning("[GameManager] No spawn points configured. Using Vector3.zero as spawn position.", this);
+                return spawnPoints[index].rotation;
+            }
+            return Quaternion.identity;
+        }
+
+        public Vector3 GetSpawnPosition(ulong clientId)
+        {
+            int index = GetSpawnIndex(clientId);
+            if (index == -1 || spawnPoints == null || spawnPoints.Count == 0)
+            {
                 return Vector3.zero;
             }
 
             if (spawnPoints[index] == null)
             {
-                Debug.LogError($"[GameManager] Spawn point at index {index} is null. Using Vector3.zero as spawn position.", this);
                 return Vector3.zero;
             }
 

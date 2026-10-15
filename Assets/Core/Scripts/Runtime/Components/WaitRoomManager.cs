@@ -9,13 +9,15 @@ namespace Blocks.Gameplay.Core
 {
     /// <summary>
     /// Hiển thị giao diện phòng chờ khi người chơi mới vào game.
-    /// Khóa di chuyển, góc nhìn, hiện chuột. Khi đủ 2 người thì nút PLAY sáng lên.
-    /// Khi bấm PLAY, mở khóa di chuyển, ẩn chuột, vào game.
+    /// Khóa di chuyển, góc nhìn, hiện chuột. Khi đủ 2 người thì mở khóa di chuyển, ẩn chuột, vào game.
+    /// Hỗ trợ cả Server lẫn Client: Client sử dụng số lượng PlayerObject đã spawn và tin nhắn mạng đồng bộ từ Host.
     /// </summary>
     public class WaitRoomManager : MonoBehaviour
     {
         [Tooltip("Giao diện phòng chờ WaitRoomScreen.uxml")]
         [SerializeField] private UIDocument waitRoomUI;
+
+        private const string MsgStartGame = "HMH_WaitRoom_StartGame";
 
         private Label m_SessionNameLabel;
         private Label m_PlayerNameLabel;
@@ -23,41 +25,134 @@ namespace Blocks.Gameplay.Core
 
         private bool m_IsWaiting = false;
         private bool m_IsStarting = false;
+        private bool m_HandlerRegistered = false;
         private CoreMovement m_LocalMovement;
-        private MonoBehaviour m_LocalInput; // Ví dụ: PlayerInput hoặc CoreInput
+        private MonoBehaviour m_LocalInput;
 
         private void OnEnable()
         {
-            if (waitRoomUI == null) return;
-            var root = waitRoomUI.rootVisualElement;
-            m_SessionNameLabel = root.Q<Label>("session-name-label");
-            m_PlayerNameLabel = root.Q<Label>("player-name-label");
-            m_StatusLabel = root.Q<Label>("status-label");
+            if (waitRoomUI != null)
+            {
+                var root = waitRoomUI.rootVisualElement;
+                m_SessionNameLabel = root.Q<Label>("session-name-label");
+                m_PlayerNameLabel = root.Q<Label>("player-name-label");
+                m_StatusLabel = root.Q<Label>("status-label");
 
-            waitRoomUI.rootVisualElement.style.display = DisplayStyle.None;
+                waitRoomUI.rootVisualElement.style.display = DisplayStyle.None;
+            }
+
+            RegisterNetworkHandler();
+        }
+
+        private void Start()
+        {
+            RegisterNetworkHandler();
+        }
+
+        private void OnDisable()
+        {
+            UnregisterNetworkHandler();
+        }
+
+        private void OnDestroy()
+        {
+            UnregisterNetworkHandler();
+        }
+
+        private void RegisterNetworkHandler()
+        {
+            if (m_HandlerRegistered || NetworkManager.Singleton == null) return;
+            var msgMgr = NetworkManager.Singleton.CustomMessagingManager;
+            if (msgMgr != null)
+            {
+                msgMgr.RegisterNamedMessageHandler(MsgStartGame, OnStartGameMessageReceived);
+                m_HandlerRegistered = true;
+                Debug.Log("[WaitRoomManager] Đã đăng ký nhận Network Message StartGame thành công.");
+            }
+        }
+
+        private void UnregisterNetworkHandler()
+        {
+            if (!m_HandlerRegistered || NetworkManager.Singleton == null) return;
+            var msgMgr = NetworkManager.Singleton.CustomMessagingManager;
+            if (msgMgr != null)
+            {
+                msgMgr.UnregisterNamedMessageHandler(MsgStartGame);
+            }
+            m_HandlerRegistered = false;
+        }
+
+        private void OnStartGameMessageReceived(ulong senderClientId, FastBufferReader reader)
+        {
+            Debug.Log("[WaitRoomManager] Client nhận được thông báo StartGame từ Host!");
+            if (m_IsWaiting && !m_IsStarting)
+            {
+                StartCoroutine(AutoStartGameRoutine());
+            }
+        }
+
+        private int GetPlayerCount()
+        {
+            if (NetworkManager.Singleton == null) return 0;
+
+            // Trên Server/Host: ConnectedClients.Count là chuẩn nhất
+            if (NetworkManager.Singleton.IsServer)
+            {
+                return NetworkManager.Singleton.ConnectedClients.Count;
+            }
+
+            // Trên Client (non-host): Netcode không đồng bộ ConnectedClients sang client!
+            // Kiểm tra số lượng PlayerObject đã spawn thông qua SpawnManager
+            int count = 0;
+            if (NetworkManager.Singleton.SpawnManager != null)
+            {
+                foreach (var netObj in NetworkManager.Singleton.SpawnManager.SpawnedObjectsList)
+                {
+                    if (netObj != null && netObj.IsPlayerObject)
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            // Fallback: Tìm các nhân vật CoreMovement đã xuất hiện trong Scene
+            if (count < 2)
+            {
+                var movements = FindObjectsByType<CoreMovement>(FindObjectsSortMode.None);
+                if (movements != null && movements.Length > count)
+                {
+                    count = movements.Length;
+                }
+            }
+
+            return count;
         }
 
         private void Update()
         {
             if (!m_IsWaiting || m_IsStarting) return;
 
+            if (!m_HandlerRegistered)
+            {
+                RegisterNetworkHandler();
+            }
+
             // Đảm bảo nhân vật luôn đứng đợi và bị khóa di chuyển trong lúc chờ
             EnsurePlayerLocked();
 
             if (NetworkManager.Singleton == null) return;
 
-            // Kiểm tra số lượng người chơi kết nối
-            int playerCount = NetworkManager.Singleton.ConnectedClients.Count;
+            // Kiểm tra số lượng người chơi kết nối (hoạt động đúng trên cả Host lẫn Client)
+            int playerCount = GetPlayerCount();
             if (playerCount >= 2)
             {
-                // Đủ 2 người chơi → Tự động bắt đầu vào game!
                 StartCoroutine(AutoStartGameRoutine());
             }
             else
             {
                 if (m_StatusLabel != null)
                 {
-                    m_StatusLabel.text = "Đang đợi người chơi thứ 2... (1/2)";
+                    m_StatusLabel.text = $"Đang đợi người chơi thứ 2... ({Mathf.Max(1, playerCount)}/2)";
                     m_StatusLabel.style.color = new StyleColor(new Color(1f, 0.8f, 0.4f));
                 }
             }
@@ -79,6 +174,8 @@ namespace Blocks.Gameplay.Core
             m_IsWaiting = true;
             m_IsStarting = false;
             
+            RegisterNetworkHandler();
+
             if (waitRoomUI != null)
                 waitRoomUI.rootVisualElement.style.display = DisplayStyle.Flex;
 
@@ -92,7 +189,7 @@ namespace Blocks.Gameplay.Core
             LockPlayer(true);
 
             // Nếu là người vào sau và phòng đã đủ 2 người rồi thì tự động vào game ngay
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients.Count >= 2)
+            if (GetPlayerCount() >= 2)
             {
                 StartCoroutine(AutoStartGameRoutine());
             }
@@ -101,6 +198,21 @@ namespace Blocks.Gameplay.Core
         private IEnumerator AutoStartGameRoutine()
         {
             m_IsStarting = true;
+
+            // Nếu là Server/Host, broadcast tin nhắn StartGame cho tất cả Client
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+            {
+                var msgMgr = NetworkManager.Singleton.CustomMessagingManager;
+                if (msgMgr != null)
+                {
+                    using (var writer = new FastBufferWriter(sizeof(byte), Unity.Collections.Allocator.Temp))
+                    {
+                        writer.WriteValueSafe((byte)1);
+                        msgMgr.SendNamedMessageToAll(MsgStartGame, writer);
+                        Debug.Log("[WaitRoomManager] Host đã phát sóng thông điệp StartGame cho tất cả client.");
+                    }
+                }
+            }
 
             if (m_StatusLabel != null)
             {
@@ -145,7 +257,6 @@ namespace Blocks.Gameplay.Core
             if (m_LocalInput == null)
             {
                 m_LocalInput = playerObj.GetComponent("PlayerInput") as MonoBehaviour; 
-                // Nếu dự án dùng tên component khác, nó sẽ bị khóa góc nhìn nhờ Cursor.lockState = None
             }
 
             if (m_LocalInput != null)
