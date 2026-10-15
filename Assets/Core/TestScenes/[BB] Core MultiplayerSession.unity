@@ -23486,7 +23486,7 @@ GameObject:
   - component: {fileID: 1227417946}
   - component: {fileID: 1227417945}
   m_Layer: 0
-  m_Name: SessionBrowser
+  m_Name: LoadingScreenUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -23506,7 +23506,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
   m_PanelSettings: {fileID: 11400000, guid: 7a38f2dd4a52f3c43802f4f88af54bfe, type: 2}
   m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 9197481963319205126, guid: ebdf7f22adaadff48967929af5bf49fb, type: 3}
+  sourceAsset: {fileID: 9197481963319205126, guid: 5d8a9f3b12ce47e98a1234567890abcd, type: 3}
   m_SortingOrder: 100
   m_Position: 0
   m_WorldSpaceSizeMode: 1

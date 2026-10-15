@@ -20,9 +20,9 @@ namespace Blocks.Gameplay.Core
         private Label m_SessionNameLabel;
         private Label m_PlayerNameLabel;
         private Label m_StatusLabel;
-        private Button m_PlayButton;
 
         private bool m_IsWaiting = false;
+        private bool m_IsStarting = false;
         private CoreMovement m_LocalMovement;
         private MonoBehaviour m_LocalInput; // Ví dụ: PlayerInput hoặc CoreInput
 
@@ -33,43 +33,25 @@ namespace Blocks.Gameplay.Core
             m_SessionNameLabel = root.Q<Label>("session-name-label");
             m_PlayerNameLabel = root.Q<Label>("player-name-label");
             m_StatusLabel = root.Q<Label>("status-label");
-            m_PlayButton = root.Q<Button>("play-button");
-
-            if (m_PlayButton != null)
-            {
-                m_PlayButton.clicked += OnPlayClicked;
-                m_PlayButton.SetEnabled(false);
-            }
 
             waitRoomUI.rootVisualElement.style.display = DisplayStyle.None;
         }
 
-        private void OnDisable()
-        {
-            if (m_PlayButton != null)
-                m_PlayButton.clicked -= OnPlayClicked;
-        }
-
         private void Update()
         {
-            if (!m_IsWaiting || NetworkManager.Singleton == null) return;
+            if (!m_IsWaiting || m_IsStarting) return;
 
-            // Kiểm tra số lượng người chơi
+            // Đảm bảo nhân vật luôn đứng đợi và bị khóa di chuyển trong lúc chờ
+            EnsurePlayerLocked();
+
+            if (NetworkManager.Singleton == null) return;
+
+            // Kiểm tra số lượng người chơi kết nối
             int playerCount = NetworkManager.Singleton.ConnectedClients.Count;
             if (playerCount >= 2)
             {
-                if (m_StatusLabel != null)
-                {
-                    m_StatusLabel.text = "Đã đủ người chơi! Bấm PLAY để bắt đầu (2/2)";
-                    m_StatusLabel.style.color = new StyleColor(new Color(0.2f, 1f, 0.4f)); // Xanh lá
-                }
-                
-                if (m_PlayButton != null && !m_PlayButton.enabledSelf)
-                {
-                    m_PlayButton.SetEnabled(true);
-                    m_PlayButton.style.backgroundColor = new StyleColor(new Color(0.9f, 0.6f, 0.1f)); // Vàng cam PUBG
-                    m_PlayButton.style.color = new StyleColor(Color.white);
-                }
+                // Đủ 2 người chơi → Tự động bắt đầu vào game!
+                StartCoroutine(AutoStartGameRoutine());
             }
             else
             {
@@ -78,20 +60,14 @@ namespace Blocks.Gameplay.Core
                     m_StatusLabel.text = "Đang đợi người chơi thứ 2... (1/2)";
                     m_StatusLabel.style.color = new StyleColor(new Color(1f, 0.8f, 0.4f));
                 }
-
-                if (m_PlayButton != null && m_PlayButton.enabledSelf)
-                {
-                    m_PlayButton.SetEnabled(false);
-                    m_PlayButton.style.backgroundColor = new StyleColor(new Color(1f, 1f, 1f, 0.1f));
-                    m_PlayButton.style.color = new StyleColor(new Color(1f, 1f, 1f, 0.3f));
-                }
             }
+        }
 
-            // Đảm bảo luôn hiện chuột khi đang đợi
-            if (Cursor.lockState != CursorLockMode.None)
+        private void EnsurePlayerLocked()
+        {
+            if (m_LocalMovement == null || m_LocalMovement.enabled)
             {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                LockPlayer(true);
             }
         }
 
@@ -101,6 +77,7 @@ namespace Blocks.Gameplay.Core
         public void EnterWaitRoom(string sessionName = "Game Session")
         {
             m_IsWaiting = true;
+            m_IsStarting = false;
             
             if (waitRoomUI != null)
                 waitRoomUI.rootVisualElement.style.display = DisplayStyle.Flex;
@@ -111,19 +88,38 @@ namespace Blocks.Gameplay.Core
             if (m_PlayerNameLabel != null) m_PlayerNameLabel.text = playerName;
             if (m_SessionNameLabel != null) m_SessionNameLabel.text = sessionName;
 
-            // Khóa nhân vật
+            // Khóa di chuyển nhân vật ngay khi vào phòng chờ
             LockPlayer(true);
+
+            // Nếu là người vào sau và phòng đã đủ 2 người rồi thì tự động vào game ngay
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients.Count >= 2)
+            {
+                StartCoroutine(AutoStartGameRoutine());
+            }
         }
 
-        private void OnPlayClicked()
+        private IEnumerator AutoStartGameRoutine()
         {
-            if (!m_IsWaiting) return;
+            m_IsStarting = true;
+
+            if (m_StatusLabel != null)
+            {
+                m_StatusLabel.text = "Đã đủ người chơi! Bắt đầu... (2/2)";
+                m_StatusLabel.style.color = new StyleColor(new Color(0.2f, 1f, 0.4f)); // Xanh lá
+            }
+
+            try { UISoundManager.PlayConfirm(); } catch { }
+
+            // Chờ 0.5s để người chơi thấy thông báo 2/2 chuyển sang xanh lá
+            yield return new WaitForSeconds(0.5f);
+
             m_IsWaiting = false;
+            m_IsStarting = false;
 
             if (waitRoomUI != null)
                 waitRoomUI.rootVisualElement.style.display = DisplayStyle.None;
 
-            // Mở khóa nhân vật & ẩn chuột
+            // Mở khóa nhân vật & ẩn chuột, bắt đầu di chuyển
             LockPlayer(false);
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
