@@ -200,6 +200,9 @@ namespace Blocks.Gameplay.Core
 
             // Initial state: show main buttons, hide lobby buttons
             ShowMainButtons();
+
+            // Tự động gán âm thanh Hover / Click cho tất cả buttons trong Lobby
+            UISoundManager.BindButtons(root);
         }
 
         private void SetupPreview()
@@ -303,10 +306,12 @@ namespace Blocks.Gameplay.Core
                 UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
                 StartPolling();
+                UISoundManager.PlaySuccess();
                 ShowToast("Phòng đã được tạo!");
             }
             catch (LobbyServiceException ex)
             {
+                UISoundManager.PlayError();
                 ShowToast($"Tạo phòng thất bại: {ex.Message}");
                 Debug.LogError($"[Lobby3D] Create lobby error: {ex}");
             }
@@ -324,6 +329,7 @@ namespace Blocks.Gameplay.Core
 
         private void OnCancelJoinClicked()
         {
+            UISoundManager.PlayCancel();
             HideJoinCodePanel();
         }
 
@@ -332,6 +338,7 @@ namespace Blocks.Gameplay.Core
             string code = m_JoinCodeInput?.value?.Trim().ToUpper();
             if (string.IsNullOrWhiteSpace(code))
             {
+                UISoundManager.PlayError();
                 ShowToast("Nhập mã phòng!");
                 return;
             }
@@ -358,10 +365,12 @@ namespace Blocks.Gameplay.Core
                 UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
                 StartPolling();
+                UISoundManager.PlaySuccess();
                 ShowToast("Đã vào phòng!");
             }
             catch (LobbyServiceException ex)
             {
+                UISoundManager.PlayError();
                 ShowToast($"Lỗi: {ex.Message}");
                 Debug.LogError($"[Lobby3D] Join error: {ex}");
             }
@@ -376,6 +385,7 @@ namespace Blocks.Gameplay.Core
             if (!string.IsNullOrEmpty(m_CurrentLobbyCode))
             {
                 GUIUtility.systemCopyBuffer = m_CurrentLobbyCode;
+                UISoundManager.PlayClick();
                 ShowToast("Đã copy mã phòng!");
             }
         }
@@ -400,10 +410,12 @@ namespace Blocks.Gameplay.Core
                 lobby = await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, options);
 
                 UpdateLobbyUI(MapToFakeResponse(lobby));
+                UISoundManager.PlaySwapRole();
                 ShowToast("Đã đổi vai!");
             }
             catch (System.Exception ex)
             {
+                UISoundManager.PlayError();
                 ShowToast("Đổi vai thất bại!");
                 Debug.LogError($"[Lobby3D] Swap error: {ex}");
             }
@@ -430,10 +442,12 @@ namespace Blocks.Gameplay.Core
                 if (player2Preview != null) player2Preview.SetActive(false);
 
                 ShowMainButtons();
+                UISoundManager.PlayCancel();
                 ShowToast("Đã rời phòng.");
             }
             catch (System.Exception ex)
             {
+                UISoundManager.PlayError();
                 ShowToast("Rời phòng thất bại!");
                 Debug.LogError($"[Lobby3D] Leave error: {ex}");
             }
@@ -449,6 +463,7 @@ namespace Blocks.Gameplay.Core
         private async void OnPlayClicked()
         {
             if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
+            UISoundManager.PlayConfirm();
             if (m_PlayButton != null) m_PlayButton.SetEnabled(false);
             if (m_SwapRoleButton != null) m_SwapRoleButton.SetEnabled(false);
             if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(false);
