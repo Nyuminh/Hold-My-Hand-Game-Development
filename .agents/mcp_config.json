@@ -5,6 +5,10 @@
       "args": [
         "--mcp"
       ]
+    },
+    "ollama-mcp": {
+      "command": "node",
+      "args": ["C:/Users/Admin/Hold My Hand/.agents/mcp-servers/ollama/index.js"]
     }
   }
 }
