@@ -1,0 +1,29 @@
+<engine:UXML xmlns:engine="UnityEngine.UIElements" xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <engine:Style src="project://database/Assets/Core/UI/InGameEscapeMenu.uss" />
+
+    <engine:VisualElement name="escape-menu-root" class="escape-backdrop" style="display: none;">
+        <engine:VisualElement class="escape-modal-card">
+
+            <!-- Title Area -->
+            <engine:VisualElement class="escape-header">
+                <engine:Label text="TẠM DỪNG / MENU" class="escape-title" />
+                <engine:Label text="HOLD MY HAND" class="escape-subtitle" />
+            </engine:VisualElement>
+
+            <engine:VisualElement class="escape-divider" />
+
+            <!-- Status / Notification -->
+            <engine:Label name="escape-status-label" text="Ván đấu đang diễn ra" class="escape-status" />
+
+            <!-- Buttons Area -->
+            <engine:VisualElement class="escape-button-group">
+                <engine:Button name="resume-button" text="▶  TIẾP TỤC" class="btn-escape-resume" />
+                <engine:Button name="back-to-lobby-button" text="🏠  TRỞ VỀ SẢNH CHỜ" class="btn-escape-lobby" />
+            </engine:VisualElement>
+
+            <!-- Hint / Footer -->
+            <engine:Label text="Bấm ESC hoặc TIẾP TỤC để đóng menu" class="escape-hint" />
+
+        </engine:VisualElement>
+    </engine:VisualElement>
+</engine:UXML>

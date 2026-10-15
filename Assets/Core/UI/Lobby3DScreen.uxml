@@ -1,60 +1,80 @@
 <engine:UXML xmlns:engine="UnityEngine.UIElements" editor-extension-mode="False">
-    <engine:VisualElement name="lobby3d-root" picking-mode="Ignore" style="flex-grow: 1; background-color: transparent;">
-        <engine:VisualElement picking-mode="Ignore" style="flex-direction: row; justify-content: space-between; padding: 20px;">
-            <engine:VisualElement picking-mode="Position" style="background-color: rgba(15, 15, 25, 0.75); padding: 12px 20px; border-radius: 12px; border-width: 1px; border-color: rgba(255, 255, 255, 0.08); flex-direction: row; align-items: center;">
-                <engine:Label text="👤" style="font-size: 24px; margin-right: 10px;"/>
+    <engine:Style src="project://database/Assets/Core/UI/Lobby3DScreen.uss?fileID=7433441132597879392&amp;guid=d94a11f2ea84b5c43a0d923bb19a4f21&amp;type=3#Lobby3DScreen"/>
+    <engine:VisualElement name="lobby3d-root" picking-mode="Ignore">
+        <!-- Top Header Bar -->
+        <engine:VisualElement class="top-header-bar" picking-mode="Ignore">
+            <!-- Player Profile Card (Top-Left) -->
+            <engine:VisualElement class="player-profile-card" picking-mode="Position">
+                <engine:VisualElement class="avatar-icon-badge">
+                    <engine:Label text="👤" class="avatar-icon-label"/>
+                </engine:VisualElement>
                 <engine:VisualElement>
-                    <engine:Label name="player-name-label" text="Hello, Player!" style="font-size: 16px; color: white; -unity-font-style: bold;"/>
-                    <engine:Label name="player-role-label" text="Role: ---" style="font-size: 12px; color: rgba(255, 255, 255, 0.5); margin-top: 2px;"/>
+                    <engine:Label name="player-name-label" text="Xin chào, Player!"/>
+                    <engine:Label name="player-role-label" text="Vai trò: ---"/>
                 </engine:VisualElement>
             </engine:VisualElement>
-            <engine:VisualElement name="room-info-panel" picking-mode="Position" style="display: none; background-color: rgba(15, 15, 25, 0.75); padding: 12px 20px; border-radius: 12px; border-width: 1px; border-color: rgba(100, 200, 255, 0.2); align-items: flex-end;">
-                <engine:Label text="MÃ PHÒNG" style="font-size: 10px; color: rgba(255, 255, 255, 0.4); letter-spacing: 1px;"/>
-                <engine:VisualElement style="flex-direction: row; align-items: center; margin-top: 4px;">
-                    <engine:Label name="room-code-label" text="------" style="font-size: 28px; color: rgb(100, 200, 255); -unity-font-style: bold; letter-spacing: 3px; margin-right: 8px;"/>
-                    <engine:Button name="copy-code-button" text="📋" style="width: 32px; height: 32px; border-radius: 6px; background-color: rgba(255, 255, 255, 0.1); border-width: 0; color: white; font-size: 14px;"/>
+
+            <!-- Room Info Card (Top-Right) -->
+            <engine:VisualElement name="room-info-panel" class="room-info-panel" picking-mode="Position" style="display: none;">
+                <engine:Label text="MÃ PHÒNG" class="room-tag-label"/>
+                <engine:VisualElement class="room-code-row">
+                    <engine:Label name="room-code-label" text="------"/>
+                    <engine:Button name="copy-code-button" text="📋"/>
                 </engine:VisualElement>
-                <engine:Label name="room-status-label" text="Đang chờ..." style="font-size: 12px; color: rgb(255, 200, 100); margin-top: 4px;"/>
+                <engine:Label name="room-status-label" text="Đang chờ..."/>
             </engine:VisualElement>
         </engine:VisualElement>
-        <engine:VisualElement picking-mode="Ignore" style="flex-grow: 1;"/>
-        <engine:VisualElement picking-mode="Ignore" style="flex-direction: row; justify-content: space-between; align-items: flex-end; padding: 24px;">
-            <engine:VisualElement name="session-list-panel" picking-mode="Position" style="display: none; background-color: rgba(15, 15, 25, 0.85); padding: 16px; border-radius: 12px; border-width: 1px; border-color: rgba(255, 255, 255, 0.08); width: 380px; max-height: 300px;">
-                <engine:Label text="DANH SÁCH PHÒNG" style="font-size: 14px; color: white; -unity-font-style: bold; letter-spacing: 1px; margin-bottom: 12px;"/>
-                <engine:ScrollView name="session-scroll" style="flex-grow: 1; max-height: 200px;">
-                    <engine:Label name="no-sessions-label" text="Chưa có phòng nào..." style="font-size: 13px; color: rgba(255, 255, 255, 0.4); -unity-text-align: middle-center; padding: 20px;"/>
+
+        <!-- Center Toast Notification -->
+        <engine:VisualElement class="toast-container" picking-mode="Ignore">
+            <engine:Label name="toast-label" text="" style="display: none;"/>
+        </engine:VisualElement>
+
+        <!-- Bottom Controls Bar -->
+        <engine:VisualElement class="bottom-controls-bar" picking-mode="Ignore">
+            <!-- Session List Panel (Bottom-Left) -->
+            <engine:VisualElement name="session-list-panel" picking-mode="Position" style="display: none;">
+                <engine:Label text="DANH SÁCH PHÒNG" class="session-title-label"/>
+                <engine:ScrollView name="session-scroll">
+                    <engine:Label name="no-sessions-label" text="Chưa có phòng nào..."/>
                 </engine:ScrollView>
-                <engine:VisualElement style="flex-direction: row; margin-top: 12px;">
-                    <engine:Button name="refresh-sessions-button" text="🔄 LÀM MỚI" style="flex-grow: 1; height: 36px; font-size: 13px; background-color: rgba(255, 255, 255, 0.1); color: white; border-radius: 6px; border-width: 0; margin-right: 8px;"/>
-                    <engine:Button name="close-sessions-button" text="✕ ĐÓNG" style="height: 36px; font-size: 13px; background-color: rgba(255, 50, 50, 0.15); color: rgb(255, 120, 120); border-radius: 6px; border-width: 0; padding: 0 16px;"/>
+                <engine:VisualElement class="session-button-row">
+                    <engine:Button name="refresh-sessions-button" text="🔄 LÀM MỚI"/>
+                    <engine:Button name="close-sessions-button" text="✕ ĐÓNG"/>
                 </engine:VisualElement>
             </engine:VisualElement>
             <engine:VisualElement name="bottom-left-spacer" picking-mode="Ignore" style="flex-grow: 1;"/>
+
+            <!-- Action Controls Panel (Bottom-Right) -->
             <engine:VisualElement picking-mode="Position" style="align-items: flex-end;">
-                <engine:VisualElement name="join-code-panel" style="display: none; background-color: rgba(15, 15, 25, 0.85); padding: 16px; border-radius: 12px; border-width: 1px; border-color: rgba(100, 150, 255, 0.3); margin-bottom: 12px; width: 320px;">
-                    <engine:Label text="NHẬP MÃ PHÒNG" style="font-size: 12px; color: rgba(255, 255, 255, 0.5); letter-spacing: 1px; margin-bottom: 8px;"/>
-                    <engine:TextField name="join-code-input" style="font-size: 20px; -unity-text-align: middle-center; letter-spacing: 3px; height: 44px; margin-bottom: 12px;"/>
-                    <engine:VisualElement style="flex-direction: row;">
-                        <engine:Button name="confirm-join-button" text="THAM GIA" style="flex-grow: 1; height: 40px; font-size: 14px; -unity-font-style: bold; background-color: rgb(60, 120, 220); color: white; border-radius: 8px; border-width: 0; margin-right: 8px;"/>
-                        <engine:Button name="cancel-join-button" text="HỦY" style="height: 40px; font-size: 14px; background-color: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); border-radius: 8px; border-width: 0; padding: 0 20px;"/>
+                <!-- Join Code Input Subpanel -->
+                <engine:VisualElement name="join-code-panel" style="display: none;">
+                    <engine:Label text="NHẬP MÃ PHÒNG" class="dialog-heading-label"/>
+                    <engine:TextField name="join-code-input"/>
+                    <engine:VisualElement class="dialog-button-row">
+                        <engine:Button name="confirm-join-button" text="THAM GIA"/>
+                        <engine:Button name="cancel-join-button" text="HỦY"/>
                     </engine:VisualElement>
                 </engine:VisualElement>
-                <engine:VisualElement name="main-buttons-panel" style="align-items: flex-end;">
-                    <engine:Button name="create-room-button" text="Create" style="width: 260px; height: 50px; font-size: 16px; -unity-font-style: bold; letter-spacing: 1px; background-color: rgb(240, 160, 40); color: white; border-radius: 10px; border-width: 0; margin-bottom: 10px;"/>
-                    <engine:VisualElement style="flex-direction: row;">
-                        <engine:Button name="join-room-button" text="Join" style="width: 160px; height: 44px; font-size: 13px; -unity-font-style: bold; background-color: rgba(60, 120, 220, 0.3); color: rgb(150, 200, 255); border-radius: 8px; border-width: 1px; border-color: rgba(100, 150, 255, 0.3); margin-right: 8px;"/>
-                        <engine:Button name="browse-sessions-button" text="Find" style="width: 120px; height: 44px; font-size: 13px; -unity-font-style: bold; background-color: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.6); border-radius: 8px; border-width: 1px; border-color: rgba(255, 255, 255, 0.1);"/>
+
+                <!-- Main Menu Buttons (When not in a room) -->
+                <engine:VisualElement name="main-buttons-panel">
+                    <engine:Button name="create-room-button" text="👑  TẠO PHÒNG"/>
+                    <engine:VisualElement class="secondary-buttons-row">
+                        <engine:Button name="join-room-button" text="🔑  VÀO MÃ"/>
+                        <engine:Button name="browse-sessions-button" text="🔍  TÌM"/>
                     </engine:VisualElement>
                 </engine:VisualElement>
-                <engine:VisualElement name="lobby-buttons-panel" style="display: none; align-items: flex-end;">
-                    <engine:Button name="play-button" text="▶  PLAY" style="width: 280px; height: 60px; font-size: 22px; -unity-font-style: bold; letter-spacing: 2px; background-color: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.3); border-radius: 12px; border-width: 0; margin-bottom: 10px;"/>
-                    <engine:VisualElement style="flex-direction: row;">
-                        <engine:Button name="swap-role-button" text="🔄 ĐỔI VAI" style="height: 40px; font-size: 13px; -unity-font-style: bold; background-color: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.6); border-radius: 8px; border-width: 0; padding: 0 16px; margin-right: 8px;"/>
-                        <engine:Button name="leave-room-button" text="✕ RỜI PHÒNG" style="height: 40px; font-size: 13px; -unity-font-style: bold; background-color: rgba(255, 50, 50, 0.15); color: rgb(255, 120, 120); border-radius: 8px; border-width: 0; padding: 0 16px;"/>
+
+                <!-- In-Lobby Room Controls (When inside a room) -->
+                <engine:VisualElement name="lobby-buttons-panel" style="display: none;">
+                    <engine:Button name="play-button" text="▶  BẮT ĐẦU"/>
+                    <engine:VisualElement class="in-room-actions-row">
+                        <engine:Button name="swap-role-button" text="🔄 ĐỔI VAI"/>
+                        <engine:Button name="leave-room-button" text="✕ RỜI PHÒNG"/>
                     </engine:VisualElement>
                 </engine:VisualElement>
             </engine:VisualElement>
         </engine:VisualElement>
-        <engine:VisualElement picking-mode="Ignore" style="position: absolute; left: 0; right: 0; top: 50%; align-items: center;"/>
     </engine:VisualElement>
 </engine:UXML>

@@ -116,11 +116,101 @@ namespace Blocks.Gameplay.Core
                     await AuthenticationService.Instance.SignInAnonymouslyAsync();
                 
                 Debug.Log($"[Lobby3D] Signed in to Unity Services: {AuthenticationService.Instance.PlayerId}");
+
+                // Tự động khôi phục phòng chờ nếu vừa từ trận đấu trở về sảnh
+                if (!string.IsNullOrEmpty(LobbySessionContext.CurrentLobbyId))
+                {
+                    _ = RestorePreservedLobbyAsync();
+                }
             }
             catch (System.Exception ex)
             {
                 Debug.LogError($"[Lobby3D] Unity Services Error: {ex.Message}");
                 ShowToast("Lỗi kết nối máy chủ Unity!");
+            }
+        }
+
+        private async Task RestorePreservedLobbyAsync()
+        {
+            if (string.IsNullOrEmpty(LobbySessionContext.CurrentLobbyId)) return;
+
+            try
+            {
+                ShowToast("Đang kết nối lại phòng chờ...");
+                await Task.Delay(300); // Tránh rate-limit 429 của UGS khi vừa load scene
+
+                m_IsHost = LobbySessionContext.IsHost;
+                Lobby lobby = null;
+
+                try
+                {
+                    lobby = await LobbyService.Instance.GetLobbyAsync(LobbySessionContext.CurrentLobbyId);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[Lobby3D] GetLobbyAsync failed on restore: {ex.Message}");
+                    // Nếu là Client và bị UGS timeout loại khỏi phòng trong trận đấu, tự động rejoin bằng mã phòng
+                    if (!m_IsHost && !string.IsNullOrEmpty(LobbySessionContext.CurrentLobbyCode))
+                    {
+                        try
+                        {
+                            Debug.Log($"[Lobby3D] Đang tự động kết nối lại phòng {LobbySessionContext.CurrentLobbyCode}...");
+                            lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(LobbySessionContext.CurrentLobbyCode);
+                        }
+                        catch (System.Exception joinEx)
+                        {
+                            Debug.LogWarning($"[Lobby3D] Auto rejoin failed: {joinEx.Message}");
+                        }
+                    }
+                }
+
+                if (lobby != null)
+                {
+                    m_CurrentLobbyId = lobby.Id;
+                    m_CurrentLobbyCode = lobby.LobbyCode;
+                    if (AuthenticationService.Instance.IsSignedIn && !string.IsNullOrEmpty(lobby.HostId))
+                    {
+                        m_IsHost = (lobby.HostId == AuthenticationService.Instance.PlayerId);
+                    }
+                    LobbySessionContext.SetCurrentLobby(lobby.Id, lobby.LobbyCode, m_IsHost);
+
+                    if (m_IsHost)
+                    {
+                        try
+                        {
+                            var updateOptions = new UpdateLobbyOptions
+                            {
+                                Data = new Dictionary<string, DataObject>
+                                {
+                                    { "status", new DataObject(DataObject.VisibilityOptions.Public, "Waiting") },
+                                    { "sessionId", new DataObject(DataObject.VisibilityOptions.Public, "") }
+                                }
+                            };
+                            lobby = await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, updateOptions);
+                        }
+                        catch (System.Exception updateEx)
+                        {
+                            Debug.LogWarning($"[Lobby3D] Host UpdateLobbyAsync warning: {updateEx.Message}");
+                        }
+                    }
+
+                    UpdateLobbyUI(MapToFakeResponse(lobby));
+                    ShowLobbyButtons();
+                    StartPolling();
+                    ShowToast($"Đã trở lại phòng: {m_CurrentLobbyCode}");
+                }
+                else
+                {
+                    Debug.LogWarning("[Lobby3D] Không thể kết nối lại phòng cũ.");
+                    LobbySessionContext.Clear();
+                    ShowMainButtons();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[Lobby3D] RestorePreservedLobbyAsync unhandled exception: {ex.Message}");
+                LobbySessionContext.Clear();
+                ShowMainButtons();
             }
         }
 
@@ -200,17 +290,35 @@ namespace Blocks.Gameplay.Core
 
             // Initial state: show main buttons, hide lobby buttons
             ShowMainButtons();
+
+            // Tự động gán âm thanh Hover / Click cho tất cả buttons trong Lobby
+            UISoundManager.BindButtons(root);
         }
 
         private void SetupPreview()
         {
             // Player 1 luôn hiện (nhân vật mình)
             if (player1Preview != null)
+            {
+                EnsurePreviewAnimator(player1Preview);
                 player1Preview.SetActive(true);
+            }
 
             // Player 2 ẩn ban đầu
             if (player2Preview != null)
+            {
+                EnsurePreviewAnimator(player2Preview);
                 player2Preview.SetActive(false);
+            }
+        }
+
+        private void EnsurePreviewAnimator(GameObject preview)
+        {
+            if (preview == null) return;
+            if (!preview.TryGetComponent<LobbyPreviewAnimator>(out _))
+            {
+                preview.AddComponent<LobbyPreviewAnimator>();
+            }
         }
 
         private void UpdatePlayerInfo()
@@ -283,15 +391,18 @@ namespace Blocks.Gameplay.Core
                 m_CurrentLobbyId = lobby.Id;
                 m_CurrentLobbyCode = lobby.LobbyCode;
                 m_IsHost = true;
+                LobbySessionContext.SetCurrentLobby(lobby.Id, lobby.LobbyCode, true);
 
                 Debug.Log($"[Lobby3D] Created Unity lobby: {lobby.LobbyCode}");
                 UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
                 StartPolling();
+                UISoundManager.PlaySuccess();
                 ShowToast("Phòng đã được tạo!");
             }
             catch (LobbyServiceException ex)
             {
+                UISoundManager.PlayError();
                 ShowToast($"Tạo phòng thất bại: {ex.Message}");
                 Debug.LogError($"[Lobby3D] Create lobby error: {ex}");
             }
@@ -309,6 +420,7 @@ namespace Blocks.Gameplay.Core
 
         private void OnCancelJoinClicked()
         {
+            UISoundManager.PlayCancel();
             HideJoinCodePanel();
         }
 
@@ -317,6 +429,7 @@ namespace Blocks.Gameplay.Core
             string code = m_JoinCodeInput?.value?.Trim().ToUpper();
             if (string.IsNullOrWhiteSpace(code))
             {
+                UISoundManager.PlayError();
                 ShowToast("Nhập mã phòng!");
                 return;
             }
@@ -337,16 +450,19 @@ namespace Blocks.Gameplay.Core
                 m_CurrentLobbyId = lobby.Id;
                 m_CurrentLobbyCode = lobby.LobbyCode;
                 m_IsHost = false;
+                LobbySessionContext.SetCurrentLobby(lobby.Id, lobby.LobbyCode, false);
 
                 Debug.Log($"[Lobby3D] Joined Unity lobby: {lobby.LobbyCode}");
                 HideJoinCodePanel();
                 UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
                 StartPolling();
+                UISoundManager.PlaySuccess();
                 ShowToast("Đã vào phòng!");
             }
             catch (LobbyServiceException ex)
             {
+                UISoundManager.PlayError();
                 ShowToast($"Lỗi: {ex.Message}");
                 Debug.LogError($"[Lobby3D] Join error: {ex}");
             }
@@ -361,6 +477,7 @@ namespace Blocks.Gameplay.Core
             if (!string.IsNullOrEmpty(m_CurrentLobbyCode))
             {
                 GUIUtility.systemCopyBuffer = m_CurrentLobbyCode;
+                UISoundManager.PlayClick();
                 ShowToast("Đã copy mã phòng!");
             }
         }
@@ -385,10 +502,12 @@ namespace Blocks.Gameplay.Core
                 lobby = await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, options);
 
                 UpdateLobbyUI(MapToFakeResponse(lobby));
+                UISoundManager.PlaySwapRole();
                 ShowToast("Đã đổi vai!");
             }
             catch (System.Exception ex)
             {
+                UISoundManager.PlayError();
                 ShowToast("Đổi vai thất bại!");
                 Debug.LogError($"[Lobby3D] Swap error: {ex}");
             }
@@ -409,16 +528,19 @@ namespace Blocks.Gameplay.Core
                 await LobbyService.Instance.RemovePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId);
                 Debug.Log($"[Lobby3D] Left Unity lobby.");
                 
+                LobbySessionContext.Clear();
                 m_CurrentLobbyId = null;
                 m_CurrentLobbyCode = null;
 
                 if (player2Preview != null) player2Preview.SetActive(false);
 
                 ShowMainButtons();
+                UISoundManager.PlayCancel();
                 ShowToast("Đã rời phòng.");
             }
             catch (System.Exception ex)
             {
+                UISoundManager.PlayError();
                 ShowToast("Rời phòng thất bại!");
                 Debug.LogError($"[Lobby3D] Leave error: {ex}");
             }
@@ -434,6 +556,7 @@ namespace Blocks.Gameplay.Core
         private async void OnPlayClicked()
         {
             if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
+            UISoundManager.PlayConfirm();
             if (m_PlayButton != null) m_PlayButton.SetEnabled(false);
             if (m_SwapRoleButton != null) m_SwapRoleButton.SetEnabled(false);
             if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(false);
@@ -486,14 +609,13 @@ namespace Blocks.Gameplay.Core
             if (m_BottomLeftSpacer != null) m_BottomLeftSpacer.style.display = DisplayStyle.Flex;
         }
 
-        private async void OnRefreshSessionsClicked()
+        private void OnRefreshSessionsClicked()
         {
             if (m_RefreshSessionsButton != null) m_RefreshSessionsButton.SetEnabled(false);
             ShowToast("Đang tải danh sách phòng...");
 
             try
             {
-                // Gọi API lấy danh sách lobby (nếu backend hỗ trợ)
                 // Hiện tại backend chưa có endpoint list lobbies, nên hiện thông báo
                 if (m_NoSessionsLabel != null)
                     m_NoSessionsLabel.text = "Tính năng tìm phòng đang được phát triển.\nHãy dùng mã phòng để join!";
@@ -649,10 +771,16 @@ namespace Blocks.Gameplay.Core
             bool hasChild = !string.IsNullOrEmpty(lobby.childUserId);
             
             if (player1Preview != null)
+            {
+                EnsurePreviewAnimator(player1Preview);
                 player1Preview.SetActive(hasDad);
+            }
 
             if (player2Preview != null)
+            {
+                EnsurePreviewAnimator(player2Preview);
                 player2Preview.SetActive(hasChild);
+            }
 
             // PLAY button — chỉ enable khi đủ 2 người + status Waiting
             bool canPlay = hasPlayer2 && lobby.status == "Waiting";
@@ -661,8 +789,8 @@ namespace Blocks.Gameplay.Core
                 m_PlayButton.SetEnabled(canPlay);
                 if (canPlay)
                 {
-                    m_PlayButton.style.backgroundColor = new StyleColor(new Color(0.94f, 0.63f, 0.16f)); // Vàng cam
-                    m_PlayButton.style.color = new StyleColor(Color.white);
+                    m_PlayButton.style.backgroundColor = new StyleColor(new Color(0.90f, 0.66f, 0.16f)); // Vàng hoàng kim
+                    m_PlayButton.style.color = new StyleColor(new Color(0.08f, 0.06f, 0.02f)); // Chữ tối màu
                 }
                 else
                 {

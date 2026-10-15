@@ -25,6 +25,7 @@ namespace Blocks.Gameplay.Core
         public static string DisplayName { get; private set; }
         public static string SessionId { get; private set; }
         public static string Role { get; private set; }
+        public static string AccessToken => _accessToken;
         public static bool IsLoggedIn => !string.IsNullOrEmpty(_accessToken);
 
         /// <summary>
@@ -195,7 +196,7 @@ namespace Blocks.Gameplay.Core
 
         // ─── HTTP Helpers ──────────────────────────────────────────
 
-        private static async Task<string> PostAsync(string endpoint, string jsonBody, bool authenticated = true)
+        public static async Task<string> PostAsync(string endpoint, string jsonBody, bool authenticated = true)
         {
             var url = BaseUrl + endpoint;
             using var request = new UnityWebRequest(url, "POST");
@@ -211,26 +212,42 @@ namespace Blocks.Gameplay.Core
             return request.downloadHandler.text;
         }
 
-        private static async Task<string> GetAsync(string endpoint)
+        public static async Task<string> GetAsync(string endpoint, bool authenticated = true)
         {
             var url = BaseUrl + endpoint;
             using var request = UnityWebRequest.Get(url);
             request.downloadHandler = new DownloadHandlerBuffer();
 
-            if (!string.IsNullOrEmpty(_accessToken))
+            if (authenticated && !string.IsNullOrEmpty(_accessToken))
                 request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
 
             await SendRequestAsync(request);
             return request.downloadHandler.text;
         }
 
-        private static async Task DeleteAsync(string endpoint)
+        public static async Task<string> PutAsync(string endpoint, string jsonBody, bool authenticated = true)
+        {
+            var url = BaseUrl + endpoint;
+            using var request = new UnityWebRequest(url, "PUT");
+            var bodyBytes = Encoding.UTF8.GetBytes(jsonBody ?? "{}");
+            request.uploadHandler = new UploadHandlerRaw(bodyBytes);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+
+            if (authenticated && !string.IsNullOrEmpty(_accessToken))
+                request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
+
+            await SendRequestAsync(request);
+            return request.downloadHandler.text;
+        }
+
+        public static async Task DeleteAsync(string endpoint, bool authenticated = true)
         {
             var url = BaseUrl + endpoint;
             using var request = UnityWebRequest.Delete(url);
             request.downloadHandler = new DownloadHandlerBuffer();
 
-            if (!string.IsNullOrEmpty(_accessToken))
+            if (authenticated && !string.IsNullOrEmpty(_accessToken))
                 request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
 
             await SendRequestAsync(request);

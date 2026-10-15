@@ -58,6 +58,9 @@ namespace Blocks.Gameplay.Core
             if (m_PlayButton != null) m_PlayButton.clicked += OnPlayClicked;
             if (m_LogoutButton != null) m_LogoutButton.clicked += OnLogoutClicked;
 
+            // Tự động gán âm thanh Hover / Click cho tất cả buttons
+            UISoundManager.BindButtons(root);
+
             // Tự động load token từ PlayerPrefs
             if (ApiClient.LoadSession())
             {
@@ -97,12 +100,14 @@ namespace Blocks.Gameplay.Core
 
         private void OnPlayClicked()
         {
+            UISoundManager.PlayConfirm();
             SetStatus("Đang tải Lobby...");
             SceneManager.LoadScene(lobbySceneName);
         }
 
         private void OnLogoutClicked()
         {
+            UISoundManager.PlayCancel();
             // Optional: You could call ApiClient.LogoutAsync() here if the backend supports token revocation
             // For now, we'll just clear the local preferences.
             PlayerPrefs.DeleteKey("HMH_AccessToken");
@@ -125,12 +130,14 @@ namespace Blocks.Gameplay.Core
 
             if (string.IsNullOrWhiteSpace(username))
             {
+                UISoundManager.PlayError();
                 SetStatus("Vui lòng nhập username!");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(password))
             {
+                UISoundManager.PlayError();
                 SetStatus("Vui lòng nhập password!");
                 return;
             }
@@ -146,6 +153,7 @@ namespace Blocks.Gameplay.Core
                     ? result.displayName
                     : result.username;
 
+                UISoundManager.PlaySuccess();
                 SetStatus("");
 
                 // Chuyển sang UI Play thay vì load scene ngay
@@ -153,6 +161,7 @@ namespace Blocks.Gameplay.Core
             }
             catch (ApiException apiEx)
             {
+                UISoundManager.PlayError();
                 // Hiển thị lỗi thân thiện hơn dựa trên status code
                 string errorMsg = apiEx.StatusCode switch
                 {
@@ -166,6 +175,7 @@ namespace Blocks.Gameplay.Core
             }
             catch (System.Exception ex)
             {
+                UISoundManager.PlayError();
                 SetStatus($"Không thể kết nối server!");
                 m_LoginButton.SetEnabled(true);
                 Debug.LogError($"[LoginManager] {ex}");
