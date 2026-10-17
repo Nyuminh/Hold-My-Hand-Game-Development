@@ -60,6 +60,13 @@ public class AutoSessionStarter : MonoBehaviour
             }.WithRelayNetwork();
             var session = await MultiplayerService.Instance.CreateSessionAsync(options);
             
+            // Đảm bảo RoleBasedSpawner luôn tồn tại trên NetworkManager
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.GetComponent<RoleBasedSpawner>() == null)
+            {
+                Debug.Log("[AutoSessionStarter] RoleBasedSpawner chưa có trên NetworkManager, đang thêm tự động...");
+                Unity.Netcode.NetworkManager.Singleton.gameObject.AddComponent<RoleBasedSpawner>();
+            }
+
             Debug.Log($"[AutoSessionStarter] Đã tạo Session: {session.Id}. Đang báo cho Client...");
             var updateOptions = new UpdateLobbyOptions {
                 Data = new Dictionary<string, DataObject> {

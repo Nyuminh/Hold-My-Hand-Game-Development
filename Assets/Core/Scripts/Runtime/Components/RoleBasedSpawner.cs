@@ -13,10 +13,12 @@ public class RoleBasedSpawner : MonoBehaviour
 
     // Theo dõi danh sách clientId đã được spawn để ngăn chặn nhân bản tuyệt đối
     private static readonly HashSet<ulong> s_SpawnedClients = new HashSet<ulong>();
+    private bool m_CallbacksRegistered = false;
 
     private void Awake()
     {
         s_SpawnedClients.Clear();
+        Debug.Log($"[RoleBasedSpawner] Awake trên GameObject '{gameObject.name}'. Sẵn sàng quản lý spawn nhân vật.");
     }
 
     private void OnEnable()
@@ -35,6 +37,33 @@ public class RoleBasedSpawner : MonoBehaviour
         s_SpawnedClients.Clear();
     }
 
+    private void Update()
+    {
+        if (NetworkManager.Singleton == null) return;
+        if (!NetworkManager.Singleton.IsServer || !NetworkManager.Singleton.IsListening) return;
+
+        // Đảm bảo callbacks luôn được đăng ký khi server bắt đầu lắng nghe
+        if (!m_CallbacksRegistered)
+        {
+            RegisterCallbacks();
+        }
+
+        // Quét liên tục ConnectedClientsList để spawn ngay lập tức cho bất kỳ client nào chưa có PlayerObject
+        // Cơ chế này giải quyết triệt để race condition khi OnServerStarted hoặc OnClientConnectedCallback bị miss trên bản Build Standalone
+        var clients = NetworkManager.Singleton.ConnectedClientsList;
+        for (int i = 0; i < clients.Count; i++)
+        {
+            var client = clients[i];
+            if (client == null) continue;
+
+            if (client.PlayerObject == null && !s_SpawnedClients.Contains(client.ClientId))
+            {
+                Debug.Log($"[RoleBasedSpawner] Update phát hiện Client {client.ClientId} chưa có PlayerObject. Đang tiến hành spawn...");
+                SpawnForClient(client.ClientId);
+            }
+        }
+    }
+
     private void RegisterCallbacks()
     {
         if (NetworkManager.Singleton == null) return;
@@ -49,11 +78,14 @@ public class RoleBasedSpawner : MonoBehaviour
 
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+
+            m_CallbacksRegistered = true;
         }
     }
 
     private void UnregisterCallbacks()
     {
+        m_CallbacksRegistered = false;
         if (NetworkManager.Singleton == null) return;
 
         NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
@@ -66,27 +98,63 @@ public class RoleBasedSpawner : MonoBehaviour
         if (NetworkManager.Singleton == null) return;
 
         s_SpawnedClients.Clear();
+        RegisterCallbacks();
 
-        NetworkManager.Singleton.OnClientConnectedCallback -= SpawnForClient;
-        NetworkManager.Singleton.OnClientConnectedCallback += SpawnForClient;
-
-        NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+        Debug.Log("[RoleBasedSpawner] OnServerStarted kích hoạt. Quét các client hiện có để spawn...");
+        if (NetworkManager.Singleton.ConnectedClientsList != null)
+        {
+            foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
+            {
+                SpawnForClient(client.ClientId);
+            }
+        }
     }
 
     private void OnClientDisconnected(ulong clientId)
     {
         s_SpawnedClients.Remove(clientId);
+        Debug.Log($"[RoleBasedSpawner] Client {clientId} đã ngắt kết nối. Đã xóa khỏi danh sách spawn.");
     }
 
-    private void SpawnForClient(ulong clientId)
+    private GameObject ResolvePrefab(bool shouldSpawnDad)
+    {
+        GameObject prefab = shouldSpawnDad ? dadPrefab : childPrefab;
+        if (prefab != null) return prefab;
+
+        // Fallback: Tìm trong danh sách NetworkPrefabs của NetworkManager
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.NetworkConfig?.Prefabs?.NetworkPrefabsLists != null)
+        {
+            foreach (var prefabsList in NetworkManager.Singleton.NetworkConfig.Prefabs.NetworkPrefabsLists)
+            {
+                if (prefabsList == null || prefabsList.PrefabList == null) continue;
+                foreach (var item in prefabsList.PrefabList)
+                {
+                    if (item.Prefab == null) continue;
+                    string pName = item.Prefab.name.ToLower();
+                    if (shouldSpawnDad && pName.Contains("dad"))
+                    {
+                        dadPrefab = item.Prefab;
+                        return dadPrefab;
+                    }
+                    if (!shouldSpawnDad && (pName.Contains("child") || pName.Contains("coreplayer")))
+                    {
+                        childPrefab = item.Prefab;
+                        return childPrefab;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public void SpawnForClient(ulong clientId)
     {
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
 
         // 1. Kiểm tra cache static đã spawn cho clientId này chưa
         if (s_SpawnedClients.Contains(clientId))
         {
-            Debug.LogWarning($"[RoleBasedSpawner] Client {clientId} đã được spawn trong session này. Bỏ qua để tránh nhân bản!");
             return;
         }
 
@@ -95,7 +163,7 @@ public class RoleBasedSpawner : MonoBehaviour
         {
             if (connectedClient.PlayerObject != null)
             {
-                Debug.LogWarning($"[RoleBasedSpawner] Client {clientId} đã có PlayerObject ({connectedClient.PlayerObject.name}). Bỏ qua!");
+                Debug.LogWarning($"[RoleBasedSpawner] Client {clientId} đã có PlayerObject ({connectedClient.PlayerObject.name}). Đánh dấu đã spawn!");
                 s_SpawnedClients.Add(clientId);
                 return;
             }
@@ -112,7 +180,7 @@ public class RoleBasedSpawner : MonoBehaviour
         // Nếu Host chọn làm Child -> Host được đẻ Child, người vào sau (Client) đẻ Dad.
         bool shouldSpawnDad = (hostIsDad && isHost) || (!hostIsDad && !isHost);
         
-        GameObject prefabToSpawn = shouldSpawnDad ? dadPrefab : childPrefab;
+        GameObject prefabToSpawn = ResolvePrefab(shouldSpawnDad);
         if (prefabToSpawn != null)
         {
             Vector3 spawnPos = Vector3.zero;
@@ -125,11 +193,11 @@ public class RoleBasedSpawner : MonoBehaviour
 
             var go = Instantiate(prefabToSpawn, spawnPos, spawnRot);
             go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
-            Debug.Log($"[RoleBasedSpawner] Đã spawn {(shouldSpawnDad ? "Dad" : "Child")} cho Client {clientId} tại vị trí {spawnPos} thành công.");
+            Debug.Log($"[RoleBasedSpawner] ✅ ĐÃ SPAWN {(shouldSpawnDad ? "Dad" : "Child")} cho Client {clientId} tại vị trí {spawnPos} thành công!");
         }
         else
         {
-            Debug.LogError("[RoleBasedSpawner] Lỗi! Bạn chưa kéo Prefab vào RoleBasedSpawner!");
+            Debug.LogError($"[RoleBasedSpawner] ❌ Lỗi! Không tìm thấy Prefab cho vai trò {(shouldSpawnDad ? "Dad" : "Child")}!");
         }
     }
 }

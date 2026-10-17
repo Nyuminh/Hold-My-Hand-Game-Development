@@ -110,7 +110,13 @@ namespace Blocks.Gameplay.Core
             try
             {
                 if (UnityServices.State == ServicesInitializationState.Uninitialized)
-                    await UnityServices.InitializeAsync();
+                {
+                    var initOptions = new InitializationOptions();
+#if !UNITY_EDITOR
+                    initOptions.SetProfile($"Player_{System.Diagnostics.Process.GetCurrentProcess().Id}");
+#endif
+                    await UnityServices.InitializeAsync(initOptions);
+                }
                 
                 if (!AuthenticationService.Instance.IsSignedIn)
                     await AuthenticationService.Instance.SignInAnonymouslyAsync();
