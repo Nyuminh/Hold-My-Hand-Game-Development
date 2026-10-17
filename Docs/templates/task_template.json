@@ -1,0 +1,26 @@
+{
+  "id": "TASK-000",
+  "title": "Tiêu đề task mẫu",
+  "description": "Mô tả chi tiết yêu cầu, phạm vi và các trường hợp biên.",
+  "owner": "planner",
+  "status": "BACKLOG",
+  "dependencies": [],
+  "context_files": [
+    "Docs/ARCHITECTURE.md"
+  ],
+  "acceptance_criteria": [
+    "Tiêu chí nghiệm thu 1",
+    "Tiêu chí nghiệm thu 2"
+  ],
+  "test_command": "python tools/orchestrator/cli.py tasks validate",
+  "token_budget": {
+    "max_input_tokens": 4096,
+    "max_output_tokens": 1024
+  },
+  "max_retries": 2,
+  "result_summary": "",
+  "files_changed": [],
+  "risks": [
+    "Rủi ro tiềm ẩn cần chú ý"
+  ]
+}

@@ -108,3 +108,14 @@ InitTestScene*.unity*
 # Backend project is hosted in a separate repository
 /HoldMyHand.Backend/
 hold_my_hand_erd.html
+
+# AI Multi-Agent Orchestrator local files (Zero-Cost Local Tooling)
+AGENTS.md
+AI_Agents/
+AI_Tasks/
+AI_Reports/
+Blender/
+output/
+tools/
+__pycache__/
+*.pyc
