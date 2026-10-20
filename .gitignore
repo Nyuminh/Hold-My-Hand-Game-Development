@@ -117,5 +117,6 @@ AI_Reports/
 Blender/
 output/
 tools/
+orchestrator.bat
 __pycache__/
 *.pyc

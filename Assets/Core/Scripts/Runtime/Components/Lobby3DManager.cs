@@ -54,6 +54,15 @@ namespace Blocks.Gameplay.Core
         private Button m_JoinRoomButton;
         private Button m_BrowseSessionsButton;
 
+        // Bottom right — tutorial
+        private VisualElement m_TutorialDialogPanel;
+        private Button m_TutorialButton;
+        private Button m_SelectDadButton;
+        private Button m_SelectChildButton;
+        private Button m_ConfirmTutorialButton;
+        private Button m_CancelTutorialButton;
+        private bool m_TutorialRoleIsDad = true;
+
         // Bottom right — join code
         private VisualElement m_JoinCodePanel;
         private TextField m_JoinCodeInput;
@@ -281,6 +290,14 @@ namespace Blocks.Gameplay.Core
             m_ToastLabel = root.Q<Label>("toast-label");
             if (m_ToastLabel != null) m_ToastLabel.text = "";
 
+            // Tutorial
+            m_TutorialDialogPanel = root.Q<VisualElement>("tutorial-dialog-panel");
+            m_TutorialButton = root.Q<Button>("tutorial-button");
+            m_SelectDadButton = root.Q<Button>("select-dad-button");
+            m_SelectChildButton = root.Q<Button>("select-child-button");
+            m_ConfirmTutorialButton = root.Q<Button>("confirm-tutorial-button");
+            m_CancelTutorialButton = root.Q<Button>("cancel-tutorial-button");
+
             // Event bindings
             if (m_CreateRoomButton != null) m_CreateRoomButton.clicked += OnCreateRoomClicked;
             if (m_JoinRoomButton != null) m_JoinRoomButton.clicked += OnJoinRoomClicked;
@@ -293,6 +310,11 @@ namespace Blocks.Gameplay.Core
             if (m_LeaveRoomButton != null) m_LeaveRoomButton.clicked += OnLeaveRoomClicked;
             if (m_RefreshSessionsButton != null) m_RefreshSessionsButton.clicked += OnRefreshSessionsClicked;
             if (m_CloseSessionsButton != null) m_CloseSessionsButton.clicked += OnCloseSessionsClicked;
+            if (m_TutorialButton != null) m_TutorialButton.clicked += OnTutorialButtonClicked;
+            if (m_SelectDadButton != null) m_SelectDadButton.clicked += () => SelectTutorialRole(true);
+            if (m_SelectChildButton != null) m_SelectChildButton.clicked += () => SelectTutorialRole(false);
+            if (m_ConfirmTutorialButton != null) m_ConfirmTutorialButton.clicked += OnConfirmTutorialClicked;
+            if (m_CancelTutorialButton != null) m_CancelTutorialButton.clicked += OnCancelTutorialClicked;
 
             // Initial state: show main buttons, hide lobby buttons
             ShowMainButtons();
@@ -351,6 +373,7 @@ namespace Blocks.Gameplay.Core
             if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.Flex;
             if (m_LobbyButtonsPanel != null) m_LobbyButtonsPanel.style.display = DisplayStyle.None;
             if (m_JoinCodePanel != null) m_JoinCodePanel.style.display = DisplayStyle.None;
+            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.style.display = DisplayStyle.None;
             if (m_RoomInfoPanel != null) m_RoomInfoPanel.style.display = DisplayStyle.None;
         }
 
@@ -359,6 +382,7 @@ namespace Blocks.Gameplay.Core
             if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.None;
             if (m_LobbyButtonsPanel != null) m_LobbyButtonsPanel.style.display = DisplayStyle.Flex;
             if (m_JoinCodePanel != null) m_JoinCodePanel.style.display = DisplayStyle.None;
+            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.style.display = DisplayStyle.None;
             if (m_RoomInfoPanel != null) m_RoomInfoPanel.style.display = DisplayStyle.Flex;
         }
 
@@ -370,6 +394,60 @@ namespace Blocks.Gameplay.Core
         private void HideJoinCodePanel()
         {
             if (m_JoinCodePanel != null) m_JoinCodePanel.style.display = DisplayStyle.None;
+        }
+
+        #endregion
+
+        // ────────────────────────────────────────────────────────
+        #region Tutorial Handlers
+
+        private void OnTutorialButtonClicked()
+        {
+            UISoundManager.PlayClick();
+            if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.None;
+            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.style.display = DisplayStyle.Flex;
+            SelectTutorialRole(m_TutorialRoleIsDad);
+        }
+
+        private void SelectTutorialRole(bool isDad)
+        {
+            m_TutorialRoleIsDad = isDad;
+            AmIDad = isDad;
+            UISoundManager.PlayClick();
+
+            if (m_SelectDadButton != null)
+            {
+                if (isDad) m_SelectDadButton.AddToClassList("role-card-active");
+                else m_SelectDadButton.RemoveFromClassList("role-card-active");
+            }
+
+            if (m_SelectChildButton != null)
+            {
+                if (!isDad) m_SelectChildButton.AddToClassList("role-card-active");
+                else m_SelectChildButton.RemoveFromClassList("role-card-active");
+            }
+
+            // Cập nhật mô hình preview 3D tương ứng trong Lobby
+            if (player1Preview != null) player1Preview.SetActive(isDad);
+            if (player2Preview != null) player2Preview.SetActive(!isDad);
+        }
+
+        private void OnCancelTutorialClicked()
+        {
+            UISoundManager.PlayCancel();
+            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.style.display = DisplayStyle.None;
+            if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.Flex;
+            SetupPreview();
+        }
+
+        private void OnConfirmTutorialClicked()
+        {
+            UISoundManager.PlayConfirm();
+            AmIDad = m_TutorialRoleIsDad;
+            StopPolling();
+            ShowToast("🎮 Đang vào chế độ Tập Luyện (Tutorial)...");
+            LobbySessionContext.Clear();
+            SceneManager.LoadScene("Tutorial");
         }
 
         #endregion

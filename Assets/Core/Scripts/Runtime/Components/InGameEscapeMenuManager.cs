@@ -61,7 +61,7 @@ namespace Blocks.Gameplay.Core
 
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name.Contains("Core") && !scene.name.Contains("Lobby") && !scene.name.Contains("Login"))
+            if ((scene.name.Contains("Core") || scene.name.Contains("Tutorial")) && !scene.name.Contains("Lobby") && !scene.name.Contains("Login"))
             {
                 EnsureInstanceInScene();
             }

@@ -200,4 +200,55 @@ public class RoleBasedSpawner : MonoBehaviour
             Debug.LogError($"[RoleBasedSpawner] ❌ Lỗi! Không tìm thấy Prefab cho vai trò {(shouldSpawnDad ? "Dad" : "Child")}!");
         }
     }
+
+    /// <summary>
+    /// Xóa danh sách client đã spawn (dùng khi reset scene hoặc khởi động Tutorial)
+    /// </summary>
+    public static void ClearSpawnedClients()
+    {
+        s_SpawnedClients.Clear();
+    }
+
+    /// <summary>
+    /// Đổi vai nhân vật ngay lập tức cho client (dùng trong Tutorial hoặc Test)
+    /// </summary>
+    public void RespawnForClient(ulong clientId, bool asDad)
+    {
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
+
+        Lobby3DManager.AmIDad = asDad;
+        s_SpawnedClients.Remove(clientId);
+
+        Vector3 spawnPos = Vector3.zero;
+        Quaternion spawnRot = Quaternion.identity;
+
+        if (NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var connectedClient) && connectedClient.PlayerObject != null)
+        {
+            spawnPos = connectedClient.PlayerObject.transform.position;
+            spawnRot = connectedClient.PlayerObject.transform.rotation;
+            var netObj = connectedClient.PlayerObject;
+            if (netObj.IsSpawned)
+            {
+                netObj.Despawn(true);
+            }
+            else
+            {
+                Destroy(netObj.gameObject);
+            }
+        }
+        else if (GameManager.Instance != null)
+        {
+            spawnPos = GameManager.Instance.GetSpawnPosition(clientId);
+            spawnRot = GameManager.Instance.GetSpawnRotation(clientId);
+        }
+
+        s_SpawnedClients.Add(clientId);
+        GameObject prefabToSpawn = ResolvePrefab(asDad);
+        if (prefabToSpawn != null)
+        {
+            var go = Instantiate(prefabToSpawn, spawnPos, spawnRot);
+            go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
+            Debug.Log($"[RoleBasedSpawner] ✅ Respawn thành công vai {(asDad ? "Dad" : "Child")} cho Client {clientId}!");
+        }
+    }
 }

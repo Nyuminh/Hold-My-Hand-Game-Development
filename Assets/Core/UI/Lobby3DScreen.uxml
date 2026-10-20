@@ -57,6 +57,28 @@
                     </engine:VisualElement>
                 </engine:VisualElement>
 
+                <!-- Tutorial Role Selection Subpanel -->
+                <engine:VisualElement name="tutorial-dialog-panel" style="display: none;">
+                    <engine:Label text="CHỌN NHÂN VẬT TẬP LUYỆN" class="dialog-heading-label"/>
+                    <engine:Label text="Chế độ 1 người chơi — Làm quen kỹ năng" class="dialog-sub-label"/>
+                    <engine:VisualElement class="tutorial-roles-row">
+                        <engine:Button name="select-dad-button" class="tutorial-role-card role-card-active">
+                            <engine:Label text="🧔" class="role-card-emoji"/>
+                            <engine:Label text="BA (DAD)" class="role-card-name"/>
+                            <engine:Label text="Cao lớn, thể lực tốt" class="role-card-desc"/>
+                        </engine:Button>
+                        <engine:Button name="select-child-button" class="tutorial-role-card">
+                            <engine:Label text="👶" class="role-card-emoji"/>
+                            <engine:Label text="CON (CHILD)" class="role-card-name"/>
+                            <engine:Label text="Nhỏ nhắn, nhảy cao" class="role-card-desc"/>
+                        </engine:Button>
+                    </engine:VisualElement>
+                    <engine:VisualElement class="dialog-button-row">
+                        <engine:Button name="confirm-tutorial-button" text="▶  BẮT ĐẦU"/>
+                        <engine:Button name="cancel-tutorial-button" text="HỦY"/>
+                    </engine:VisualElement>
+                </engine:VisualElement>
+
                 <!-- Main Menu Buttons (When not in a room) -->
                 <engine:VisualElement name="main-buttons-panel">
                     <engine:Button name="create-room-button" text="👑  TẠO PHÒNG"/>
@@ -64,6 +86,7 @@
                         <engine:Button name="join-room-button" text="🔑  VÀO MÃ"/>
                         <engine:Button name="browse-sessions-button" text="🔍  TÌM"/>
                     </engine:VisualElement>
+                    <engine:Button name="tutorial-button" text="🎓  TẬP LUYỆN (TUTORIAL)" class="tutorial-btn"/>
                 </engine:VisualElement>
 
                 <!-- In-Lobby Room Controls (When inside a room) -->
