@@ -214,7 +214,16 @@ namespace Blocks.Gameplay.Core
                 return m_RuntimeStats[index].CurrentValue;
             }
 
-            Debug.LogWarning($"[CoreStatsHandler] GetCurrentValue: Stat with hash {statHash} not found on {gameObject.name}, returning 0", this);
+            // Fallback sang startingValue trong StatDefinition nếu NetworkList chưa kịp đồng bộ (client non-owner)
+            if (m_StatDefinitions.TryGetValue(statHash, out var def))
+            {
+                return def.startingValue;
+            }
+
+            if (m_RuntimeStats != null && m_RuntimeStats.Count > 0)
+            {
+                Debug.LogWarning($"[CoreStatsHandler] GetCurrentValue: Stat with hash {statHash} not found on {gameObject.name}, returning 0", this);
+            }
             return 0;
         }
 
@@ -360,8 +369,19 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         private void UpdateAliveState()
         {
-            var primaryStatValue = GetCurrentValue(statsConfig.PrimaryStatHash);
-            IsAlive = primaryStatValue > 0;
+            if (statsConfig == null) return;
+
+            // Nếu m_RuntimeStats đã đồng bộ thì kiểm tra theo giá trị thực tế
+            if (m_RuntimeStats != null && m_RuntimeStats.Count > 0)
+            {
+                var primaryStatValue = GetCurrentValue(statsConfig.PrimaryStatHash);
+                IsAlive = primaryStatValue > 0;
+            }
+            else
+            {
+                // Chưa đồng bộ network stats, mặc định còn sống
+                IsAlive = true;
+            }
         }
 
         /// <summary>
@@ -458,6 +478,7 @@ namespace Blocks.Gameplay.Core
         /// <returns>The index of the stat, or -1 if not found.</returns>
         private int FindStatIndex(int statHash)
         {
+            if (m_RuntimeStats == null) return -1;
             for (int i = 0; i < m_RuntimeStats.Count; i++)
             {
                 if (m_RuntimeStats[i].StatHash == statHash)

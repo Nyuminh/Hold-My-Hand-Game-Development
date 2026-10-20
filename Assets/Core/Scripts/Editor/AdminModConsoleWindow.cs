@@ -867,6 +867,7 @@ namespace Blocks.Gameplay.Core
             try
             {
                 m_Characters = await ModApiClient.GetCharactersAsync();
+                CharacterStatsService.UpdateLocalCache(m_Characters);
                 SetStatus($"Đã tải {m_Characters.Length} nhân vật.", MessageType.Info);
                 Repaint();
             }
@@ -881,6 +882,9 @@ namespace Blocks.Gameplay.Core
             SetStatus($"Đang lưu toàn bộ chỉ số cho '{character.name}'...", MessageType.Info);
             try
             {
+                // Cập nhật bộ nhớ cục bộ ngay lập tức để game nhận ngay
+                CharacterStatsService.UpdateLocalCache(character);
+
                 var req = new ModApiClient.UpdateCharacterRequest
                 {
                     name = character.name,
@@ -902,6 +906,9 @@ namespace Blocks.Gameplay.Core
         private void ApplyMovementToSceneCharacters(ModApiClient.CharacterDto character)
         {
             if (character == null) return;
+
+            // Cập nhật bộ nhớ runtime cục bộ
+            CharacterStatsService.UpdateLocalCache(character);
 
             var movements = UnityEngine.Object.FindObjectsByType<CoreMovement>();
             if (movements == null || movements.Length == 0)

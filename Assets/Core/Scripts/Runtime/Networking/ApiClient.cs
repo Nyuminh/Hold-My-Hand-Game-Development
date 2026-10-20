@@ -28,6 +28,8 @@ namespace Blocks.Gameplay.Core
         public static string AccessToken => _accessToken;
         public static bool IsLoggedIn => !string.IsNullOrEmpty(_accessToken);
 
+        public static event Action OnSessionExpired;
+
         /// <summary>
         /// Cho phép thay đổi base URL lúc runtime (e.g. từ config).
         /// </summary>
@@ -122,7 +124,7 @@ namespace Blocks.Gameplay.Core
             PlayerPrefs.Save();
         }
 
-        private static void ClearSession()
+        public static void ClearSession()
         {
             _accessToken = null;
             _refreshToken = null;
@@ -196,61 +198,119 @@ namespace Blocks.Gameplay.Core
 
         // ─── HTTP Helpers ──────────────────────────────────────────
 
+        private static bool s_IsRefreshing = false;
+
         public static async Task<string> PostAsync(string endpoint, string jsonBody, bool authenticated = true)
         {
-            var url = BaseUrl + endpoint;
-            using var request = new UnityWebRequest(url, "POST");
-            var bodyBytes = Encoding.UTF8.GetBytes(jsonBody ?? "{}");
-            request.uploadHandler = new UploadHandlerRaw(bodyBytes);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
+            return await ExecuteWithTokenRetryAsync(async () =>
+            {
+                var url = BaseUrl + endpoint;
+                using var request = new UnityWebRequest(url, "POST");
+                var bodyBytes = Encoding.UTF8.GetBytes(jsonBody ?? "{}");
+                request.uploadHandler = new UploadHandlerRaw(bodyBytes);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
 
-            if (authenticated && !string.IsNullOrEmpty(_accessToken))
-                request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
+                if (authenticated && !string.IsNullOrEmpty(_accessToken))
+                    request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
 
-            await SendRequestAsync(request);
-            return request.downloadHandler.text;
+                await SendRequestAsync(request);
+                return request.downloadHandler.text;
+            }, endpoint, authenticated);
         }
 
         public static async Task<string> GetAsync(string endpoint, bool authenticated = true)
         {
-            var url = BaseUrl + endpoint;
-            using var request = UnityWebRequest.Get(url);
-            request.downloadHandler = new DownloadHandlerBuffer();
+            return await ExecuteWithTokenRetryAsync(async () =>
+            {
+                var url = BaseUrl + endpoint;
+                using var request = UnityWebRequest.Get(url);
+                request.downloadHandler = new DownloadHandlerBuffer();
 
-            if (authenticated && !string.IsNullOrEmpty(_accessToken))
-                request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
+                if (authenticated && !string.IsNullOrEmpty(_accessToken))
+                    request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
 
-            await SendRequestAsync(request);
-            return request.downloadHandler.text;
+                await SendRequestAsync(request);
+                return request.downloadHandler.text;
+            }, endpoint, authenticated);
         }
 
         public static async Task<string> PutAsync(string endpoint, string jsonBody, bool authenticated = true)
         {
-            var url = BaseUrl + endpoint;
-            using var request = new UnityWebRequest(url, "PUT");
-            var bodyBytes = Encoding.UTF8.GetBytes(jsonBody ?? "{}");
-            request.uploadHandler = new UploadHandlerRaw(bodyBytes);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
+            return await ExecuteWithTokenRetryAsync(async () =>
+            {
+                var url = BaseUrl + endpoint;
+                using var request = new UnityWebRequest(url, "PUT");
+                var bodyBytes = Encoding.UTF8.GetBytes(jsonBody ?? "{}");
+                request.uploadHandler = new UploadHandlerRaw(bodyBytes);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
 
-            if (authenticated && !string.IsNullOrEmpty(_accessToken))
-                request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
+                if (authenticated && !string.IsNullOrEmpty(_accessToken))
+                    request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
 
-            await SendRequestAsync(request);
-            return request.downloadHandler.text;
+                await SendRequestAsync(request);
+                return request.downloadHandler.text;
+            }, endpoint, authenticated);
         }
 
         public static async Task DeleteAsync(string endpoint, bool authenticated = true)
         {
-            var url = BaseUrl + endpoint;
-            using var request = UnityWebRequest.Delete(url);
-            request.downloadHandler = new DownloadHandlerBuffer();
+            await ExecuteWithTokenRetryAsync(async () =>
+            {
+                var url = BaseUrl + endpoint;
+                using var request = UnityWebRequest.Delete(url);
+                request.downloadHandler = new DownloadHandlerBuffer();
 
-            if (authenticated && !string.IsNullOrEmpty(_accessToken))
-                request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
+                if (authenticated && !string.IsNullOrEmpty(_accessToken))
+                    request.SetRequestHeader("Authorization", $"Bearer {_accessToken}");
 
-            await SendRequestAsync(request);
+                await SendRequestAsync(request);
+                return string.Empty;
+            }, endpoint, authenticated);
+        }
+
+        private static async Task<T> ExecuteWithTokenRetryAsync<T>(Func<Task<T>> action, string endpoint, bool authenticated)
+        {
+            try
+            {
+                return await action();
+            }
+            catch (ApiException ex) when (ex.StatusCode == 401 && authenticated && !endpoint.StartsWith("/auth/"))
+            {
+                // Thử refresh token nếu có refresh token và chưa đang refresh
+                if (!string.IsNullOrEmpty(_refreshToken) && !s_IsRefreshing)
+                {
+                    s_IsRefreshing = true;
+                    bool refreshed = false;
+                    try
+                    {
+                        Debug.Log("[ApiClient] Nhận mã 401 Unauthorized. Đang tự động làm mới token...");
+                        await RefreshTokenAsync();
+                        refreshed = true;
+                    }
+                    catch (Exception refreshEx)
+                    {
+                        Debug.LogWarning($"[ApiClient] Làm mới token thất bại: {refreshEx.Message}. Phiên đăng nhập đã hết hạn.");
+                    }
+                    finally
+                    {
+                        s_IsRefreshing = false;
+                    }
+
+                    if (refreshed)
+                    {
+                        // Thử lại request với token mới
+                        return await action();
+                    }
+                }
+
+                // Không thể làm mới token -> Phiên đã chết hoàn toàn
+                Debug.LogWarning("[ApiClient] Phiên làm việc đã hết hạn hoặc không hợp lệ. Đang xóa session...");
+                ClearSession();
+                OnSessionExpired?.Invoke();
+                throw;
+            }
         }
 
         private static Task SendRequestAsync(UnityWebRequest request)

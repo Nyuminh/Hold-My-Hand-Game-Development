@@ -17,25 +17,20 @@ namespace Blocks.Gameplay.Core
         public static ModApiClient.CharacterDto ChildCharacter { get; private set; }
 
         public static bool IsLoaded { get; private set; }
+        public static bool IsBackendLoaded { get; private set; }
         private static Task<bool> s_CurrentFetchTask;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void OnBeforeSceneLoad()
         {
             InitFallbackDefaults();
-            if (ApiClient.IsLoggedIn || ApiClient.LoadSession())
-            {
-                _ = FetchCharacterStatsAsync();
-            }
+            _ = FetchCharacterStatsAsync();
         }
 
         public static void InitFallbackDefaults()
         {
-            if (DadCharacter != null && ChildCharacter != null) return;
-
-            // Fallback chính xác theo dữ liệu MongoDB người dùng cung cấp
-            ChildCharacter = CreateDefaultChild();
-            DadCharacter = CreateDefaultDad();
+            if (DadCharacter == null) DadCharacter = CreateDefaultDad();
+            if (ChildCharacter == null) ChildCharacter = CreateDefaultChild();
             IsLoaded = true;
         }
 
@@ -46,7 +41,7 @@ namespace Blocks.Gameplay.Core
                 return await s_CurrentFetchTask;
             }
 
-            if (!IsLoaded)
+            if (!IsBackendLoaded)
             {
                 return await FetchCharacterStatsAsync();
             }
@@ -54,9 +49,9 @@ namespace Blocks.Gameplay.Core
             return true;
         }
 
-        public static Task<bool> FetchCharacterStatsAsync()
+        public static Task<bool> FetchCharacterStatsAsync(bool forceReload = false)
         {
-            if (s_CurrentFetchTask != null && !s_CurrentFetchTask.IsCompleted)
+            if (!forceReload && s_CurrentFetchTask != null && !s_CurrentFetchTask.IsCompleted)
             {
                 return s_CurrentFetchTask;
             }
@@ -76,32 +71,41 @@ namespace Blocks.Gameplay.Core
                     ApiClient.LoadSession();
                 }
 
-                if (!ApiClient.IsLoggedIn)
-                {
-                    Debug.Log("[CharacterStatsService] Chưa đăng nhập Backend. Sử dụng chỉ số mặc định từ Database.");
-                    return false;
-                }
-
                 Debug.Log("[CharacterStatsService] Đang tải chỉ số nhân vật từ Backend...");
                 string json = null;
 
+                // 1. Thử gọi /game/characters
                 try
                 {
-                    json = await ApiClient.GetAsync("/game/characters");
+                    json = await ApiClient.GetAsync("/game/characters", authenticated: ApiClient.IsLoggedIn);
                 }
-                catch (Exception)
+                catch (ApiException apiEx) when (apiEx.StatusCode == 401)
                 {
-                    // Fallback thử endpoint /mod/characters nếu có quyền
+                    Debug.LogWarning("[CharacterStatsService] 401 với access token hiện tại. Đang thử tải công khai không qua auth...");
                     try
                     {
-                        json = await ApiClient.GetAsync("/mod/characters");
+                        json = await ApiClient.GetAsync("/game/characters", authenticated: false);
+                    }
+                    catch { }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[CharacterStatsService] Lỗi khi gọi /game/characters ({ex.Message}). Thử endpoint dự phòng...");
+                }
+
+                // 2. Fallback thử endpoint /mod/characters nếu có quyền Admin/Mod
+                if (string.IsNullOrEmpty(json) && ApiClient.IsLoggedIn)
+                {
+                    try
+                    {
+                        json = await ApiClient.GetAsync("/mod/characters", authenticated: true);
                     }
                     catch { }
                 }
 
                 if (string.IsNullOrEmpty(json))
                 {
-                    Debug.LogWarning("[CharacterStatsService] Không nhận được phản hồi từ backend. Giữ nguyên fallback.");
+                    Debug.LogWarning("[CharacterStatsService] Không nhận được phản hồi từ backend. Giữ nguyên chỉ số hiện tại.");
                     return false;
                 }
 
@@ -112,21 +116,11 @@ namespace Blocks.Gameplay.Core
                     return false;
                 }
 
-                foreach (var c in characters)
-                {
-                    if (c == null) continue;
-                    if (c.id == DAD_ID || (!string.IsNullOrEmpty(c.name) && c.name.ToLower().Contains("dad")))
-                    {
-                        DadCharacter = c;
-                    }
-                    else if (c.id == CHILD_ID || (!string.IsNullOrEmpty(c.name) && (c.name.ToLower().Contains("child") || c.name.ToLower().Contains("con"))))
-                    {
-                        ChildCharacter = c;
-                    }
-                }
-
+                UpdateLocalCache(characters);
+                IsBackendLoaded = true;
                 IsLoaded = true;
-                Debug.Log($"[CharacterStatsService] ✅ Đã tải chỉ số thành công từ Backend! Dad moveSpeed={DadCharacter.movement?.moveSpeed}, jump={DadCharacter.movement?.jumpHeight}; Child moveSpeed={ChildCharacter.movement?.moveSpeed}, jump={ChildCharacter.movement?.jumpHeight}");
+
+                Debug.Log($"[CharacterStatsService] ✅ Đã tải và đồng bộ chỉ số thành công từ Backend! Dad moveSpeed={DadCharacter.movement?.moveSpeed}, jump={DadCharacter.movement?.jumpHeight}; Child moveSpeed={ChildCharacter.movement?.moveSpeed}, jump={ChildCharacter.movement?.jumpHeight}");
                 return true;
             }
             catch (Exception ex)
@@ -134,6 +128,35 @@ namespace Blocks.Gameplay.Core
                 Debug.LogWarning($"[CharacterStatsService] Lỗi khi tải stats từ backend ({ex.Message}). Sử dụng dữ liệu offline fallback.");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Cập nhật cache cục bộ ngay lập tức (dùng khi Admin/Mod chỉnh sửa hoặc tải về).
+        /// </summary>
+        public static void UpdateLocalCache(ModApiClient.CharacterDto[] characters)
+        {
+            if (characters == null) return;
+            foreach (var c in characters)
+            {
+                UpdateLocalCache(c);
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật cache cục bộ cho 1 nhân vật ngay lập tức.
+        /// </summary>
+        public static void UpdateLocalCache(ModApiClient.CharacterDto c)
+        {
+            if (c == null) return;
+            if (c.id == DAD_ID || (!string.IsNullOrEmpty(c.name) && c.name.ToLower().Contains("dad")))
+            {
+                DadCharacter = c;
+            }
+            else if (c.id == CHILD_ID || (!string.IsNullOrEmpty(c.name) && (c.name.ToLower().Contains("child") || c.name.ToLower().Contains("con"))))
+            {
+                ChildCharacter = c;
+            }
+            IsLoaded = true;
         }
 
         public static ModApiClient.CharacterDto GetCharacterDto(bool isDad)

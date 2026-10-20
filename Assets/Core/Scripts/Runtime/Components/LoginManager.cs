@@ -57,6 +57,7 @@ namespace Blocks.Gameplay.Core
             if (m_LoginButton != null) m_LoginButton.clicked += OnLoginClicked;
             if (m_PlayButton != null) m_PlayButton.clicked += OnPlayClicked;
             if (m_LogoutButton != null) m_LogoutButton.clicked += OnLogoutClicked;
+            ApiClient.OnSessionExpired += OnSessionExpired;
 
             // Tự động gán âm thanh Hover / Click cho tất cả buttons
             UISoundManager.BindButtons(root);
@@ -79,6 +80,13 @@ namespace Blocks.Gameplay.Core
             if (m_LoginButton != null) m_LoginButton.clicked -= OnLoginClicked;
             if (m_PlayButton != null) m_PlayButton.clicked -= OnPlayClicked;
             if (m_LogoutButton != null) m_LogoutButton.clicked -= OnLogoutClicked;
+            ApiClient.OnSessionExpired -= OnSessionExpired;
+        }
+
+        private void OnSessionExpired()
+        {
+            ShowLoginForm();
+            SetStatus("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
         }
 
         private void ShowLoginForm()
@@ -110,17 +118,7 @@ namespace Blocks.Gameplay.Core
         private void OnLogoutClicked()
         {
             UISoundManager.PlayCancel();
-            // Optional: You could call ApiClient.LogoutAsync() here if the backend supports token revocation
-            // For now, we'll just clear the local preferences.
-            PlayerPrefs.DeleteKey("HMH_AccessToken");
-            PlayerPrefs.DeleteKey("HMH_RefreshToken");
-            PlayerPrefs.DeleteKey("HMH_UserId");
-            PlayerPrefs.DeleteKey("HMH_Username");
-            PlayerPrefs.DeleteKey("HMH_DisplayName");
-            PlayerPrefs.DeleteKey("HMH_SessionId");
-            PlayerPrefs.DeleteKey("HMH_Role");
-            PlayerPrefs.Save();
-
+            ApiClient.ClearSession();
             ShowLoginForm();
             SetStatus("Đã đăng xuất.");
         }
