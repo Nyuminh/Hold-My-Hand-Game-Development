@@ -350,6 +350,16 @@ namespace Blocks.Gameplay.Core
             {
                 preview.AddComponent<LobbyPreviewAnimator>();
             }
+
+            // Đảm bảo các mô hình 3D mannequin trong Lobby không bao giờ hiển thị HUD cá nhân
+            if (preview.TryGetComponent<UIDocument>(out var uiDoc))
+            {
+                uiDoc.enabled = false;
+            }
+            if (preview.TryGetComponent<CoreHUD>(out var hud))
+            {
+                hud.enabled = false;
+            }
         }
 
         private void UpdatePlayerInfo()

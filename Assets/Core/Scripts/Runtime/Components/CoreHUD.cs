@@ -27,12 +27,15 @@ namespace Blocks.Gameplay.Core
         // UI Element References
         private Label m_MessageLabel;
         private Label m_CountdownLabel;
+        private Label m_HealthValueLabel;
+        private Label m_StaminaValueLabel;
         private UIDocument m_UIDocument;
         private ProgressBar m_PlayerHealthBar;
         private ProgressBar m_PlayerStaminaBar;
         private VisualElement m_MessageOverlay;
         private VisualElement m_PlayerHealthBarFill;
         private VisualElement m_PlayerStaminaBarFill;
+        private VisualElement m_HealthInfoContainer;
         private VisualElement m_NotificationContainer;
 
         // Notification System
@@ -274,6 +277,9 @@ namespace Blocks.Gameplay.Core
             m_MessageLabel = root.Q<Label>("message-label");
             m_CountdownLabel = root.Q<Label>("countdown-label");
             m_MessageOverlay = root.Q<VisualElement>("message-overlay");
+            m_HealthInfoContainer = root.Q<VisualElement>("health-info-container");
+            m_HealthValueLabel = root.Q<Label>("player-health-value-label");
+            m_StaminaValueLabel = root.Q<Label>("player-stamina-value-label");
             m_PlayerHealthBar = root.Q<ProgressBar>("player-health-bar");
             m_PlayerStaminaBar = root.Q<ProgressBar>("player-stamina-bar");
             m_NotificationContainer = root.Q<VisualElement>("notification-container");
@@ -288,6 +294,16 @@ namespace Blocks.Gameplay.Core
             if (m_MessageOverlay != null)
             {
                 m_MessageOverlay.style.display = DisplayStyle.None;
+            }
+
+            // Tự động kiểm tra Scene: Chỉ hiển thị thanh máu & thể lực trong Scene Gameplay (Tutorial, PlayScene1,...)
+            // Ẩn thanh máu & thể lực khi ở các scene sảnh/đăng nhập (Lobby, LoginScene).
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.ToLower();
+            bool isMenuScene = sceneName.Contains("lobby") || sceneName.Contains("login");
+
+            if (m_HealthInfoContainer != null)
+            {
+                m_HealthInfoContainer.style.display = isMenuScene ? DisplayStyle.None : DisplayStyle.Flex;
             }
 
             // Configure progress bar colors
@@ -306,6 +322,24 @@ namespace Blocks.Gameplay.Core
                 if (m_PlayerStaminaBarFill != null)
                 {
                     m_PlayerStaminaBarFill.style.backgroundColor = k_StaminaBarColor;
+                }
+            }
+
+            // Nạp ngay số liệu ban đầu nếu coreStats đã có sẵn
+            if (coreStats != null)
+            {
+                foreach (var stat in coreStats.GetAllStats())
+                {
+                    int statHash = Animator.StringToHash(stat.name);
+                    UpdateLocalPlayerStats(new StatChangePayload
+                    {
+                        targetPlayerId = OwnerClientId,
+                        sourcePlayerId = OwnerClientId,
+                        statID = statHash,
+                        statName = stat.name,
+                        currentValue = stat.current,
+                        maxValue = stat.max
+                    });
                 }
             }
         }
@@ -464,8 +498,12 @@ namespace Blocks.Gameplay.Core
             {
                 foreach (var stat in coreStats.GetAllStats())
                 {
+                    int statHash = Animator.StringToHash(stat.name);
                     HandleStatChanged(new StatChangePayload
                     {
+                        targetPlayerId = OwnerClientId,
+                        sourcePlayerId = OwnerClientId,
+                        statID = statHash,
                         statName = stat.name,
                         currentValue = stat.current,
                         maxValue = stat.max
@@ -480,20 +518,58 @@ namespace Blocks.Gameplay.Core
         /// <param name="payload">The stat change payload.</param>
         private void UpdateLocalPlayerStats(StatChangePayload payload)
         {
-            if (payload.statID == StatKeys.Health)
+            // Đảm bảo hiển thị thanh HP & Stamina trong các scene gameplay
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.ToLower();
+            bool isMenuScene = sceneName.Contains("lobby") || sceneName.Contains("login");
+            if (m_HealthInfoContainer != null)
             {
+                m_HealthInfoContainer.style.display = isMenuScene ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
+            int id = payload.statID != 0 ? payload.statID : Animator.StringToHash(payload.statName ?? "");
+
+            if (id == StatKeys.Health || (payload.statName != null && payload.statName.Equals("Health", System.StringComparison.OrdinalIgnoreCase)))
+            {
+                float max = payload.maxValue > 0 ? payload.maxValue : 100f;
+
                 if (m_PlayerHealthBar != null)
                 {
-                    m_PlayerHealthBar.highValue = payload.maxValue;
+                    m_PlayerHealthBar.highValue = max;
                     m_PlayerHealthBar.value = payload.currentValue;
+                    m_PlayerHealthBar.title = $"{Mathf.CeilToInt(payload.currentValue)} / {Mathf.CeilToInt(max)}";
+
+                    if (m_PlayerHealthBarFill == null)
+                    {
+                        m_PlayerHealthBarFill = m_PlayerHealthBar.Q<VisualElement>(null, "unity-progress-bar__progress");
+                        if (m_PlayerHealthBarFill != null) m_PlayerHealthBarFill.style.backgroundColor = k_HealthBarColor;
+                    }
+                }
+
+                if (m_HealthValueLabel != null)
+                {
+                    m_HealthValueLabel.text = $"{Mathf.CeilToInt(payload.currentValue)} / {Mathf.CeilToInt(max)}";
                 }
             }
-            else if (payload.statID == StatKeys.Stamina)
+            else if (id == StatKeys.Stamina || (payload.statName != null && payload.statName.Equals("Stamina", System.StringComparison.OrdinalIgnoreCase)))
             {
+                float max = payload.maxValue > 0 ? payload.maxValue : 100f;
+
                 if (m_PlayerStaminaBar != null)
                 {
-                    m_PlayerStaminaBar.highValue = payload.maxValue;
+                    m_PlayerStaminaBar.highValue = max;
                     m_PlayerStaminaBar.value = payload.currentValue;
+                    m_PlayerStaminaBar.title = $"{Mathf.CeilToInt(payload.currentValue)} / {Mathf.CeilToInt(max)}";
+
+                    if (m_PlayerStaminaBarFill == null)
+                    {
+                        m_PlayerStaminaBarFill = m_PlayerStaminaBar.Q<VisualElement>(null, "unity-progress-bar__progress");
+                        if (m_PlayerStaminaBarFill != null) m_PlayerStaminaBarFill.style.backgroundColor = k_StaminaBarColor;
+                    }
+                }
+
+                if (m_StaminaValueLabel != null)
+                {
+                    m_StaminaValueLabel.text = $"{Mathf.CeilToInt(payload.currentValue)} / {Mathf.CeilToInt(max)}";
                 }
             }
         }
