@@ -48,6 +48,7 @@ namespace Blocks.Gameplay.Core
         private Button m_BackToLobbyButton;
 
         private bool m_IsOpen = false;
+        public bool IsOpen => m_IsOpen;
         private bool m_IsQuitting = false;
         private bool m_HandlersRegistered = false;
 
@@ -56,12 +57,22 @@ namespace Blocks.Gameplay.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoInit()
         {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
+
+            CheckSceneAndEnsureInstance(SceneManager.GetActiveScene());
         }
 
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if ((scene.name.Contains("Core") || scene.name.Contains("Tutorial")) && !scene.name.Contains("Lobby") && !scene.name.Contains("Login"))
+            CheckSceneAndEnsureInstance(scene);
+        }
+
+        private static void CheckSceneAndEnsureInstance(Scene scene)
+        {
+            if (!scene.IsValid()) return;
+            string sName = scene.name.ToLower();
+            if (!sName.Contains("lobby") && !sName.Contains("login"))
             {
                 EnsureInstanceInScene();
             }
@@ -72,14 +83,20 @@ namespace Blocks.Gameplay.Core
             if (Instance != null) return Instance;
 
             var existing = FindAnyObjectByType<InGameEscapeMenuManager>();
-            if (existing != null) return existing;
+            if (existing != null)
+            {
+                Instance = existing;
+                return existing;
+            }
 
             var prefab = Resources.Load<GameObject>("Pfb_InGameEscapeMenu");
             if (prefab != null)
             {
                 var go = Instantiate(prefab);
                 go.name = "[InGameEscapeMenu]";
-                return go.GetComponent<InGameEscapeMenuManager>();
+                Instance = go.GetComponent<InGameEscapeMenuManager>();
+                Debug.Log($"[InGameEscapeMenu] Đã khởi tạo [InGameEscapeMenu] cho Scene: {SceneManager.GetActiveScene().name}");
+                return Instance;
             }
 
             return null;
@@ -115,6 +132,10 @@ namespace Blocks.Gameplay.Core
         private void OnDestroy()
         {
             UnregisterNetworkHandlers();
+            if (Instance == this)
+            {
+                Instance = null;
+            }
         }
 
         private void SetupUI()
@@ -141,8 +162,17 @@ namespace Blocks.Gameplay.Core
             m_ResumeButton = root.Q<Button>("resume-button");
             m_BackToLobbyButton = root.Q<Button>("back-to-lobby-button");
 
-            if (m_ResumeButton != null) m_ResumeButton.clicked += OnResumeClicked;
-            if (m_BackToLobbyButton != null) m_BackToLobbyButton.clicked += OnBackToLobbyClicked;
+            if (m_ResumeButton != null)
+            {
+                m_ResumeButton.clicked -= OnResumeClicked;
+                m_ResumeButton.clicked += OnResumeClicked;
+            }
+
+            if (m_BackToLobbyButton != null)
+            {
+                m_BackToLobbyButton.clicked -= OnBackToLobbyClicked;
+                m_BackToLobbyButton.clicked += OnBackToLobbyClicked;
+            }
 
             // Bind âm thanh Hover & Click
             UISoundManager.BindButtons(root);
@@ -168,20 +198,31 @@ namespace Blocks.Gameplay.Core
             bool escPressed = false;
 
 #if ENABLE_INPUT_SYSTEM
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            try
             {
-                escPressed = true;
+                if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                {
+                    escPressed = true;
+                }
+                else if (Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame)
+                {
+                    escPressed = true;
+                }
             }
-            else if (Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame)
-            {
-                escPressed = true;
-            }
-#elif ENABLE_LEGACY_INPUT_MANAGER
-            if (Input.GetKeyDown(KeyCode.Escape))
-            {
-                escPressed = true;
-            }
+            catch { }
 #endif
+
+            if (!escPressed)
+            {
+                try
+                {
+                    if (Input.GetKeyDown(KeyCode.Escape))
+                    {
+                        escPressed = true;
+                    }
+                }
+                catch { }
+            }
 
             if (escPressed)
             {
@@ -203,6 +244,7 @@ namespace Blocks.Gameplay.Core
 
         public void OpenMenu()
         {
+            if (m_Root == null) SetupUI();
             if (m_Root == null) return;
             m_IsOpen = true;
             m_Root.style.display = DisplayStyle.Flex;

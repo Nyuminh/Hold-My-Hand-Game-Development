@@ -79,7 +79,7 @@ namespace Blocks.Gameplay.Core
 
             var go = new GameObject("[UISoundManager]");
             s_Instance = go.AddComponent<UISoundManager>();
-            DontDestroyOnLoad(go);
+            if (Application.isPlaying) DontDestroyOnLoad(go);
         }
 
         private void Awake()
@@ -91,7 +91,7 @@ namespace Blocks.Gameplay.Core
             }
 
             s_Instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (Application.isPlaying) DontDestroyOnLoad(gameObject);
 
             InitAudioSource();
             GenerateProceduralFallbacks();
