@@ -901,7 +901,7 @@ namespace Blocks.Gameplay.Core
 
         private void ApplyMovementToSceneCharacters(ModApiClient.CharacterDto character)
         {
-            if (character.movement == null) return;
+            if (character == null) return;
 
             var movements = UnityEngine.Object.FindObjectsByType<CoreMovement>();
             if (movements == null || movements.Length == 0)
@@ -911,21 +911,23 @@ namespace Blocks.Gameplay.Core
             }
 
             int count = 0;
+            bool isDad = character.id == CharacterStatsService.DAD_ID || (!string.IsNullOrEmpty(character.name) && character.name.ToLower().Contains("dad"));
+
             foreach (var cm in movements)
             {
-                cm.moveSpeed = character.movement.moveSpeed;
-                cm.sprintSpeed = character.movement.sprintSpeed;
-                cm.rotationSmoothTime = character.movement.rotationSmoothTime;
-                cm.speedChangeRate = character.movement.speedChangeRate;
-                cm.forceDecayRate = character.movement.forceDecayRate;
-                cm.gravity = character.movement.gravity;
-                cm.jumpHeight = character.movement.jumpHeight;
+                bool targetIsDad = cm.gameObject.name.ToLower().Contains("dad");
+                if (targetIsDad != isDad && movements.Length > 1) continue;
 
+                CharacterStatsService.ApplyStatsToCharacter(cm.gameObject, isDad);
                 EditorUtility.SetDirty(cm);
+                if (cm.TryGetComponent<CoreStatsHandler>(out var stats))
+                {
+                    EditorUtility.SetDirty(stats);
+                }
                 count++;
             }
 
-            SetStatus($"Đã áp dụng các chỉ số di chuyển & nhảy cho {count} nhân vật trong Scene!", MessageType.Info);
+            SetStatus($"Đã áp dụng các chỉ số di chuyển & sinh tồn cho {count} nhân vật trong Scene!", MessageType.Info);
         }
 
         private async Task FetchAuditLogsAsync()

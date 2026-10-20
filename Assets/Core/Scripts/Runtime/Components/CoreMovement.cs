@@ -231,6 +231,9 @@ namespace Blocks.Gameplay.Core
             m_CharacterController = GetComponent<CharacterController>();
             m_InitialGravity = gravity;
 
+            // Tự động nạp cấu hình di chuyển từ Backend / CharacterStatsService
+            CharacterStatsService.ApplyStatsToCharacter(gameObject);
+
             // Discover and initialize all movement abilities
             m_Abilities = new List<IMovementAbility>(GetComponents<IMovementAbility>());
 
@@ -532,6 +535,26 @@ namespace Blocks.Gameplay.Core
             m_ExternalForce = Vector3.zero;
             m_ArealVelocity = Vector3.zero;
             gravity = m_InitialGravity;
+        }
+
+        /// <summary>
+        /// Áp dụng cấu hình di chuyển từ Backend / CharacterStatsService.
+        /// </summary>
+        public void ApplyMovementSettings(ModApiClient.MovementSettingsDto settings)
+        {
+            if (settings == null) return;
+            moveSpeed = settings.moveSpeed;
+            sprintSpeed = settings.sprintSpeed;
+            rotationSmoothTime = settings.rotationSmoothTime;
+            speedChangeRate = settings.speedChangeRate;
+            forceDecayRate = settings.forceDecayRate;
+            gravity = settings.gravity;
+            m_InitialGravity = settings.gravity;
+            jumpHeight = settings.jumpHeight;
+            groundedOffset = settings.groundedOffset;
+            groundedRadius = settings.groundedRadius;
+            slopeForce = settings.slopeForce;
+            slopeForceRayLength = settings.slopeForceRayLength;
         }
 
         #endregion

@@ -192,6 +192,7 @@ public class RoleBasedSpawner : MonoBehaviour
             }
 
             var go = Instantiate(prefabToSpawn, spawnPos, spawnRot);
+            CharacterStatsService.ApplyStatsToCharacter(go, shouldSpawnDad);
             go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
             Debug.Log($"[RoleBasedSpawner] ✅ ĐÃ SPAWN {(shouldSpawnDad ? "Dad" : "Child")} cho Client {clientId} tại vị trí {spawnPos} thành công!");
         }
@@ -247,6 +248,7 @@ public class RoleBasedSpawner : MonoBehaviour
         if (prefabToSpawn != null)
         {
             var go = Instantiate(prefabToSpawn, spawnPos, spawnRot);
+            CharacterStatsService.ApplyStatsToCharacter(go, asDad);
             go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
             Debug.Log($"[RoleBasedSpawner] ✅ Respawn thành công vai {(asDad ? "Dad" : "Child")} cho Client {clientId}!");
         }

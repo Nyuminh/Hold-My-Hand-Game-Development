@@ -66,6 +66,7 @@ namespace Blocks.Gameplay.Core
             {
                 ShowLoggedInState();
                 SetStatus("");
+                _ = CharacterStatsService.FetchCharacterStatsAsync();
             }
             else
             {
@@ -98,10 +99,11 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        private void OnPlayClicked()
+        private async void OnPlayClicked()
         {
             UISoundManager.PlayConfirm();
-            SetStatus("Đang tải Lobby...");
+            SetStatus("Đang tải dữ liệu và vào Lobby...");
+            await CharacterStatsService.EnsureLoadedAsync();
             SceneManager.LoadScene(lobbySceneName);
         }
 
@@ -158,6 +160,7 @@ namespace Blocks.Gameplay.Core
 
                 // Chuyển sang UI Play thay vì load scene ngay
                 ShowLoggedInState();
+                _ = CharacterStatsService.FetchCharacterStatsAsync();
             }
             catch (ApiException apiEx)
             {

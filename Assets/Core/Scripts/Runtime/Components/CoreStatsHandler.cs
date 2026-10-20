@@ -61,6 +61,9 @@ namespace Blocks.Gameplay.Core
             {
                 m_StatDefinitions[Animator.StringToHash(def.statName)] = def;
             }
+
+            // Tự động nạp cấu hình chỉ số sinh tồn từ Backend / CharacterStatsService
+            CharacterStatsService.ApplyStatsToCharacter(gameObject);
         }
 
         public override void OnNetworkSpawn()
@@ -227,6 +230,84 @@ namespace Blocks.Gameplay.Core
                 return def.maxValue;
             }
             return 0f;
+        }
+
+        /// <summary>
+        /// Áp dụng cấu hình chỉ số sinh tồn (Health, Stamina) từ Backend / CharacterStatsService.
+        /// </summary>
+        public void ApplyStatAttributes(ModApiClient.StatAttributeDto[] attributes, string primaryStat = "Health")
+        {
+            if (attributes == null || attributes.Length == 0) return;
+
+            if (!string.IsNullOrEmpty(primaryStat) && statsConfig != null)
+            {
+                if (!statsConfig.name.Contains("(Clone)"))
+                {
+                    statsConfig = Instantiate(statsConfig);
+                }
+                statsConfig.primaryStatName = primaryStat;
+            }
+
+            foreach (var attr in attributes)
+            {
+                int hash = Animator.StringToHash(attr.statName);
+                StatDefinition def = null;
+
+                if (statsConfig != null && statsConfig.stats != null)
+                {
+                    for (int i = 0; i < statsConfig.stats.Count; i++)
+                    {
+                        if (statsConfig.stats[i] != null && statsConfig.stats[i].statName == attr.statName)
+                        {
+                            if (!statsConfig.stats[i].name.Contains("(Clone)"))
+                            {
+                                statsConfig.stats[i] = Instantiate(statsConfig.stats[i]);
+                            }
+                            def = statsConfig.stats[i];
+                            break;
+                        }
+                    }
+                }
+
+                if (def == null)
+                {
+                    def = ScriptableObject.CreateInstance<StatDefinition>();
+                    def.statName = attr.statName;
+                    if (statsConfig != null && statsConfig.stats != null)
+                    {
+                        statsConfig.stats.Add(def);
+                    }
+                }
+
+                def.minValue = attr.minValue;
+                def.maxValue = attr.maxValue;
+                def.startingValue = attr.startingValue;
+                def.regenRate = attr.regenRate;
+                def.regenDelay = attr.regenDelay;
+                def.eventFlags = (StatEventFlags)attr.eventFlags;
+
+                m_StatDefinitions[hash] = def;
+
+                // Cập nhật giá trị runtime nếu đã spawn
+                if (m_RuntimeStats != null && IsSpawned && IsOwner)
+                {
+                    int idx = FindStatIndex(hash);
+                    if (idx != -1)
+                    {
+                        var s = m_RuntimeStats[idx];
+                        s.CurrentValue = Mathf.Clamp(s.CurrentValue, def.minValue, def.maxValue);
+                        m_RuntimeStats[idx] = s;
+                    }
+                    else
+                    {
+                        m_RuntimeStats.Add(new RuntimeStat
+                        {
+                            StatHash = hash,
+                            CurrentValue = def.startingValue
+                        });
+                    }
+                }
+            }
         }
 
         #endregion

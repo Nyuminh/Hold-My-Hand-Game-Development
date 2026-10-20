@@ -137,6 +137,9 @@ namespace Blocks.Gameplay.Core
                 {
                     _ = RestorePreservedLobbyAsync();
                 }
+
+                // Tải trước chỉ số nhân vật từ backend để sẵn sàng trước khi vào scene
+                _ = CharacterStatsService.FetchCharacterStatsAsync();
             }
             catch (System.Exception ex)
             {
@@ -440,12 +443,16 @@ namespace Blocks.Gameplay.Core
             SetupPreview();
         }
 
-        private void OnConfirmTutorialClicked()
+        private async void OnConfirmTutorialClicked()
         {
             UISoundManager.PlayConfirm();
             AmIDad = m_TutorialRoleIsDad;
             StopPolling();
-            ShowToast("🎮 Đang vào chế độ Tập Luyện (Tutorial)...");
+            ShowToast("🎮 Đang nạp chỉ số và vào chế độ Tập Luyện...");
+            
+            // Tải chỉ số từ backend trước khi vào Scene Tutorial
+            await CharacterStatsService.EnsureLoadedAsync();
+
             LobbySessionContext.Clear();
             SceneManager.LoadScene("Tutorial");
         }
@@ -659,7 +666,10 @@ namespace Blocks.Gameplay.Core
                 await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, options);
                 StopPolling();
 
-                ShowToast("🎮 Đang Load Game Scene...");
+                ShowToast("🎮 Đang nạp chỉ số và Load Game Scene...");
+
+                // Đảm bảo chỉ số nhân vật đã được nạp từ Backend trước khi load scene
+                await CharacterStatsService.EnsureLoadedAsync();
 
                 // Sinh ra bộ tự động Start Session cho Host mang sang Game Scene
                 GameObject bootstrapper = new GameObject("AutoSessionBootstrapper");
@@ -758,6 +768,9 @@ namespace Blocks.Gameplay.Core
                         ShowToast("🎮 Đang Load Game Scene...");
 
                         AmIDad = lobby.Data.ContainsKey("dadUserId") && (AuthenticationService.Instance.PlayerId == lobby.Data["dadUserId"].Value);
+
+                        // Tải trước chỉ số nhân vật cho Client trước khi load scene
+                        await CharacterStatsService.EnsureLoadedAsync();
 
                         // Sinh ra bộ tự động Start Session cho Client mang sang Game Scene
                         GameObject bootstrapper = new GameObject("AutoSessionBootstrapper");
