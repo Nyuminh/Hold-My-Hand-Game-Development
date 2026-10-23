@@ -230,43 +230,25 @@ namespace Blocks.Gameplay.Core
 
                     CharacterStatsService.ApplyStatsToCharacter(m_CompanionInstance, companionIsDad);
 
-                    // 1. Gỡ listener và tắt CorePlayerManager để dummy không nhận input
-                    if (m_CompanionInstance.TryGetComponent<CorePlayerManager>(out var pm))
+                    // Xóa hoàn toàn CameraController, AudioListener và CoreHUD trên Dummy TRƯỚC KHI Spawn
+                    if (m_CompanionInstance.TryGetComponent<CoreCameraController>(out var dummyCam))
                     {
-                        pm.UnregisterEventListeners();
-                        pm.SetMovementInputEnabled(false);
-                        pm.enabled = false;
+                        DestroyImmediate(dummyCam);
+                    }
+                    if (m_CompanionInstance.TryGetComponent<AudioListener>(out var dummyListener))
+                    {
+                        DestroyImmediate(dummyListener);
+                    }
+                    if (m_CompanionInstance.TryGetComponent<CoreHUD>(out var dummyHud))
+                    {
+                        DestroyImmediate(dummyHud);
                     }
 
-                    // 2. Khóa di chuyển trên CoreMovement để dummy đứng yên cố định
-                    if (m_CompanionInstance.TryGetComponent<CoreMovement>(out var mov))
-                    {
-                        mov.SetMoveInput(Vector2.zero);
-                        mov.SetSprintState(false);
-                        mov.IsMovementEnabled = false;
-                    }
+                    // Gắn component SoloCompanionDummy để cô lập hoàn toàn input của dummy
+                    var dummy = m_CompanionInstance.GetComponent<SoloCompanionDummy>() ?? m_CompanionInstance.AddComponent<SoloCompanionDummy>();
+                    dummy.DisconnectInputs();
 
-                    // 3. Tắt CoreInputHandler
-                    if (m_CompanionInstance.TryGetComponent<CoreInputHandler>(out var inputHandler))
-                    {
-                        inputHandler.enabled = false;
-                    }
-
-                    // 4. Tắt Camera Controller và AudioListener để không giành quyền điều khiển góc nhìn
-                    if (m_CompanionInstance.TryGetComponent<CoreCameraController>(out var camCtrl))
-                    {
-                        camCtrl.enabled = false;
-                    }
-                    if (m_CompanionInstance.TryGetComponent<AudioListener>(out var listener))
-                    {
-                        listener.enabled = false;
-                    }
-                    if (m_CompanionInstance.TryGetComponent<CoreHUD>(out var hud))
-                    {
-                        hud.enabled = false;
-                    }
-
-                    // 5. Đảm bảo có đủ CoopHoldHandAbility và CoopBoostThrowAbility
+                    // Đảm bảo có đủ CoopHoldHandAbility và CoopBoostThrowAbility
                     if (m_CompanionInstance.GetComponent<CoopHoldHandAbility>() == null)
                     {
                         m_CompanionInstance.AddComponent<CoopHoldHandAbility>();
@@ -280,6 +262,19 @@ namespace Blocks.Gameplay.Core
                     if (netObj != null && !netObj.IsSpawned)
                     {
                         netObj.Spawn(true);
+                    }
+
+                    // Gọi lại DisconnectInputs sau khi Netcode Spawn để hủy bất kỳ listener nào do OnNetworkSpawn tự động đăng ký
+                    dummy.DisconnectInputs();
+
+                    // Đảm bảo Camera Cinemachine luôn tập trung vào người chơi thật (LocalClient.PlayerObject)
+                    if (NetworkManager.Singleton.LocalClient?.PlayerObject != null)
+                    {
+                        var playerCam = NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<CoreCameraController>();
+                        if (playerCam != null)
+                        {
+                            playerCam.SwitchCameraMode("FreeLook");
+                        }
                     }
 
                     Debug.Log($"[TutorialManager] 🤖 Đã tạo Bạn Đồng Hành '{(companionIsDad ? "Dad" : "Child")}' đứng yên làm đối tác test Nắm Tay [H] & Kiệu Phóng [F]!");

@@ -12,9 +12,9 @@ namespace Blocks.Gameplay.Core
     /// Cơ chế Kiệu Vai & Gồng Lực Ném Con Lên Cao (Charged Boost & Throw Ability):
     /// - 🧔 Ba (Dad): Nhấn giữ [F] để gồng cơ bắp tích lũy lực ném ("thanh canh lực"),
     ///   hiển thị đường đạn parabolic dự đoán (Trajectory Arc) và hiệu ứng squash & shake cơ bắp.
-    ///   Thả [F] ra để quăng 👶 Con phóng lên vách cao hoặc qua khe vực sâu.
+    ///   Thả [F] ra để quăng 👶 Con phóng lên vách cao hoặc qua khe vực sâu theo quán tính.
     /// - 👶 Con (Child): Khi bay trên không kích hoạt tư thế phóng lượn (JumpInAir_Launched),
-    ///   tiếp đất mượt mà.
+    ///   bay xa theo quán tính phương ngang và tiếp đất an toàn.
     /// </summary>
     [RequireComponent(typeof(CoreMovement))]
     public class CoopBoostThrowAbility : NetworkBehaviour
@@ -23,16 +23,16 @@ namespace Blocks.Gameplay.Core
 
         [Header("Thông số Lực Phóng (Force Range)")]
         [Tooltip("Lực phóng thẳng đứng tối thiểu khi vừa nhấn (mét/giây)")]
-        [SerializeField] private float minVerticalBoost = 6.5f;
+        [SerializeField] private float minVerticalBoost = 7.0f;
 
         [Tooltip("Lực phóng thẳng đứng cực đại khi gồng đầy thanh lực (mét/giây)")]
-        [SerializeField] private float maxVerticalBoost = 16.0f;
+        [SerializeField] private float maxVerticalBoost = 16.5f;
 
         [Tooltip("Lực đẩy phương ngang tối thiểu (mét/giây)")]
-        [SerializeField] private float minForwardBoostForce = 4.0f;
+        [SerializeField] private float minForwardBoostForce = 5.5f;
 
         [Tooltip("Lực đẩy phương ngang cực đại khi gồng đầy (mét/giây)")]
-        [SerializeField] private float maxForwardBoostForce = 13.0f;
+        [SerializeField] private float maxForwardBoostForce = 15.0f;
 
         [Header("Thông số Tích Lực (Charge Tuning)")]
         [Tooltip("Thời gian cần giữ [F] để tích đủ 100% lực (giây)")]
@@ -65,11 +65,13 @@ namespace Blocks.Gameplay.Core
         private PlayerRoleVisuals m_RoleVisuals;
         private CoreStatsHandler m_StatsHandler;
         private Animator m_Animator;
+        private CharacterController m_CharacterController;
 
         // Visual Model Transform for procedural squash & stretch
         private Transform m_VisualModel;
         private Vector3 m_OriginalModelScale = Vector3.one;
         private Vector3 m_OriginalModelPos = Vector3.zero;
+        private Quaternion m_OriginalModelRot = Quaternion.identity;
 
         // Trajectory Line Renderer
         private LineRenderer m_TrajectoryLine;
@@ -86,6 +88,9 @@ namespace Blocks.Gameplay.Core
         private float m_CurrentChargeTime = 0f;
         private float m_CurrentChargeRatio = 0f; // 0.0 -> 1.0
 
+        // Active Flight Coroutine
+        private Coroutine m_ActiveFlightCoroutine;
+
         // Textures for GUI Force Bar
         private Texture2D m_BarBgTexture;
         private Texture2D m_BarFillTexture;
@@ -98,6 +103,30 @@ namespace Blocks.Gameplay.Core
         #endregion
 
         #region Properties
+
+        /// <summary>
+        /// Kiểm tra xem instance này có phải nhân vật do NGƯỜI CHƠI THẬT ĐIỀU KHIỂN không (loại trừ Dummy Companion).
+        /// </summary>
+        public bool IsLocalPlayerCharacter
+        {
+            get
+            {
+                // Nếu gắn component SoloCompanionDummy -> chắc chắn không phải người chơi
+                if (GetComponent<SoloCompanionDummy>() != null) return false;
+
+                // Nếu có NetworkManager -> kiểm tra PlayerObject được chỉ định
+                if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null)
+                {
+                    var localPlayerObj = NetworkManager.Singleton.LocalClient.PlayerObject;
+                    if (localPlayerObj != null)
+                    {
+                        return localPlayerObj.gameObject == this.gameObject;
+                    }
+                }
+
+                return IsOwner;
+            }
+        }
 
         public bool IsDad => m_RoleVisuals != null ? m_RoleVisuals.IsDad : gameObject.name.ToLower().Contains("dad");
         public bool IsCharging => m_IsCharging;
@@ -113,6 +142,7 @@ namespace Blocks.Gameplay.Core
             m_RoleVisuals = GetComponent<PlayerRoleVisuals>();
             m_StatsHandler = GetComponent<CoreStatsHandler>();
             m_Animator = GetComponentInChildren<Animator>();
+            m_CharacterController = GetComponent<CharacterController>();
 
             FindVisualModel();
             SetupTrajectoryLine();
@@ -126,7 +156,8 @@ namespace Blocks.Gameplay.Core
                 m_CooldownTimer -= Time.deltaTime;
             }
 
-            if (!IsOwner) return;
+            // CHỈ NGƯỜI CHƠI THẬT MỚI XỬ LÝ INPUT BÀN PHÍM VÀ GỒNG NÉM
+            if (!IsLocalPlayerCharacter) return;
 
             FindPartnerIfNeeded();
 
@@ -165,7 +196,7 @@ namespace Blocks.Gameplay.Core
             }
             else
             {
-                // Nếu người chơi điều khiển Con: Bấm F để đạp vai Ba bật nhảy lên
+                // Nếu người chơi thật điều khiển Con: Bấm F để đạp vai Ba bật nhảy lên
                 if (fPressedThisFrame && m_CanBoostPartner)
                 {
                     ExecuteChildLaunch();
@@ -239,12 +270,6 @@ namespace Blocks.Gameplay.Core
             m_CurrentChargeTime = 0f;
             m_CurrentChargeRatio = 0f;
 
-            // Trigger Animation Gập người lấy đà (JumpStartHeavy)
-            if (m_Animator != null)
-            {
-                m_Animator.SetTrigger(s_JumpStartHeavyHash);
-            }
-
             if (m_TrajectoryLine != null) m_TrajectoryLine.enabled = true;
             if (m_LandingMarker != null) m_LandingMarker.SetActive(true);
 
@@ -268,7 +293,7 @@ namespace Blocks.Gameplay.Core
             // Rung lắc cơ bắp tỷ lệ với độ căng cơ (Muscle Tremble)
             float trembleIntensity = Mathf.Lerp(0.005f, 0.025f, ratio);
             Vector3 jitter = UnityEngine.Random.insideUnitSphere * trembleIntensity;
-            jitter.y *= 0.5f; // rung chủ yếu theo trục ngang
+            jitter.y *= 0.5f;
             m_VisualModel.localPosition = m_OriginalModelPos + jitter;
         }
 
@@ -279,7 +304,7 @@ namespace Blocks.Gameplay.Core
             float finalForwardForce = Mathf.Lerp(minForwardBoostForce, maxForwardBoostForce, ratio);
             float staminaCost = Mathf.Lerp(dadStaminaCostMin, dadStaminaCostMax, ratio);
 
-            // Kiểm tra và tiêu hao thể lực
+            // Kiểm tra và tiêu hao thể lực của Ba
             if (m_StatsHandler != null)
             {
                 m_StatsHandler.TryConsumeStat(Animator.StringToHash("Stamina"), staminaCost);
@@ -290,7 +315,7 @@ namespace Blocks.Gameplay.Core
             // Gửi lực phóng tới Con
             if (m_PartnerBoostAbility != null)
             {
-                if (m_PartnerBoostAbility.IsSpawned && !m_PartnerBoostAbility.IsOwner)
+                if (m_PartnerBoostAbility.IsSpawned && !m_PartnerBoostAbility.IsLocalPlayerCharacter)
                 {
                     m_PartnerBoostAbility.ReceiveBoostLaunchRpc(launchDirection, finalVerticalVel, finalForwardForce);
                 }
@@ -301,18 +326,20 @@ namespace Blocks.Gameplay.Core
             }
             else if (m_PartnerTransform != null)
             {
-                var partnerMotor = m_PartnerTransform.GetComponent<CoreMovement>();
-                if (partnerMotor != null)
+                var partnerAbility = m_PartnerTransform.GetComponent<CoopBoostThrowAbility>();
+                if (partnerAbility != null)
                 {
-                    partnerMotor.SetVerticalVelocity(finalVerticalVel);
-                    partnerMotor.ApplyExternalForce(launchDirection * finalForwardForce, ForceMode.Impulse);
+                    partnerAbility.ApplyLaunchLocally(launchDirection, finalVerticalVel, finalForwardForce);
                 }
             }
 
-            // Animation Ba bung người quăng con (JumpStartHeavyComplete)
+            // Đảm bảo Animator của Ba ở lại locomotion (Idle Walk Run), không bị kẹt vào InAir
             if (m_Animator != null)
             {
-                m_Animator.SetTrigger(s_JumpStartHeavyCompleteHash);
+                m_Animator.ResetTrigger(s_JumpStartHeavyHash);
+                m_Animator.ResetTrigger(s_JumpStartHeavyCompleteHash);
+                m_Animator.ResetTrigger(s_JumpLandHeavyHash);
+                m_Animator.CrossFadeInFixedTime("Idle Walk Run Blend", 0.15f);
             }
 
             // Hiệu ứng hồi bật co giãn (Elastic Rebound Bounce)
@@ -343,6 +370,14 @@ namespace Blocks.Gameplay.Core
                 m_VisualModel.localPosition = m_OriginalModelPos;
             }
 
+            if (m_Animator != null)
+            {
+                m_Animator.ResetTrigger(s_JumpStartHeavyHash);
+                m_Animator.ResetTrigger(s_JumpStartHeavyCompleteHash);
+                m_Animator.ResetTrigger(s_JumpLandHeavyHash);
+                m_Animator.CrossFadeInFixedTime("Idle Walk Run Blend", 0.15f);
+            }
+
             if (m_TrajectoryLine != null) m_TrajectoryLine.enabled = false;
             if (m_LandingMarker != null) m_LandingMarker.SetActive(false);
         }
@@ -351,7 +386,6 @@ namespace Blocks.Gameplay.Core
         {
             if (m_VisualModel == null) yield break;
 
-            // Đẩy cao người (Stretch Y = 1.18, Thon gọn XZ = 0.92)
             float t = 0f;
             float duration = 0.32f;
 
@@ -360,7 +394,6 @@ namespace Blocks.Gameplay.Core
                 t += Time.deltaTime;
                 float progress = t / duration;
 
-                // Hàm nảy (Spring Damping curve)
                 float bounce = Mathf.Sin(progress * Mathf.PI * 2.5f) * Mathf.Exp(-progress * 4.5f);
                 float scaleY = 1.0f + bounce * 0.22f;
                 float scaleXZ = 1.0f - bounce * 0.10f;
@@ -384,8 +417,8 @@ namespace Blocks.Gameplay.Core
         private void ExecuteChildLaunch()
         {
             m_CooldownTimer = boostCooldown;
-            Vector3 launchDirection = m_PartnerTransform.forward;
-            ApplyLaunchLocally(launchDirection, minVerticalBoost + 3.0f, minForwardBoostForce + 2.5f);
+            Vector3 launchDirection = m_PartnerTransform != null ? m_PartnerTransform.forward : transform.forward;
+            ApplyLaunchLocally(launchDirection, minVerticalBoost + 3.0f, minForwardBoostForce + 3.0f);
             UISoundManager.PlayClick();
             Debug.Log("[CoopBoost] 👶 Con đã đạp lên vai Ba bật nhảy lên cao!");
         }
@@ -396,55 +429,108 @@ namespace Blocks.Gameplay.Core
             ApplyLaunchLocally(forwardDirection, verticalVelocity, forwardForce);
         }
 
+        /// <summary>
+        /// Kích hoạt cơ chế bay xa theo quán tính phương ngang và bổng lên theo phương đứng.
+        /// </summary>
         public void ApplyLaunchLocally(Vector3 forwardDirection, float verticalVelocity, float forwardForce)
         {
             if (m_Motor == null) m_Motor = GetComponent<CoreMovement>();
-            if (m_Motor == null) return;
+            if (m_CharacterController == null) m_CharacterController = GetComponent<CharacterController>();
 
-            // Đặt vận tốc bay bổng lên trời
+            if (m_ActiveFlightCoroutine != null)
+            {
+                StopCoroutine(m_ActiveFlightCoroutine);
+            }
+
+            m_ActiveFlightCoroutine = StartCoroutine(RoutineBallisticFlight(forwardDirection, forwardForce, verticalVelocity));
+            UISoundManager.PlayClick();
+        }
+
+        /// <summary>
+        /// Coroutine duy trì quán tính bay (Inertia Momentum) theo phương ngang xuyên suốt quá trình trên không.
+        /// </summary>
+        private IEnumerator RoutineBallisticFlight(Vector3 forwardDirection, float forwardSpeed, float verticalVelocity)
+        {
+            if (m_Motor == null) yield break;
+
+            // 1. Kích hoạt vận tốc phóng thẳng đứng trên CoreMovement
             m_Motor.SetVerticalVelocity(verticalVelocity);
 
-            // Bổ sung lực đẩy theo phương ngang
-            Vector3 horizForce = new Vector3(forwardDirection.x, 0f, forwardDirection.z).normalized * forwardForce;
-            m_Motor.ApplyExternalForce(horizForce, ForceMode.Impulse);
+            // 2. Định hướng nhân vật quay mặt về hướng ném
+            Vector3 flatForward = new Vector3(forwardDirection.x, 0f, forwardDirection.z).normalized;
+            if (flatForward.sqrMagnitude > 0.01f)
+            {
+                transform.rotation = Quaternion.LookRotation(flatForward);
+            }
 
-            // Animation Con phóng lượn trên không (JumpInAir_Launched)
+            // 3. Trigger Animation Con phóng lượn trên không (JumpInAir_Launched)
             var childAnim = GetComponentInChildren<Animator>();
             if (childAnim != null)
             {
                 childAnim.SetTrigger(s_JumpStartHeavyCompleteHash);
             }
 
-            // Bắt đầu coroutine bay lượn ngửa người đẹp mắt
-            StartCoroutine(RoutineAerialGlidingFlight());
+            float airTimer = 0f;
+            float maxFlightTime = 3.5f;
 
-            UISoundManager.PlayClick();
-        }
+            // Đợi 1 frame để nhân vật rời khỏi mặt đất
+            yield return null;
 
-        private IEnumerator RoutineAerialGlidingFlight()
-        {
-            if (m_VisualModel == null) yield break;
-
-            // Nghiêng người theo hướng bay về phía trước
-            float flightTimer = 0f;
-            Quaternion origRot = m_VisualModel.localRotation;
-
-            while (flightTimer < 1.4f && (m_Motor != null && !m_Motor.IsGrounded))
+            // 4. DUY TRÌ QUÁN TÍNH PHƯƠNG NGANG CHO ĐẾN KHI CHẠM ĐẤT
+            while (airTimer < maxFlightTime)
             {
-                flightTimer += Time.deltaTime;
-                // Nghiêng nhẹ góc 20 độ theo đà phóng
-                m_VisualModel.localRotation = Quaternion.Euler(20f * Mathf.Sin(flightTimer * 3f), 0f, 0f) * origRot;
+                airTimer += Time.deltaTime;
+
+                // Kiểm tra tiếp đất sau ít nhất 0.2s bay
+                if (airTimer > 0.2f && (m_Motor.IsGrounded || (m_CharacterController != null && m_CharacterController.isGrounded)))
+                {
+                    break;
+                }
+
+                // Vận tốc ngang duy trì theo quán tính (chỉ giảm rất nhẹ 4% mỗi giây do sức cản không khí)
+                float currentHorizSpeed = forwardSpeed * Mathf.Clamp01(1.0f - (airTimer * 0.04f));
+                Vector3 displacement = flatForward * (currentHorizSpeed * Time.deltaTime);
+
+                if (m_CharacterController != null && m_CharacterController.enabled)
+                {
+                    m_CharacterController.Move(displacement);
+                }
+                else
+                {
+                    transform.position += displacement;
+                }
+
+                // Procedural Animation: Nghiêng người về phía trước theo quán tính bay
+                if (m_VisualModel != null)
+                {
+                    float tiltAngle = Mathf.Sin(Mathf.Clamp01(airTimer / 0.8f) * Mathf.PI) * 16f;
+                    m_VisualModel.localRotation = Quaternion.Euler(tiltAngle, 0f, 0f) * m_OriginalModelRot;
+                }
+
                 yield return null;
             }
 
-            // Tiếp đất mượt mà
-            m_VisualModel.localRotation = origRot;
-
-            // Trigger Landing Heavy Animation nếu rơi từ độ cao lớn
-            var anim = GetComponentInChildren<Animator>();
-            if (anim != null)
+            // 5. TIẾP ĐẤT AN TOÀN
+            if (m_VisualModel != null)
             {
-                anim.SetTrigger(s_JumpLandHeavyHash);
+                m_VisualModel.localRotation = m_OriginalModelRot;
+            }
+
+            if (childAnim != null)
+            {
+                childAnim.SetTrigger(s_JumpLandHeavyHash);
+            }
+
+            UISoundManager.PlayClick();
+            m_ActiveFlightCoroutine = null;
+            Debug.Log("[CoopBoost] 👶 Con đã tiếp đất an toàn sau khi bay xa theo quán tính!");
+
+            yield return new WaitForSeconds(0.3f);
+            if (childAnim != null)
+            {
+                childAnim.ResetTrigger(s_JumpStartHeavyCompleteHash);
+                childAnim.ResetTrigger(s_JumpLandHeavyHash);
+                childAnim.CrossFadeInFixedTime("Idle Walk Run Blend", 0.15f);
             }
         }
 
@@ -463,7 +549,6 @@ namespace Blocks.Gameplay.Core
             m_TrajectoryLine.startWidth = 0.14f;
             m_TrajectoryLine.endWidth = 0.04f;
 
-            // Tìm shader unlit hoặc fallback
             var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
             if (shader != null)
             {
@@ -476,7 +561,6 @@ namespace Blocks.Gameplay.Core
             m_TrajectoryLine.endColor = new Color(1f, 0.3f, 0.1f, 0.7f);
             m_TrajectoryLine.enabled = false;
 
-            // Điểm tiếp đất (Landing Marker)
             m_LandingMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             m_LandingMarker.name = "ThrowLandingMarker";
             m_LandingMarker.transform.SetParent(lineObj.transform, false);
@@ -538,7 +622,6 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
-            // Đặt vòng tròn tiếp đất
             if (m_LandingMarker != null)
             {
                 m_LandingMarker.transform.position = hitPoint + Vector3.up * 0.05f;
@@ -573,6 +656,7 @@ namespace Blocks.Gameplay.Core
             {
                 m_OriginalModelScale = m_VisualModel.localScale;
                 m_OriginalModelPos = m_VisualModel.localPosition;
+                m_OriginalModelRot = m_VisualModel.localRotation;
             }
         }
 
@@ -580,6 +664,16 @@ namespace Blocks.Gameplay.Core
         {
             if (m_PartnerTransform != null) return;
 
+            // 1. Quét tìm Dummy Companion trước
+            var dummy = FindAnyObjectByType<SoloCompanionDummy>();
+            if (dummy != null && dummy.gameObject != this.gameObject)
+            {
+                m_PartnerTransform = dummy.transform;
+                m_PartnerBoostAbility = dummy.GetComponent<CoopBoostThrowAbility>();
+                return;
+            }
+
+            // 2. Quét qua AllPlayers
             foreach (var player in PlayerRoleVisuals.AllPlayers)
             {
                 if (player != null && player.gameObject != this.gameObject)
@@ -590,6 +684,7 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
+            // 3. Fallback: Quét các component CoopBoostThrowAbility trong Scene
             var allBoostAbilities = FindObjectsByType<CoopBoostThrowAbility>(FindObjectsSortMode.None);
             foreach (var ability in allBoostAbilities)
             {
@@ -597,17 +692,6 @@ namespace Blocks.Gameplay.Core
                 {
                     m_PartnerTransform = ability.transform;
                     m_PartnerBoostAbility = ability;
-                    return;
-                }
-            }
-
-            var allMotors = FindObjectsByType<CoreMovement>(FindObjectsSortMode.None);
-            foreach (var motor in allMotors)
-            {
-                if (motor != null && motor.gameObject != this.gameObject)
-                {
-                    m_PartnerTransform = motor.transform;
-                    m_PartnerBoostAbility = motor.GetComponent<CoopBoostThrowAbility>();
                     return;
                 }
             }
@@ -630,7 +714,8 @@ namespace Blocks.Gameplay.Core
 
         private void OnGUI()
         {
-            if (!IsOwner) return;
+            // CHỈ NGƯỜI CHƠI THẬT MỚI VẼ GIAO DIỆN (DUMMY BOT KHÔNG VẼ)
+            if (!IsLocalPlayerCharacter) return;
 
             var titleStyle = new GUIStyle(GUI.skin.label)
             {
@@ -657,67 +742,56 @@ namespace Blocks.Gameplay.Core
                 float posX = (Screen.width - panelWidth) / 2f;
                 float posY = Screen.height - 210f;
 
-                // Nền Panel Kính Mờ (Glassmorphism Frame)
                 GUI.color = Color.white;
                 GUI.DrawTexture(new Rect(posX, posY, panelWidth, panelHeight), m_BarBgTexture);
-
-                // Viền sáng neon
                 GUI.Box(new Rect(posX, posY, panelWidth, panelHeight), GUIContent.none);
 
-                // Tiêu đề với tỷ lệ %
                 int percent = Mathf.RoundToInt(m_CurrentChargeRatio * 100f);
                 string title = $"⚡ GỒNG LỰC NÉM: {percent}% (THẢ [F] ĐỂ QUĂNG!)";
                 GUI.Label(new Rect(posX, posY + 6f, panelWidth, 24f), title, titleStyle);
 
-                // Khung viền ngoài của thanh lực
                 float innerX = posX + 20f;
                 float innerY = posY + 34f;
                 GUI.color = new Color(0.2f, 0.25f, 0.35f, 1f);
                 GUI.DrawTexture(new Rect(innerX, innerY, barWidth, barHeight), m_BarFillTexture);
 
-                // Tính màu sắc chuyển dần theo mức lực:
-                // Xanh lá (Nhẹ) -> Vàng (Vừa) -> Cam (Mạnh) -> Đỏ rực cháy (Cực Đại)
                 Color fillColor;
                 string statusText;
                 if (m_CurrentChargeRatio < 0.35f)
                 {
-                    fillColor = new Color(0.18f, 0.85f, 0.45f, 1f); // Xanh lá
+                    fillColor = new Color(0.18f, 0.85f, 0.45f, 1f);
                     statusText = "🌱 [LỰC NHẸ - ĐẨY LÊN GỜ THẤP]";
                     badgeStyle.normal.textColor = fillColor;
                 }
                 else if (m_CurrentChargeRatio < 0.70f)
                 {
-                    fillColor = new Color(0.98f, 0.82f, 0.15f, 1f); // Vàng
+                    fillColor = new Color(0.98f, 0.82f, 0.15f, 1f);
                     statusText = "⭐ [LỰC VỪA - VƯỢT HỐ NỨT / BỜ TƯỜNG]";
                     badgeStyle.normal.textColor = fillColor;
                 }
                 else if (m_CurrentChargeRatio < 0.90f)
                 {
-                    fillColor = new Color(1.0f, 0.55f, 0.10f, 1f); // Cam
+                    fillColor = new Color(1.0f, 0.55f, 0.10f, 1f);
                     statusText = "🔥 [LỰC MẠNH - PHÓNG VÁCH NÚI CAO]";
                     badgeStyle.normal.textColor = fillColor;
                 }
                 else
                 {
-                    // Đỏ rực chớp sáng
                     float pulse = Mathf.PingPong(Time.time * 8f, 0.2f);
                     fillColor = new Color(1.0f, 0.15f + pulse, 0.20f, 1f);
                     statusText = "💥 [CỰC ĐẠI 100% - SIÊU PHÓNG TỐI ĐA!]";
                     badgeStyle.normal.textColor = Color.yellow;
                 }
 
-                // Vẽ ruột thanh canh lực
                 GUI.color = fillColor;
                 float currentFillWidth = Mathf.Max(6f, barWidth * m_CurrentChargeRatio);
                 GUI.DrawTexture(new Rect(innerX, innerY, currentFillWidth, barHeight), m_BarFillTexture);
 
-                // Vẽ các vạch chia mốc 25%, 50%, 75%
                 GUI.color = new Color(0.1f, 0.1f, 0.1f, 0.6f);
                 GUI.DrawTexture(new Rect(innerX + barWidth * 0.25f - 1f, innerY, 2f, barHeight), m_BarFillTexture);
                 GUI.DrawTexture(new Rect(innerX + barWidth * 0.50f - 1f, innerY, 2f, barHeight), m_BarFillTexture);
                 GUI.DrawTexture(new Rect(innerX + barWidth * 0.75f - 1f, innerY, 2f, barHeight), m_BarFillTexture);
 
-                // Nhãn mô tả trạng thái bên dưới
                 GUI.color = Color.white;
                 GUI.Label(new Rect(posX, innerY + barHeight + 4f, panelWidth, 20f), statusText, badgeStyle);
             }

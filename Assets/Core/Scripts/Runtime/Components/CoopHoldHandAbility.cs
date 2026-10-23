@@ -84,6 +84,28 @@ namespace Blocks.Gameplay.Core
         #region Properties
 
         /// <summary>
+        /// Kiểm tra xem instance này có phải nhân vật do NGƯỜI CHƠI THẬT ĐIỀU KHIỂN không (loại trừ Dummy Companion).
+        /// </summary>
+        public bool IsLocalPlayerCharacter
+        {
+            get
+            {
+                if (GetComponent<SoloCompanionDummy>() != null) return false;
+
+                if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null)
+                {
+                    var localPlayerObj = NetworkManager.Singleton.LocalClient.PlayerObject;
+                    if (localPlayerObj != null)
+                    {
+                        return localPlayerObj.gameObject == this.gameObject;
+                    }
+                }
+
+                return IsOwner;
+            }
+        }
+
+        /// <summary>
         /// Cho biết nhân vật có đang trong trạng thái nắm tay hay không.
         /// </summary>
         public bool IsHoldingHands => m_IsHoldingHands.Value;
@@ -138,7 +160,8 @@ namespace Blocks.Gameplay.Core
             // Cập nhật vị trí và hình ảnh dây kết nối (cả owner và remote)
             UpdateTetherAnimation();
 
-            if (!IsOwner) return;
+            // CHỈ NGƯỜI CHƠI THẬT MỚI XỬ LÝ PHÍM BẤM NẮM TAY
+            if (!IsLocalPlayerCharacter) return;
 
             if (m_PartnerTransform == null)
             {
@@ -398,6 +421,16 @@ namespace Blocks.Gameplay.Core
         {
             if (m_PartnerTransform != null) return;
 
+            // 1. Quét tìm Dummy Companion trước
+            var dummy = FindAnyObjectByType<SoloCompanionDummy>();
+            if (dummy != null && dummy.gameObject != this.gameObject)
+            {
+                m_PartnerTransform = dummy.transform;
+                m_PartnerHandAbility = dummy.GetComponent<CoopHoldHandAbility>();
+                return;
+            }
+
+            // 2. Quét qua AllPlayers
             foreach (var player in PlayerRoleVisuals.AllPlayers)
             {
                 if (player != null && player.gameObject != this.gameObject)
@@ -408,6 +441,7 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
+            // 3. Fallback: Quét các component CoopHoldHandAbility trong Scene
             var allAbilities = FindObjectsByType<CoopHoldHandAbility>(FindObjectsSortMode.None);
             foreach (var ability in allAbilities)
             {
@@ -415,17 +449,6 @@ namespace Blocks.Gameplay.Core
                 {
                     m_PartnerTransform = ability.transform;
                     m_PartnerHandAbility = ability;
-                    return;
-                }
-            }
-
-            var allMotors = FindObjectsByType<CoreMovement>(FindObjectsSortMode.None);
-            foreach (var motor in allMotors)
-            {
-                if (motor != null && motor.gameObject != this.gameObject)
-                {
-                    m_PartnerTransform = motor.transform;
-                    m_PartnerHandAbility = motor.GetComponent<CoopHoldHandAbility>();
                     return;
                 }
             }
@@ -437,7 +460,8 @@ namespace Blocks.Gameplay.Core
 
         private void OnGUI()
         {
-            if (!IsOwner) return;
+            // CHỈ NGƯỜI CHƠI THẬT MỚI VẼ GIAO DIỆN NẮM TAY
+            if (!IsLocalPlayerCharacter) return;
 
             var boxStyle = new GUIStyle(GUI.skin.box)
             {

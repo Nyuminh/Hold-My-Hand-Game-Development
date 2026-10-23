@@ -88,6 +88,24 @@ namespace Blocks.Gameplay.Core
         {
             base.OnNetworkSpawn();
 
+            // Tuyệt đối không khởi tạo Cinemachine camera cho Bạn Đồng Hành (Dummy Companion)
+            if (GetComponent<SoloCompanionDummy>() != null)
+            {
+                enabled = false;
+                return;
+            }
+
+            // Chỉ kích hoạt cho nhân vật PlayerObject thật của LocalClient
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null)
+            {
+                var localPlayerObj = NetworkManager.Singleton.LocalClient.PlayerObject;
+                if (localPlayerObj != null && localPlayerObj.gameObject != this.gameObject)
+                {
+                    enabled = false;
+                    return;
+                }
+            }
+
             // This component is only active for the local player who owns this object.
             if (IsOwner)
             {
