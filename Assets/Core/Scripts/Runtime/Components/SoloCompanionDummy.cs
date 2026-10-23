@@ -16,12 +16,18 @@ namespace Blocks.Gameplay.Core
         private CoreMovement m_Motor;
         private CorePlayerManager m_PlayerManager;
         private CharacterController m_CharacterController;
+        private Animator m_Animator;
+        private CoopHoldHandAbility m_HoldAbility;
+        private Vector3 m_LastPos;
 
         private void Awake()
         {
             m_Motor = GetComponent<CoreMovement>();
             m_PlayerManager = GetComponent<CorePlayerManager>();
             m_CharacterController = GetComponent<CharacterController>();
+            m_Animator = GetComponentInChildren<Animator>();
+            m_HoldAbility = GetComponent<CoopHoldHandAbility>();
+            m_LastPos = transform.position;
             
             DisconnectInputs();
         }
@@ -29,11 +35,12 @@ namespace Blocks.Gameplay.Core
         private void Start()
         {
             DisconnectInputs();
+            m_LastPos = transform.position;
         }
 
         private void Update()
         {
-            // Luôn đảm bảo Dummy đứng yên, không chạy theo WASD của người chơi
+            // Luôn đảm bảo Dummy không nhận phím WASD của người chơi
             if (m_Motor != null)
             {
                 m_Motor.SetMoveInput(Vector2.zero);
@@ -41,6 +48,28 @@ namespace Blocks.Gameplay.Core
                 // Giữ IsMovementEnabled = true để CharacterController và trọng lực / lực ném hoạt động
                 m_Motor.IsMovementEnabled = true;
             }
+
+            // Đồng bộ Animation khi KHÔNG ở trong trạng thái nắm tay (ví dụ: rơi tự do, bị ném, đáp đất)
+            // Khi đang nắm tay, CoopHoldHandAbility sẽ trực tiếp điều khiển Animator đồng nhịp với Ba
+            if (m_Animator != null && (m_HoldAbility == null || !m_HoldAbility.IsHoldingHands))
+            {
+                bool isGrounded = m_CharacterController != null && m_CharacterController.isGrounded;
+                m_Animator.SetBool("Grounded", isGrounded);
+
+                float dt = Time.deltaTime;
+                if (dt > 0.001f)
+                {
+                    Vector3 displacement = transform.position - m_LastPos;
+                    displacement.y = 0;
+                    float realSpeed = displacement.magnitude / dt;
+
+                    float curSpeed = m_Animator.GetFloat("Speed");
+                    float targetSpeed = realSpeed > 0.15f ? realSpeed : 0f;
+                    m_Animator.SetFloat("Speed", Mathf.Lerp(curSpeed, targetSpeed, dt * 10f));
+                    m_Animator.SetFloat("MotionSpeed", 1.0f);
+                }
+            }
+            m_LastPos = transform.position;
         }
 
         /// <summary>

@@ -452,15 +452,12 @@ namespace Blocks.Gameplay.Core
             // Con: Cùi chỏ gập tự nhiên ra ngoài và hơi chúc xuống
             Vector3 childPole = childUpper.position - dadSideDir * 0.35f - Vector3.up * 0.30f;
 
-            // Xoay hướng bàn tay theo hướng di chuyển của Ba
-            Quaternion dadHandRot = Quaternion.LookRotation(dadT.forward, Vector3.up);
-            Quaternion childHandRot = Quaternion.LookRotation(childT.forward, Vector3.up);
-
             // GIẢI THUẬT 2-BONE IK CHUẨN XÁC:
             // Tuyệt đối không kéo dãn cổ tay (mesh không bị dãn), chỉ xoay khớp vai và cùi chỏ
             // Triệt tiêu animation đánh tay trên tay nắm khi chạy, trong khi tay còn lại vẫn đánh tay tự nhiên
-            SolveTwoBoneIK(dadUpper, dadLower, dadHand, contactPoint, dadPole, dadHandRot);
-            SolveTwoBoneIK(childUpper, childLower, childHand, contactPoint, childPole, childHandRot);
+            // Giữ cổ tay tự nhiên (không xoay quắp ngược ra sau lưng hay trẹo khớp)
+            SolveTwoBoneIK(dadUpper, dadLower, dadHand, contactPoint, dadPole);
+            SolveTwoBoneIK(childUpper, childLower, childHand, contactPoint, childPole);
         }
 
         private static void SolveTwoBoneIK(
@@ -468,8 +465,7 @@ namespace Blocks.Gameplay.Core
             Transform lowerArm,
             Transform hand,
             Vector3 targetPos,
-            Vector3 poleHint,
-            Quaternion desiredHandRotation)
+            Vector3 poleHint)
         {
             if (upperArm == null || lowerArm == null || hand == null) return;
 
@@ -516,8 +512,8 @@ namespace Blocks.Gameplay.Core
             Vector3 desiredLowerDir = (clampedTarget - lowerArm.position).normalized;
             lowerArm.rotation = Quaternion.FromToRotation(curLowerDir, desiredLowerDir) * lowerArm.rotation;
 
-            // 3. Khóa góc xoay bàn tay
-            hand.rotation = desiredHandRotation;
+            // 3. Khóa góc xoay cổ tay về tư thế tự nhiên thẳng theo cẳng tay (tránh bị quắp ngược hoặc vặn xoắn)
+            hand.localRotation = Quaternion.identity;
         }
 
         #endregion
@@ -582,13 +578,18 @@ namespace Blocks.Gameplay.Core
 
         private void PullCompanionDummyIfNeeded()
         {
-            if (!IsDad || m_PartnerTransform == null) return;
+            if (m_PartnerTransform == null) return;
 
             var dummy = m_PartnerTransform.GetComponent<SoloCompanionDummy>();
             if (dummy == null) return;
 
             var dummyCC = m_PartnerTransform.GetComponent<CharacterController>();
             if (dummyCC == null || !dummyCC.enabled) return;
+
+            if (m_PartnerAnimator == null)
+            {
+                m_PartnerAnimator = m_PartnerTransform.GetComponentInChildren<Animator>();
+            }
 
             // Xác định xem Dummy đang ở sườn bên phải hay sườn bên trái của Ba
             Vector3 toDummyLocal = transform.InverseTransformPoint(m_PartnerTransform.position);
@@ -600,15 +601,62 @@ namespace Blocks.Gameplay.Core
             Vector3 toFlank = Vector3.ProjectOnPlane(targetFlankPos - m_PartnerTransform.position, Vector3.up);
             float dist = toFlank.magnitude;
 
+            float leaderSpeed = m_Motor != null ? m_Motor.CurrentSpeed : 0f;
+            bool isLeaderMoving = leaderSpeed > 0.15f;
+            bool isLeaderSprinting = m_Motor != null && m_Motor.IsSprinting;
+            bool isLeaderCrouching = m_Motor != null && m_Motor.IsCrouching;
+            bool isLeaderGrounded = m_Motor != null && m_Motor.IsGrounded;
+
             if (dist > 0.05f)
             {
-                float dummyPullSpeed = Mathf.Max(m_Motor.CurrentSpeed, 3.8f) + (dist * pullSpringStrength);
+                float baseSpeed = IsDad ? Mathf.Max(leaderSpeed, 3.8f) : (leaderSpeed * 0.35f);
+                float dummyPullSpeed = baseSpeed + (dist * pullSpringStrength);
                 dummyCC.Move(toFlank.normalized * (dummyPullSpeed * Time.deltaTime));
 
                 // Đồng thời quay mặt Dummy về hướng Ba đang di chuyển
-                if (m_Motor.CurrentSpeed > 0.1f)
+                if (leaderSpeed > 0.1f)
                 {
                     m_PartnerTransform.rotation = Quaternion.Slerp(m_PartnerTransform.rotation, transform.rotation, Time.deltaTime * 12f);
+                }
+            }
+
+            // ==============================================================
+            // ĐỒNG BỘ ANIMATION SỐNG ĐỘNG CHO BẠN ĐỒNG HÀNH (DUMMY BOT):
+            // Giúp toàn bộ cơ thể (2 chân, tay tự do, thân người) chạy nhảy cùng nhịp với Ba
+            // ==============================================================
+            if (m_PartnerAnimator != null)
+            {
+                if (isLeaderMoving)
+                {
+                    // Tốc độ chạy của Con: nếu Ba chạy (sprint), Con chạy hết tốc lực (6.0f); nếu Ba đi bộ, Con đi bộ (3.0f - 3.5f)
+                    float targetAnimSpeed = isLeaderSprinting ? Mathf.Max(leaderSpeed, 6.0f) : Mathf.Max(leaderSpeed, 3.2f);
+                    if (isLeaderCrouching)
+                    {
+                        targetAnimSpeed = Mathf.Min(targetAnimSpeed, 2.2f);
+                    }
+
+                    float curAnimSpeed = m_PartnerAnimator.GetFloat("Speed");
+                    float smoothedSpeed = Mathf.Lerp(curAnimSpeed, targetAnimSpeed, Time.deltaTime * 12f);
+
+                    m_PartnerAnimator.SetFloat("Speed", smoothedSpeed);
+                    m_PartnerAnimator.SetFloat("MotionSpeed", 1.0f);
+                    m_PartnerAnimator.SetBool("Grounded", isLeaderGrounded);
+                    m_PartnerAnimator.SetBool("IsCrouching", isLeaderCrouching);
+                    m_PartnerAnimator.SetBool("IsSitting", isLeaderCrouching);
+                    m_PartnerAnimator.SetBool("Jump", false);
+                    m_PartnerAnimator.SetBool("FreeFall", false);
+                }
+                else
+                {
+                    // Ba dừng lại -> Con giảm dần tốc độ về 0 và đứng lại (Idle) tự nhiên
+                    float curAnimSpeed = m_PartnerAnimator.GetFloat("Speed");
+                    float smoothedSpeed = Mathf.Lerp(curAnimSpeed, 0f, Time.deltaTime * 14f);
+                    if (smoothedSpeed < 0.05f) smoothedSpeed = 0f;
+
+                    m_PartnerAnimator.SetFloat("Speed", smoothedSpeed);
+                    m_PartnerAnimator.SetBool("Grounded", isLeaderGrounded);
+                    m_PartnerAnimator.SetBool("IsCrouching", isLeaderCrouching);
+                    m_PartnerAnimator.SetBool("IsSitting", isLeaderCrouching);
                 }
             }
         }
@@ -670,6 +718,10 @@ namespace Blocks.Gameplay.Core
             if (m_PartnerAnimator != null)
             {
                 m_PartnerAnimator.SetBool(s_IsHoldingHandsHash, isHolding);
+                if (!isHolding)
+                {
+                    m_PartnerAnimator.SetFloat("Speed", 0f);
+                }
             }
         }
 
