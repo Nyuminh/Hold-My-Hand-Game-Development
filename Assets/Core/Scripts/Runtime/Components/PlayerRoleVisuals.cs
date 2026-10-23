@@ -11,6 +11,9 @@ public class PlayerRoleVisuals : NetworkBehaviour
     [Tooltip("Kéo GameObject chứa model Child vào đây")]
     public GameObject childModel;
 
+    // Danh sách toàn bộ người chơi đang online trong session (tiết kiệm chi phí tìm kiếm)
+    public static readonly System.Collections.Generic.List<PlayerRoleVisuals> AllPlayers = new System.Collections.Generic.List<PlayerRoleVisuals>();
+
     // Biến mạng lưu role của player này (True = Dad, False = Child)
     private NetworkVariable<bool> m_IsDad = new NetworkVariable<bool>(
         true, 
@@ -18,9 +21,47 @@ public class PlayerRoleVisuals : NetworkBehaviour
         NetworkVariableWritePermission.Owner
     );
 
+    /// <summary>
+    /// Trả về true nếu nhân vật này là 🧔 Ba (Dad), false nếu là 👶 Con (Child).
+    /// </summary>
+    public bool IsDad => m_IsDad.Value;
+
+    private void Awake()
+    {
+        EnsureCoopAbilities();
+    }
+
+    private void Reset()
+    {
+        EnsureCoopAbilities();
+    }
+
+    public void EnsureCoopAbilities()
+    {
+        if (GetComponent<CoopHoldHandAbility>() == null)
+        {
+            var handAbility = gameObject.AddComponent<CoopHoldHandAbility>();
+            if (TryGetComponent<CoreMovement>(out var motor))
+            {
+                motor.AddAbility(handAbility);
+            }
+        }
+
+        if (GetComponent<CoopBoostThrowAbility>() == null)
+        {
+            gameObject.AddComponent<CoopBoostThrowAbility>();
+        }
+    }
+
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        EnsureCoopAbilities();
+
+        if (!AllPlayers.Contains(this))
+        {
+            AllPlayers.Add(this);
+        }
 
         if (IsOwner)
         {
@@ -37,6 +78,7 @@ public class PlayerRoleVisuals : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        AllPlayers.Remove(this);
         m_IsDad.OnValueChanged -= OnRoleChanged;
         base.OnNetworkDespawn();
     }
