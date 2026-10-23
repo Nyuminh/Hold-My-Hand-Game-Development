@@ -421,6 +421,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopBoostThrowAbility
   ShowTopMostFoldoutHeaderGroup: 1
+  isDadRole: 0
   verticalBoostVelocity: 11.5
   forwardBoostForce: 6
   maxBoostDistance: 2.5

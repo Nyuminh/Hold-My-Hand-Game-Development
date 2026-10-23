@@ -63,13 +63,17 @@ namespace Blocks.Gameplay.Core
         {
             var modifier = new MovementModifier();
 
-            // Determine if we should be using sprint speed
-            // If we are grounded, we check the current sprint state
-            // If we are in the air and conserving momentum, we use the state from when we left the ground
-            bool useSprintSpeed = m_Motor.IsGrounded ? m_Motor.IsSprinting : (conserveMomentum && m_WasSprinting);
-            
-            // Determine the target speed based on whether the player is sprinting
-            float targetSpeed = useSprintSpeed ? m_Motor.sprintSpeed : m_Motor.moveSpeed;
+            // Determine target speed based on crouch or sprint state
+            float targetSpeed;
+            if (m_Motor.IsCrouching)
+            {
+                targetSpeed = m_Motor.crouchSpeed;
+            }
+            else
+            {
+                bool useSprintSpeed = m_Motor.IsGrounded ? m_Motor.IsSprinting : (conserveMomentum && m_WasSprinting);
+                targetSpeed = useSprintSpeed ? m_Motor.sprintSpeed : m_Motor.moveSpeed;
+            }
 
             // If grounded, update our sprint state memory
             if (m_Motor.IsGrounded)

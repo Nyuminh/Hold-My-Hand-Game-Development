@@ -195,12 +195,13 @@ public class RoleBasedSpawner : MonoBehaviour
             }
 
             var go = Instantiate(prefabToSpawn, spawnPos, spawnRot);
+            go.name = shouldSpawnDad ? "Dad" : "The Child";
             CharacterStatsService.ApplyStatsToCharacter(go, shouldSpawnDad);
+            go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
             if (go.TryGetComponent<CoopBoostThrowAbility>(out var boostAbility))
             {
                 boostAbility.SetRole(shouldSpawnDad);
             }
-            go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
             Debug.Log($"[RoleBasedSpawner] ✅ ĐÃ SPAWN {(shouldSpawnDad ? "Dad" : "Child")} cho Client {clientId} tại vị trí {spawnPos} thành công!");
         }
         else

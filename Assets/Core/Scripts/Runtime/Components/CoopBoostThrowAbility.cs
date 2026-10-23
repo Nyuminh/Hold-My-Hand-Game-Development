@@ -100,6 +100,11 @@ namespace Blocks.Gameplay.Core
         private static readonly int s_JumpStartHeavyHash = Animator.StringToHash("JumpStartHeavy");
         private static readonly int s_JumpStartHeavyCompleteHash = Animator.StringToHash("JumpStartHeavyComplete");
         private static readonly int s_JumpLandHeavyHash = Animator.StringToHash("JumpLandHeavy");
+        private static readonly int s_IsPiggybackingHash = Animator.StringToHash("IsPiggybacking");
+
+        // Piggyback Mounting State (Con ngồi cõng trên lưng Ba)
+        private bool m_IsPiggybackingOnDad = false;
+        private Transform m_DadMountTransform = null;
 
         #endregion
 
@@ -135,12 +140,17 @@ namespace Blocks.Gameplay.Core
             NetworkVariableWritePermission.Server
         );
 
+        [Header("Vai trò")]
+        [Tooltip("Đánh dấu đây có phải là Ba hay không")]
+        [SerializeField] private bool isDadRole = true;
+
         /// <summary>
         /// Gán vai trò Ba (true) hoặc Con (false) từ Server.
         /// </summary>
         public void SetRole(bool isDad)
         {
-            if (IsServer)
+            isDadRole = isDad;
+            if (IsServer && IsSpawned)
             {
                 m_IsDadNetworkVar.Value = isDad;
             }
@@ -150,9 +160,18 @@ namespace Blocks.Gameplay.Core
         {
             get
             {
+                // 1. Kiểm tra dứt khoát theo tên GameObject
+                string objName = gameObject.name.ToLower();
+                if (objName.Contains("child") || objName.Contains("son")) return false;
+                if (objName.Contains("dad")) return true;
+
+                // 2. Kiểm tra PlayerRoleVisuals nếu có
                 if (m_RoleVisuals != null) return m_RoleVisuals.IsDad;
+
+                // 3. Kiểm tra biến mạng Netcode nếu đã Spawn
                 if (IsSpawned) return m_IsDadNetworkVar.Value;
-                return gameObject.name.ToLower().Contains("dad");
+
+                return isDadRole;
             }
         }
 
@@ -172,6 +191,11 @@ namespace Blocks.Gameplay.Core
             m_CharacterController = GetComponent<CharacterController>();
             m_CameraController = GetComponent<CoreCameraController>() ?? GetComponentInParent<CoreCameraController>();
 
+            // Tự động nhận diện role từ tên GameObject ngay khi Awake
+            string objName = gameObject.name.ToLower();
+            if (objName.Contains("child") || objName.Contains("son")) isDadRole = false;
+            else if (objName.Contains("dad")) isDadRole = true;
+
             FindVisualModel();
             SetupTrajectoryLine();
             CreateGUIStyles();
@@ -186,6 +210,13 @@ namespace Blocks.Gameplay.Core
 
             // CHỈ NGƯỜI CHƠI THẬT MỚI XỬ LÝ INPUT BÀN PHÍM VÀ GỒNG NÉM
             if (!IsLocalPlayerCharacter) return;
+
+            // CHỈ BA (DAD) MỚI CÓ THỂ GỒNG LỰC NÉM CON - CON TUYỆT ĐỐI KHÔNG ĐƯỢC NÉM BA
+            if (!IsDad)
+            {
+                if (m_IsCharging) CancelCharge();
+                return;
+            }
 
             FindPartnerIfNeeded();
 
@@ -221,9 +252,22 @@ namespace Blocks.Gameplay.Core
             HandleCoopBoostCharging(fPressedThisFrame, fHeld, fReleasedThisFrame, dist);
         }
 
+        private void LateUpdate()
+        {
+            // Nếu Con đang ngồi cõng trên vai phải Ba -> giữ vị trí và góc quay dính chặt vào Socket vai phải Ba
+            if (m_IsPiggybackingOnDad && m_DadMountTransform != null)
+            {
+                Vector3 socketPos = m_DadMountTransform.position + m_DadMountTransform.rotation * new Vector3(0.25f, 1.08f, 0.02f);
+                Quaternion socketRot = m_DadMountTransform.rotation * Quaternion.Euler(4f, 0f, 0f);
+                transform.position = Vector3.Lerp(transform.position, socketPos, Time.deltaTime * 24f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, socketRot, Time.deltaTime * 24f);
+            }
+        }
+
         private void OnDisable()
         {
             if (m_IsCharging) CancelCharge();
+            if (m_IsPiggybackingOnDad) SetPiggybackStateLocally(false, null);
             if (m_TrajectoryLine != null) m_TrajectoryLine.enabled = false;
             if (m_LandingMarker != null) m_LandingMarker.SetActive(false);
         }
@@ -269,11 +313,13 @@ namespace Blocks.Gameplay.Core
                     transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(flatAimDir), Time.deltaTime * 14f);
                 }
 
-                // Giữ Con đứng sát phía trước chuẩn bị được nâng
+                // Con ngồi ngay ngắn trên vai phải Ba (Right Shoulder Perch Socket)
                 if (m_PartnerTransform != null)
                 {
-                    Vector3 prepHoldPos = transform.position + flatAimDir * 0.75f + Vector3.up * 0.45f;
-                    m_PartnerTransform.position = Vector3.Lerp(m_PartnerTransform.position, prepHoldPos, Time.deltaTime * 8f);
+                    Vector3 socketPos = transform.position + transform.rotation * new Vector3(0.25f, 1.08f, 0.02f);
+                    Quaternion socketRot = transform.rotation * Quaternion.Euler(4f, 0f, 0f);
+                    m_PartnerTransform.position = Vector3.Lerp(m_PartnerTransform.position, socketPos, Time.deltaTime * 24f);
+                    m_PartnerTransform.rotation = Quaternion.Slerp(m_PartnerTransform.rotation, socketRot, Time.deltaTime * 24f);
                 }
 
                 // Procedural Animation: Gồng cơ bắp (Squash Y & Tremble Shake)
@@ -297,6 +343,9 @@ namespace Blocks.Gameplay.Core
             m_CurrentChargeTime = 0f;
             m_CurrentChargeRatio = 0f;
 
+            // Kích hoạt Con leo lên lưng ngồi cõng (Piggyback Socket)
+            SetPartnerPiggyback(true);
+
             // Kích hoạt camera phóng to lệch vai phải OTS để ngắm ném mượt mà
             if (m_CameraController != null)
             {
@@ -307,7 +356,7 @@ namespace Blocks.Gameplay.Core
             if (m_LandingMarker != null) m_LandingMarker.SetActive(true);
 
             UISoundManager.PlayClick();
-            Debug.Log("[CoopBoost] 🧔 Ba bắt đầu gồng cơ bắp tích lực và ngắm ném con qua OTS camera...");
+            Debug.Log("[CoopBoost] 🧔 Ba bắt đầu gồng cơ bắp tích lực, cõng con trên lưng và ngắm ném qua OTS camera...");
         }
 
         private void ApplySquashAndTremble(float ratio)
@@ -332,11 +381,20 @@ namespace Blocks.Gameplay.Core
 
         private void ExecuteDadThrow(float ratio, Vector3 horizontalDir, Vector3 camForward)
         {
-            // Lực ném kết hợp góc ngắm pitch của chuột: ngắm lên cao sẽ ném bổng hơn lên các mỏm đá/vách núi!
-            float pitchAngle = camForward.y;
-            float verticalBonus = Mathf.Clamp(pitchAngle, -0.2f, 0.65f) * 6.5f;
-            float finalVerticalVel = Mathf.Lerp(minVerticalBoost, maxVerticalBoost, ratio) + verticalBonus;
-            float finalForwardForce = Mathf.Lerp(minForwardBoostForce, maxForwardBoostForce, ratio);
+            // Điều khiển NÉM CAO (di chuột ngước lên) hoặc NÉM XA (di chuột ngang/chúi xuống)
+            float camPitchY = Mathf.Clamp(camForward.y, -0.35f, 0.65f);
+            float pitchFactor = Mathf.InverseLerp(-0.35f, 0.65f, camPitchY); // 0.0 (chúi/ngang) -> 1.0 (ngước lên)
+
+            // Ngước lên: tăng mạnh vận tốc đứng lên tới ~28m/s để ném con vọt lên đỉnh vách đá
+            // Nhìn ngang/chúi: tăng cực mạnh lực đẩy ngang lên tới ~25m/s để ném con bay xa qua khe vực
+            float verticalMultiplier = Mathf.Lerp(0.55f, 1.85f, pitchFactor);
+            float forwardMultiplier = Mathf.Lerp(1.75f, 0.50f, pitchFactor);
+
+            float baseVertical = Mathf.Lerp(minVerticalBoost, maxVerticalBoost, ratio);
+            float baseForward = Mathf.Lerp(minForwardBoostForce, maxForwardBoostForce, ratio);
+
+            float finalVerticalVel = baseVertical * verticalMultiplier;
+            float finalForwardForce = baseForward * forwardMultiplier;
             float staminaCost = Mathf.Lerp(dadStaminaCostMin, dadStaminaCostMax, ratio);
 
             // Kiểm tra và tiêu hao thể lực của Ba
@@ -346,6 +404,9 @@ namespace Blocks.Gameplay.Core
             }
 
             Vector3 launchDirection = horizontalDir.sqrMagnitude > 0.01f ? horizontalDir : transform.forward;
+
+            // 0. Tháo Con khỏi lưng trước khi phóng bay
+            SetPartnerPiggyback(false);
 
             // Gửi lực phóng tới Con
             if (m_PartnerBoostAbility != null)
@@ -427,6 +488,33 @@ namespace Blocks.Gameplay.Core
 
             if (m_TrajectoryLine != null) m_TrajectoryLine.enabled = false;
             if (m_LandingMarker != null) m_LandingMarker.SetActive(false);
+
+            // Cho Con xuống đất an toàn phía sau Ba
+            SetPartnerPiggyback(false);
+        }
+
+        private void SetPartnerPiggyback(bool isMounted)
+        {
+            if (m_PartnerBoostAbility != null)
+            {
+                // Cập nhật visual ngay lập tức trên máy cục bộ
+                m_PartnerBoostAbility.SetPiggybackStateLocally(isMounted, transform);
+
+                // Gửi RPC đồng bộ sang máy Client nếu là mạng nhiều người
+                if (m_PartnerBoostAbility.IsSpawned && !m_PartnerBoostAbility.IsLocalPlayerCharacter)
+                {
+                    ulong myNetId = NetworkObject != null ? NetworkObject.NetworkObjectId : 0;
+                    m_PartnerBoostAbility.SetPiggybackMountRpc(isMounted, myNetId);
+                }
+            }
+            else if (m_PartnerTransform != null)
+            {
+                var partnerAbility = m_PartnerTransform.GetComponent<CoopBoostThrowAbility>();
+                if (partnerAbility != null)
+                {
+                    partnerAbility.SetPiggybackStateLocally(isMounted, transform);
+                }
+            }
         }
 
         private IEnumerator RoutineReboundStretch()
@@ -460,6 +548,69 @@ namespace Blocks.Gameplay.Core
         #endregion
 
         #region Child Receive Launch & Local Handling
+
+        [Rpc(SendTo.Owner)]
+        public void SetPiggybackMountRpc(bool isMounted, ulong dadNetworkObjectId)
+        {
+            Transform dadTr = null;
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.SpawnManager != null && NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(dadNetworkObjectId, out var netObj))
+            {
+                dadTr = netObj.transform;
+            }
+            SetPiggybackStateLocally(isMounted, dadTr);
+        }
+
+        /// <summary>
+        /// Kích hoạt tư thế ngồi trên lưng Ba (Piggyback) hoặc tháo xuống.
+        /// </summary>
+        public void SetPiggybackStateLocally(bool isMounted, Transform dadTransform)
+        {
+            m_IsPiggybackingOnDad = isMounted;
+            m_DadMountTransform = isMounted ? dadTransform : null;
+
+            if (m_CharacterController == null) m_CharacterController = GetComponent<CharacterController>();
+            if (m_Motor == null) m_Motor = GetComponent<CoreMovement>();
+
+            var childAnim = GetComponentInChildren<Animator>();
+
+            if (isMounted)
+            {
+                if (m_CharacterController != null) m_CharacterController.enabled = false;
+                if (m_Motor != null) m_Motor.SetSittingState(false);
+                if (childAnim != null)
+                {
+                    childAnim.SetBool(s_IsPiggybackingHash, true);
+                    childAnim.CrossFadeInFixedTime("Piggyback_Sit", 0.12f);
+                }
+                if (dadTransform != null)
+                {
+                    Vector3 socketPos = dadTransform.position + dadTransform.rotation * new Vector3(0.25f, 1.08f, 0.02f);
+                    transform.position = socketPos;
+                    transform.rotation = dadTransform.rotation * Quaternion.Euler(4f, 0f, 0f);
+                }
+            }
+            else
+            {
+                if (childAnim != null)
+                {
+                    childAnim.SetBool(s_IsPiggybackingHash, false);
+                    if (m_ActiveFlightCoroutine == null)
+                    {
+                        childAnim.CrossFadeInFixedTime("Idle Walk Run Blend", 0.15f);
+                    }
+                }
+                // Nếu không đang bay ballistic, bật lại CharacterController và trả về mặt đất
+                if (m_ActiveFlightCoroutine == null)
+                {
+                    if (m_CharacterController != null) m_CharacterController.enabled = true;
+                    if (dadTransform != null)
+                    {
+                        // Đặt con xuống đất an toàn cạnh bên phải ba
+                        transform.position = dadTransform.position + dadTransform.right * 0.65f;
+                    }
+                }
+            }
+        }
 
         [Rpc(SendTo.Owner)]
         public void ReceiveBoostLaunchRpc(Vector3 forwardDirection, float verticalVelocity, float forwardForce)
@@ -549,6 +700,11 @@ namespace Blocks.Gameplay.Core
             }
 
             // 5. TIẾP ĐẤT AN TOÀN
+            if (m_CharacterController != null)
+            {
+                m_CharacterController.enabled = true;
+            }
+
             if (m_VisualModel != null)
             {
                 m_VisualModel.localRotation = m_OriginalModelRot;
@@ -621,13 +777,20 @@ namespace Blocks.Gameplay.Core
         {
             if (m_TrajectoryLine == null) return;
 
-            float pitchAngle = camForward.y;
-            float verticalBonus = Mathf.Clamp(pitchAngle, -0.2f, 0.65f) * 6.5f;
-            float vY = Mathf.Lerp(minVerticalBoost, maxVerticalBoost, ratio) + verticalBonus;
-            float fF = Mathf.Lerp(minForwardBoostForce, maxForwardBoostForce, ratio);
+            float camPitchY = Mathf.Clamp(camForward.y, -0.35f, 0.65f);
+            float pitchFactor = Mathf.InverseLerp(-0.35f, 0.65f, camPitchY);
+
+            float verticalMultiplier = Mathf.Lerp(0.55f, 1.85f, pitchFactor);
+            float forwardMultiplier = Mathf.Lerp(1.75f, 0.50f, pitchFactor);
+
+            float baseVertical = Mathf.Lerp(minVerticalBoost, maxVerticalBoost, ratio);
+            float baseForward = Mathf.Lerp(minForwardBoostForce, maxForwardBoostForce, ratio);
+
+            float vY = baseVertical * verticalMultiplier;
+            float fF = baseForward * forwardMultiplier;
 
             Vector3 forwardDir = horizontalDir.sqrMagnitude > 0.01f ? horizontalDir : transform.forward;
-            Vector3 startPos = transform.position + forwardDir * 0.7f + Vector3.up * 1.3f;
+            Vector3 startPos = transform.position + transform.right * 0.25f + forwardDir * 0.5f + Vector3.up * 1.45f;
 
             Vector3 velocity = forwardDir * fF + Vector3.up * vY;
             Vector3 gravity = Physics.gravity;
@@ -766,125 +929,54 @@ namespace Blocks.Gameplay.Core
 
         #endregion
 
-        #region Force Bar GUI (Thanh Canh Lực)
+        #region Force Bar GUI (Thanh Nộ Canh Lực - Minimalist, No Text)
 
         private void OnGUI()
         {
             // CHỈ NGƯỜI CHƠI THẬT MỚI VẼ GIAO DIỆN (DUMMY BOT KHÔNG VẼ)
             if (!IsLocalPlayerCharacter) return;
 
-            var titleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 16,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-            titleStyle.normal.textColor = Color.white;
-
-            var badgeStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 13,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter
-            };
-
-            // 0. VẼ ROLE BADGE Ở GÓC TRÊN BÊN TRÁI MÀN HÌNH (ĐÃ BỎ ĐỔI VAI)
-            var roleBadgeBox = new GUIStyle(GUI.skin.box)
-            {
-                fontSize = 13,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleLeft,
-                padding = new RectOffset(12, 12, 4, 4)
-            };
-            roleBadgeBox.normal.textColor = IsDad ? new Color(1f, 0.85f, 0.25f) : new Color(0.35f, 0.9f, 1f);
-            string roleBadgeText = IsDad 
-                ? "🧔 VAI TRÒ: BA (DAD)" 
-                : "👶 VAI TRÒ: CON (CHILD)";
-            GUI.color = new Color(0.08f, 0.1f, 0.15f, 0.88f);
-            GUI.Box(new Rect(18, 18, 220, 32), GUIContent.none);
-            GUI.color = Color.white;
-            GUI.Label(new Rect(24, 18, 210, 32), roleBadgeText, roleBadgeBox);
-
-            // 1. KHI ĐANG GỒNG TÍCH LỰC (CHARGING FORCE GAUGE - CHỈ BA GỒNG)
+            // KHI ĐANG GỒNG TÍCH LỰC (CHARGING RAGE / FORCE GAUGE - CHỈ BA GỒNG)
+            // Thiết kế thanh nộ tối giản, sang trọng chuẩn game AAA, KHÔNG CHỮ để tránh rối mắt UI
             if (m_IsCharging && IsDad)
             {
-                float barWidth = 440f;
-                float barHeight = 28f;
-                float panelWidth = 480f;
-                float panelHeight = 92f;
-                float posX = (Screen.width - panelWidth) / 2f;
-                float posY = Screen.height - 210f;
+                float barWidth = 260f;
+                float barHeight = 8f;
+                float posX = (Screen.width - barWidth) / 2f;
+                float posY = Screen.height - 110f;
 
-                GUI.color = Color.white;
-                GUI.DrawTexture(new Rect(posX, posY, panelWidth, panelHeight), m_BarBgTexture);
-                GUI.Box(new Rect(posX, posY, panelWidth, panelHeight), GUIContent.none);
+                // Nền đen bán trong suốt bao ngoài thanh nộ
+                GUI.color = new Color(0.06f, 0.08f, 0.12f, 0.85f);
+                GUI.DrawTexture(new Rect(posX - 4f, posY - 4f, barWidth + 8f, barHeight + 8f), m_BarBgTexture);
 
-                int percent = Mathf.RoundToInt(m_CurrentChargeRatio * 100f);
-                string title = $"⚡ 🧔 BA GỒNG LỰC & NGẮM CHUỘT: {percent}% (THẢ [F] ĐỂ QUĂNG CON!)";
-                GUI.Label(new Rect(posX, posY + 6f, panelWidth, 24f), title, titleStyle);
+                // Nền rãnh thanh nộ
+                GUI.color = new Color(0.18f, 0.20f, 0.26f, 0.90f);
+                GUI.DrawTexture(new Rect(posX, posY, barWidth, barHeight), m_BarFillTexture);
 
-                float innerX = posX + 20f;
-                float innerY = posY + 34f;
-                GUI.color = new Color(0.2f, 0.25f, 0.35f, 1f);
-                GUI.DrawTexture(new Rect(innerX, innerY, barWidth, barHeight), m_BarFillTexture);
-
-                Color fillColor;
-                string statusText;
-                if (m_CurrentChargeRatio < 0.35f)
+                // Màu sắc thanh nộ: chuyển mượt từ Cam Vàng -> Đỏ Rực (Fiery Rage) theo độ gồng
+                Color rageColor;
+                if (m_CurrentChargeRatio < 0.70f)
                 {
-                    fillColor = new Color(0.18f, 0.85f, 0.45f, 1f);
-                    statusText = "🌱 [LỰC NHẸ - ĐẨY LÊN GỜ THẤP]";
-                    badgeStyle.normal.textColor = fillColor;
-                }
-                else if (m_CurrentChargeRatio < 0.70f)
-                {
-                    fillColor = new Color(0.98f, 0.82f, 0.15f, 1f);
-                    statusText = "⭐ [LỰC VỪA - VƯỢT HỐ NỨT / BỜ TƯỜNG]";
-                    badgeStyle.normal.textColor = fillColor;
-                }
-                else if (m_CurrentChargeRatio < 0.90f)
-                {
-                    fillColor = new Color(1.0f, 0.55f, 0.10f, 1f);
-                    statusText = "🔥 [LỰC MẠNH - PHÓNG VÁCH NÚI CAO]";
-                    badgeStyle.normal.textColor = fillColor;
+                    rageColor = Color.Lerp(new Color(1.0f, 0.78f, 0.15f), new Color(1.0f, 0.48f, 0.10f), m_CurrentChargeRatio / 0.70f);
                 }
                 else
                 {
-                    float pulse = Mathf.PingPong(Time.time * 8f, 0.2f);
-                    fillColor = new Color(1.0f, 0.15f + pulse, 0.20f, 1f);
-                    statusText = "💥 [CỰC ĐẠI 100% - SIÊU PHÓNG TỐI ĐA!]";
-                    badgeStyle.normal.textColor = Color.yellow;
+                    float maxPulse = (m_CurrentChargeRatio >= 0.95f) ? Mathf.PingPong(Time.time * 9f, 0.25f) : 0f;
+                    rageColor = new Color(1.0f, 0.18f + maxPulse, 0.12f, 1f);
                 }
 
-                GUI.color = fillColor;
-                float currentFillWidth = Mathf.Max(6f, barWidth * m_CurrentChargeRatio);
-                GUI.DrawTexture(new Rect(innerX, innerY, currentFillWidth, barHeight), m_BarFillTexture);
+                // Vẽ phần nạp lực hiện tại
+                GUI.color = rageColor;
+                float currentFillWidth = Mathf.Max(4f, barWidth * m_CurrentChargeRatio);
+                GUI.DrawTexture(new Rect(posX, posY, currentFillWidth, barHeight), m_BarFillTexture);
 
-                GUI.color = new Color(0.1f, 0.1f, 0.1f, 0.6f);
-                GUI.DrawTexture(new Rect(innerX + barWidth * 0.25f - 1f, innerY, 2f, barHeight), m_BarFillTexture);
-                GUI.DrawTexture(new Rect(innerX + barWidth * 0.50f - 1f, innerY, 2f, barHeight), m_BarFillTexture);
-                GUI.DrawTexture(new Rect(innerX + barWidth * 0.75f - 1f, innerY, 2f, barHeight), m_BarFillTexture);
+                // Vạch chia tỉ lệ 25%, 50%, 75% siêu mảnh để dễ canh nấc lực
+                GUI.color = new Color(0.08f, 0.08f, 0.10f, 0.70f);
+                GUI.DrawTexture(new Rect(posX + barWidth * 0.25f - 0.5f, posY, 1.5f, barHeight), m_BarFillTexture);
+                GUI.DrawTexture(new Rect(posX + barWidth * 0.50f - 0.5f, posY, 1.5f, barHeight), m_BarFillTexture);
+                GUI.DrawTexture(new Rect(posX + barWidth * 0.75f - 0.5f, posY, 1.5f, barHeight), m_BarFillTexture);
 
                 GUI.color = Color.white;
-                GUI.Label(new Rect(posX, innerY + barHeight + 4f, panelWidth, 20f), statusText, badgeStyle);
-            }
-            // 2. KHI ĐỨNG GẦN VÀ CHƯA GỒNG (IDLE PROMPT)
-            else if (m_CanBoostPartner)
-            {
-                var boxStyle = new GUIStyle(GUI.skin.box)
-                {
-                    fontSize = 15,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.MiddleCenter
-                };
-                boxStyle.normal.textColor = Color.white;
-
-                string prompt = IsDad
-                    ? "🚀 [BẠN ĐANG LÀ BA 🧔] GIỮ [F] ĐỂ GỒNG LỰC & NGẮM CHUỘT NÉM CON (Thả [F] Để Quăng!)"
-                    : "💡 [BẠN ĐANG LÀ CON 👶] ĐANG ĐỨNG CẠNH BA. HÃY ĐỂ BA GIỮ [F] ĐỂ NÉM BẠN QUA VỰC!";
-
-                GUI.color = IsDad ? new Color(0.15f, 0.95f, 0.45f, 0.95f) : new Color(0.2f, 0.8f, 1f, 0.95f);
-                GUI.Box(new Rect(Screen.width / 2f - 320, Screen.height - 165, 640, 44), prompt, boxStyle);
             }
         }
 

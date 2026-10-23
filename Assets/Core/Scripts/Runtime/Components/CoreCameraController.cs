@@ -39,14 +39,20 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float lookSmoothTime = 0.035f;
 
         [Header("Third Person Framing & Aim Zoom")]
-        [Tooltip("Khoảng cách camera mặc định (mét)")]
+        [Tooltip("Khoảng cách camera mặc định của Con (mét)")]
         [SerializeField] private float defaultCameraDistance = 3.6f;
+        [Tooltip("Khoảng cách camera mặc định riêng của Ba (mét, xa hơn để thấy toàn thân và chân)")]
+        [SerializeField] private float dadCameraDistance = 5.2f;
         [Tooltip("Khoảng cách camera khi ngắm / gồng ném OTS (mét)")]
         [SerializeField] private float aimCameraDistance = 2.0f;
-        [Tooltip("Độ lệch vai mặc định (Shoulder Offset)")]
-        [SerializeField] private Vector3 defaultShoulderOffset = new Vector3(0.18f, 0.08f, 0f);
-        [Tooltip("Độ lệch vai phải khi ngắm OTS (Shoulder Offset)")]
-        [SerializeField] private Vector3 aimShoulderOffset = new Vector3(0.72f, 0.20f, 0f);
+        [Tooltip("Độ lệch vai mặc định của Con")]
+        [SerializeField] private Vector3 defaultShoulderOffset = new Vector3(0.18f, 0.04f, 0f);
+        [Tooltip("Độ lệch vai mặc định của Ba (hạ thấp để góc nhìn thấy được cả chân khi nhìn ngang)")]
+        [SerializeField] private Vector3 dadDefaultShoulderOffset = new Vector3(0.18f, -0.22f, 0f);
+        [Tooltip("Độ lệch vai phải khi ngắm OTS của Ba (Hạ thấp xuống đúng xương vai, tránh bị cao quá đầu)")]
+        [SerializeField] private Vector3 dadAimShoulderOffset = new Vector3(0.68f, -0.16f, 0f);
+        [Tooltip("Độ lệch vai phải khi ngắm OTS của Con")]
+        [SerializeField] private Vector3 childAimShoulderOffset = new Vector3(0.55f, 0.05f, 0f);
         [Tooltip("Thời gian chuyển mượt mà giữa góc nhìn thường và ngắm OTS (giây)")]
         [SerializeField] private float zoomSmoothTime = 0.18f;
 
@@ -562,9 +568,18 @@ namespace Blocks.Gameplay.Core
                 if (m_ActiveThirdPersonFollow == null) return;
             }
 
+            // Xác định vai trò nhân vật để lấy độ cao vai chuẩn xác (Ba to lớn hơn Con)
+            bool isDad = gameObject.name.ToLower().Contains("dad");
+            var boostAbility = GetComponent<CoopBoostThrowAbility>();
+            if (boostAbility != null) isDad = boostAbility.IsDad;
+
+            Vector3 activeAimShoulder = isDad ? dadAimShoulderOffset : childAimShoulderOffset;
+            Vector3 activeDefaultShoulder = isDad ? dadDefaultShoulderOffset : defaultShoulderOffset;
+            float baseDistance = isDad ? dadCameraDistance : defaultCameraDistance;
+
             // Khoảng cách và độ lệch vai mục tiêu tùy thuộc vào trạng thái ngắm OTS
-            float targetDistance = m_IsAiming ? aimCameraDistance : defaultCameraDistance;
-            Vector3 targetShoulderOffset = m_IsAiming ? aimShoulderOffset : defaultShoulderOffset;
+            float targetDistance = m_IsAiming ? aimCameraDistance : baseDistance;
+            Vector3 targetShoulderOffset = m_IsAiming ? activeAimShoulder : activeDefaultShoulder;
 
             // Kiểm tra vật cản (tường, trần, vách đá)
             float safeDistance = targetDistance;

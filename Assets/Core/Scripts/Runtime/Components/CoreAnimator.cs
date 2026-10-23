@@ -27,6 +27,8 @@ namespace Blocks.Gameplay.Core
         private readonly int m_AnimIDJump = Animator.StringToHash("Jump");
         private readonly int m_AnimIDFreeFall = Animator.StringToHash("FreeFall");
         private readonly int m_AnimIDMotionSpeed = Animator.StringToHash("MotionSpeed");
+        private readonly int m_AnimIDIsSitting = Animator.StringToHash("IsSitting");
+        private readonly int m_AnimIDIsCrouching = Animator.StringToHash("IsCrouching");
 
         #endregion
 
@@ -133,6 +135,11 @@ namespace Blocks.Gameplay.Core
             // Set floats for speed and input magnitude to drive blend trees.
             Animator.SetFloat(m_AnimIDSpeed, coreMovement.CurrentSpeed);
             Animator.SetFloat(m_AnimIDMotionSpeed, coreMovement.InputMagnitude > 0.01f ? coreMovement.InputMagnitude : 1f);
+
+            // Set crouch & sitting parameters
+            bool isCrouched = coreMovement.IsCrouching;
+            Animator.SetBool(m_AnimIDIsCrouching, isCrouched);
+            Animator.SetBool(m_AnimIDIsSitting, isCrouched);
         }
 
         public void TurnInPlaceStart()

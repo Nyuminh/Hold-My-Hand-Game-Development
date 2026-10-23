@@ -3,6 +3,9 @@ using UnityEngine;
 using Unity.Netcode;
 using Unity.Netcode.Components;
 using System.Collections.Generic;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace Blocks.Gameplay.Core
 {
@@ -72,6 +75,14 @@ namespace Blocks.Gameplay.Core
         public float speedChangeRate = 10.0f;
         [Tooltip("How quickly external forces decay. Higher values mean faster decay.")]
         public float forceDecayRate = 5f;
+
+        [Header("Crouch Settings")]
+        [Tooltip("Tốc độ di chuyển khi khom người (mét/giây).")]
+        public float crouchSpeed = 2.0f;
+        [Tooltip("Chiều cao CharacterController khi khom người.")]
+        [SerializeField] private float crouchHeight = 1.15f;
+        [Tooltip("Trọng tâm CharacterController khi khom người.")]
+        [SerializeField] private float crouchCenterY = 0.58f;
 
         [Header("Gravity and Jump Settings")]
         [Tooltip("The force of gravity applied to the character.")]
@@ -159,6 +170,16 @@ namespace Blocks.Gameplay.Core
         public bool IsSprinting { get; private set; }
 
         /// <summary>
+        /// Gets a value indicating whether the character is currently crouching.
+        /// </summary>
+        public bool IsCrouching { get; private set; }
+
+        /// <summary>
+        /// Gets a value indicating whether the character is currently sitting/resting (alias for IsCrouching).
+        /// </summary>
+        public bool IsSitting => IsCrouching;
+
+        /// <summary>
         /// Gets the target rotation on the Y-axis, usually driven by the camera.
         /// </summary>
         public float TargetRotationY { get; private set; }
@@ -204,6 +225,8 @@ namespace Blocks.Gameplay.Core
         private float m_TimeLastGrounded;
         private float m_TimeSinceLanded;
         private float m_InitialGravity;
+        private float m_OriginalHeight = 1.8f;
+        private Vector3 m_OriginalCenter = new Vector3(0f, 0.9f, 0f);
 
         #endregion
 
@@ -230,6 +253,11 @@ namespace Blocks.Gameplay.Core
             base.Awake();
             m_CharacterController = GetComponent<CharacterController>();
             m_InitialGravity = gravity;
+            if (m_CharacterController != null)
+            {
+                m_OriginalHeight = m_CharacterController.height;
+                m_OriginalCenter = m_CharacterController.center;
+            }
 
             // Tự động nạp cấu hình di chuyển từ Backend / CharacterStatsService
             CharacterStatsService.ApplyStatsToCharacter(gameObject);
@@ -275,6 +303,35 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
+            if (IsOwner)
+            {
+                bool cPressedThisFrame = false;
+#if ENABLE_INPUT_SYSTEM
+                if (Keyboard.current != null)
+                {
+                    cPressedThisFrame = Keyboard.current.cKey.wasPressedThisFrame;
+                }
+#else
+                cPressedThisFrame = Input.GetKeyDown(KeyCode.C);
+#endif
+                if (cPressedThisFrame && IsGrounded)
+                {
+                    ToggleCrouch();
+                }
+
+                if (IsCrouching)
+                {
+                    if (JumpRequested)
+                    {
+                        SetCrouchState(false);
+                    }
+                    else
+                    {
+                        IsSprinting = false; // Cannot sprint while crouching
+                    }
+                }
+            }
+
             GroundedCheck();
             ProcessAbilities();
         }
@@ -303,6 +360,40 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         /// <param name="isSprinting">True to enable sprinting, false otherwise.</param>
         public void SetSprintState(bool isSprinting) => IsSprinting = isSprinting;
+
+        /// <summary>
+        /// Bật/tắt trạng thái khom người (Crouch).
+        /// </summary>
+        public void ToggleCrouch()
+        {
+            if (!IsGrounded) return;
+            SetCrouchState(!IsCrouching);
+        }
+
+        /// <summary>
+        /// Thiết lập trực tiếp trạng thái khom người (Crouch).
+        /// </summary>
+        public void SetCrouchState(bool isCrouching)
+        {
+            if (IsCrouching == isCrouching) return;
+            IsCrouching = isCrouching;
+            if (IsCrouching)
+            {
+                IsSprinting = false;
+            }
+
+            if (m_CharacterController != null && m_CharacterController.enabled)
+            {
+                m_CharacterController.height = IsCrouching ? crouchHeight : m_OriginalHeight;
+                m_CharacterController.center = IsCrouching 
+                    ? new Vector3(m_OriginalCenter.x, crouchCenterY, m_OriginalCenter.z)
+                    : m_OriginalCenter;
+            }
+        }
+
+        // Backward compatibility
+        public void ToggleSitting() => ToggleCrouch();
+        public void SetSittingState(bool isSitting) => SetCrouchState(isSitting);
 
         /// <summary>
         /// Sets the target rotation for the character, typically from the camera's horizontal angle.
