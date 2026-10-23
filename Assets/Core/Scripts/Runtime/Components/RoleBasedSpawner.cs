@@ -11,12 +11,15 @@ public class RoleBasedSpawner : MonoBehaviour
     [Tooltip("Kéo Prefab của nhân vật Child (BB CorePlayer) vào đây")]
     public GameObject childPrefab;
 
+    public static RoleBasedSpawner Instance { get; private set; }
+
     // Theo dõi danh sách clientId đã được spawn để ngăn chặn nhân bản tuyệt đối
     private static readonly HashSet<ulong> s_SpawnedClients = new HashSet<ulong>();
     private bool m_CallbacksRegistered = false;
 
     private void Awake()
     {
+        Instance = this;
         s_SpawnedClients.Clear();
         Debug.Log($"[RoleBasedSpawner] Awake trên GameObject '{gameObject.name}'. Sẵn sàng quản lý spawn nhân vật.");
     }
@@ -193,6 +196,10 @@ public class RoleBasedSpawner : MonoBehaviour
 
             var go = Instantiate(prefabToSpawn, spawnPos, spawnRot);
             CharacterStatsService.ApplyStatsToCharacter(go, shouldSpawnDad);
+            if (go.TryGetComponent<CoopBoostThrowAbility>(out var boostAbility))
+            {
+                boostAbility.SetRole(shouldSpawnDad);
+            }
             go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
             Debug.Log($"[RoleBasedSpawner] ✅ ĐÃ SPAWN {(shouldSpawnDad ? "Dad" : "Child")} cho Client {clientId} tại vị trí {spawnPos} thành công!");
         }
@@ -211,13 +218,39 @@ public class RoleBasedSpawner : MonoBehaviour
     }
 
     /// <summary>
+    /// Hoán đổi vai (Ba <-> Con) giữa các người chơi trong phòng.
+    /// </summary>
+    public void SwapRolesBetweenPlayers()
+    {
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
+
+        Lobby3DManager.AmIDad = !Lobby3DManager.AmIDad;
+        bool hostIsDad = Lobby3DManager.AmIDad;
+
+        var clients = NetworkManager.Singleton.ConnectedClientsList;
+        for (int i = 0; i < clients.Count; i++)
+        {
+            var client = clients[i];
+            if (client == null) continue;
+            bool isHost = (client.ClientId == NetworkManager.Singleton.LocalClientId);
+            bool shouldSpawnDad = (hostIsDad && isHost) || (!hostIsDad && !isHost);
+            RespawnForClient(client.ClientId, shouldSpawnDad);
+        }
+
+        Debug.Log($"[RoleBasedSpawner] 🔄 Đã hoán đổi vai giữa các người chơi thành công! (Host là {(hostIsDad ? "Ba" : "Con")})");
+    }
+
+    /// <summary>
     /// Đổi vai nhân vật ngay lập tức cho client (dùng trong Tutorial hoặc Test)
     /// </summary>
     public void RespawnForClient(ulong clientId, bool asDad)
     {
         if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
 
-        Lobby3DManager.AmIDad = asDad;
+        if (clientId == NetworkManager.Singleton.LocalClientId)
+        {
+            Lobby3DManager.AmIDad = asDad;
+        }
         s_SpawnedClients.Remove(clientId);
 
         Vector3 spawnPos = Vector3.zero;
@@ -249,6 +282,10 @@ public class RoleBasedSpawner : MonoBehaviour
         {
             var go = Instantiate(prefabToSpawn, spawnPos, spawnRot);
             CharacterStatsService.ApplyStatsToCharacter(go, asDad);
+            if (go.TryGetComponent<CoopBoostThrowAbility>(out var boostAbility))
+            {
+                boostAbility.SetRole(asDad);
+            }
             go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
             Debug.Log($"[RoleBasedSpawner] ✅ Respawn thành công vai {(asDad ? "Dad" : "Child")} cho Client {clientId}!");
         }

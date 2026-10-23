@@ -492,6 +492,7 @@ namespace Blocks.Gameplay.Core
                 m_CurrentLobbyId = lobby.Id;
                 m_CurrentLobbyCode = lobby.LobbyCode;
                 m_IsHost = true;
+                AmIDad = true; // Host tạo phòng mặc định đóng vai Ba
                 LobbySessionContext.SetCurrentLobby(lobby.Id, lobby.LobbyCode, true);
 
                 Debug.Log($"[Lobby3D] Created Unity lobby: {lobby.LobbyCode}");
@@ -594,6 +595,24 @@ namespace Blocks.Gameplay.Core
                 var currentDad = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : "";
                 var currentChild = lobby.Data.ContainsKey("childUserId") ? lobby.Data["childUserId"].Value : "";
 
+                // Nếu currentChild đang rỗng trong Data, tìm trong lobby.Players người chơi thứ 2
+                if (string.IsNullOrEmpty(currentChild) && lobby.Players.Count > 1)
+                {
+                    foreach (var p in lobby.Players)
+                    {
+                        if (p.Id != currentDad)
+                        {
+                            currentChild = p.Id;
+                            break;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrEmpty(currentDad) && lobby.Players.Count > 0)
+                {
+                    currentDad = lobby.HostId;
+                }
+
                 var options = new UpdateLobbyOptions {
                     Data = new Dictionary<string, DataObject> {
                         { "dadUserId", new DataObject(DataObject.VisibilityOptions.Public, currentChild) },
@@ -601,6 +620,7 @@ namespace Blocks.Gameplay.Core
                     }
                 };
                 lobby = await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, options);
+                AmIDad = (AuthenticationService.Instance.PlayerId == currentChild);
 
                 UpdateLobbyUI(MapToFakeResponse(lobby));
                 UISoundManager.PlaySwapRole();
@@ -666,7 +686,9 @@ namespace Blocks.Gameplay.Core
             try
             {
                 var lobby = await LobbyService.Instance.GetLobbyAsync(m_CurrentLobbyId);
-                AmIDad = (AuthenticationService.Instance.PlayerId == lobby.Data["dadUserId"].Value);
+                string dadId = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : "";
+                if (string.IsNullOrEmpty(dadId)) dadId = lobby.HostId;
+                AmIDad = (AuthenticationService.Instance.PlayerId == dadId);
 
                 var options = new UpdateLobbyOptions {
                     Data = new Dictionary<string, DataObject> {
@@ -777,7 +799,9 @@ namespace Blocks.Gameplay.Core
                         LobbySessionContext.StopHeartbeat(); // Dừng keep-alive trước khi vào game scene
                         ShowToast("🎮 Đang Load Game Scene...");
 
-                        AmIDad = lobby.Data.ContainsKey("dadUserId") && (AuthenticationService.Instance.PlayerId == lobby.Data["dadUserId"].Value);
+                        string dadId = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : "";
+                        if (string.IsNullOrEmpty(dadId)) dadId = lobby.HostId;
+                        AmIDad = (AuthenticationService.Instance.PlayerId == dadId);
 
                         // Tải trước chỉ số nhân vật cho Client trước khi load scene
                         await CharacterStatsService.EnsureLoadedAsync();
