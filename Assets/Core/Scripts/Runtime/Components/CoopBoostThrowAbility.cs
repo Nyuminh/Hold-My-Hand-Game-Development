@@ -66,6 +66,7 @@ namespace Blocks.Gameplay.Core
         private CoreStatsHandler m_StatsHandler;
         private Animator m_Animator;
         private CharacterController m_CharacterController;
+        private CoreCameraController m_CameraController;
 
         // Visual Model Transform for procedural squash & stretch
         private Transform m_VisualModel;
@@ -169,6 +170,7 @@ namespace Blocks.Gameplay.Core
             m_StatsHandler = GetComponent<CoreStatsHandler>();
             m_Animator = GetComponentInChildren<Animator>();
             m_CharacterController = GetComponent<CharacterController>();
+            m_CameraController = GetComponent<CoreCameraController>() ?? GetComponentInParent<CoreCameraController>();
 
             FindVisualModel();
             SetupTrajectoryLine();
@@ -215,22 +217,7 @@ namespace Blocks.Gameplay.Core
             fReleasedThisFrame = Input.GetKeyUp(boostKey) || Input.GetKeyUp(KeyCode.F);
 #endif
 
-            // Hỗ trợ đổi vai [T] trong màn chơi
-            bool tPressed = false;
-#if ENABLE_INPUT_SYSTEM
-            if (Keyboard.current != null)
-            {
-                tPressed = Keyboard.current.tKey.wasPressedThisFrame;
-            }
-#else
-            tPressed = Input.GetKeyDown(KeyCode.T);
-#endif
-            if (tPressed && !m_IsCharging)
-            {
-                RequestRoleSwap();
-            }
-
-            // Xử lý logic gồng và ném / bật phóng (Cả Ba và Con đều được gồng và có thanh lực canh chuẩn!)
+            // Xử lý logic gồng và ném theo hướng nhìn chuột (Chỉ Ba mới được ném Con)
             HandleCoopBoostCharging(fPressedThisFrame, fHeld, fReleasedThisFrame, dist);
         }
 
@@ -243,10 +230,17 @@ namespace Blocks.Gameplay.Core
 
         #endregion
 
-        #region Co-op Boost Charging & Execution (Both Roles)
+        #region Co-op Boost Charging & Execution (Dad Throwing Child Only)
 
         private void HandleCoopBoostCharging(bool fPressedThisFrame, bool fHeld, bool fReleasedThisFrame, float partnerDistance)
         {
+            // 0. CHỈ BA (DAD) MỚI ĐƯỢC GỒNG NÉM CON - CON TUYỆT ĐỐI KHÔNG ĐƯỢC NÉM BA
+            if (!IsDad)
+            {
+                if (m_IsCharging) CancelCharge();
+                return;
+            }
+
             // 1. BẮT ĐẦU GỒNG (F Pressed)
             if (fPressedThisFrame && m_CanBoostPartner && !m_IsCharging)
             {
@@ -266,33 +260,33 @@ namespace Blocks.Gameplay.Core
                 m_CurrentChargeTime += Time.deltaTime;
                 m_CurrentChargeRatio = Mathf.Clamp01(m_CurrentChargeTime / maxChargeDuration);
 
-                // Giữ Con đứng sát phía trước chuẩn bị được nâng (nếu là Ba)
-                if (IsDad && m_PartnerTransform != null)
+                // Tính toán hướng ngắm chuột (Mouse Look / Camera Forward)
+                Vector3 camFwd = Camera.main != null ? Camera.main.transform.forward : transform.forward;
+                Vector3 flatAimDir = Vector3.ProjectOnPlane(camFwd, Vector3.up).normalized;
+                if (flatAimDir.sqrMagnitude > 0.01f)
                 {
-                    Vector3 prepHoldPos = transform.position + transform.forward * 0.75f + Vector3.up * 0.4f;
-                    m_PartnerTransform.position = Vector3.Lerp(m_PartnerTransform.position, prepHoldPos, Time.deltaTime * 6f);
+                    // Ba xoay người mượt mà theo hướng ngắm của chuột
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(flatAimDir), Time.deltaTime * 14f);
+                }
+
+                // Giữ Con đứng sát phía trước chuẩn bị được nâng
+                if (m_PartnerTransform != null)
+                {
+                    Vector3 prepHoldPos = transform.position + flatAimDir * 0.75f + Vector3.up * 0.45f;
+                    m_PartnerTransform.position = Vector3.Lerp(m_PartnerTransform.position, prepHoldPos, Time.deltaTime * 8f);
                 }
 
                 // Procedural Animation: Gồng cơ bắp (Squash Y & Tremble Shake)
                 ApplySquashAndTremble(m_CurrentChargeRatio);
 
-                // Cập nhật đường đạn dự đoán Parabolic Arc
-                UpdateTrajectoryArc(m_CurrentChargeRatio);
+                // Cập nhật đường đạn dự đoán Parabolic Arc theo hướng chuột
+                UpdateTrajectoryArc(m_CurrentChargeRatio, flatAimDir, camFwd);
 
-                // 3. THẢ F -> QUĂNG HOẶC BẬT NHẢY!
+                // 3. THẢ F -> QUĂNG CON THEO HƯỚNG CHUỘT!
                 if (fReleasedThisFrame)
                 {
-                    // Lực phóng tối thiểu 15% ngay cả khi nhả nhanh (tap), đảm bảo luôn kích hoạt mượt mà
                     float effectiveRatio = Mathf.Max(0.15f, m_CurrentChargeRatio);
-
-                    if (IsDad)
-                    {
-                        ExecuteDadThrow(effectiveRatio);
-                    }
-                    else
-                    {
-                        ExecuteChildLeap(effectiveRatio);
-                    }
+                    ExecuteDadThrow(effectiveRatio, flatAimDir, camFwd);
                 }
             }
         }
@@ -303,18 +297,17 @@ namespace Blocks.Gameplay.Core
             m_CurrentChargeTime = 0f;
             m_CurrentChargeRatio = 0f;
 
+            // Kích hoạt camera phóng to lệch vai phải OTS để ngắm ném mượt mà
+            if (m_CameraController != null)
+            {
+                m_CameraController.SetAimZoom(true);
+            }
+
             if (m_TrajectoryLine != null) m_TrajectoryLine.enabled = true;
             if (m_LandingMarker != null) m_LandingMarker.SetActive(true);
 
             UISoundManager.PlayClick();
-            if (IsDad)
-            {
-                Debug.Log("[CoopBoost] 🧔 Ba bắt đầu gồng cơ bắp tích lực ném con...");
-            }
-            else
-            {
-                Debug.Log("[CoopBoost] 👶 Con bắt đầu tích lực bật nhảy khỏi vai Ba...");
-            }
+            Debug.Log("[CoopBoost] 🧔 Ba bắt đầu gồng cơ bắp tích lực và ngắm ném con qua OTS camera...");
         }
 
         private void ApplySquashAndTremble(float ratio)
@@ -337,10 +330,12 @@ namespace Blocks.Gameplay.Core
             m_VisualModel.localPosition = m_OriginalModelPos + jitter;
         }
 
-        private void ExecuteDadThrow(float ratio)
+        private void ExecuteDadThrow(float ratio, Vector3 horizontalDir, Vector3 camForward)
         {
-            // Tính toán lực ném theo tỷ lệ gồng
-            float finalVerticalVel = Mathf.Lerp(minVerticalBoost, maxVerticalBoost, ratio);
+            // Lực ném kết hợp góc ngắm pitch của chuột: ngắm lên cao sẽ ném bổng hơn lên các mỏm đá/vách núi!
+            float pitchAngle = camForward.y;
+            float verticalBonus = Mathf.Clamp(pitchAngle, -0.2f, 0.65f) * 6.5f;
+            float finalVerticalVel = Mathf.Lerp(minVerticalBoost, maxVerticalBoost, ratio) + verticalBonus;
             float finalForwardForce = Mathf.Lerp(minForwardBoostForce, maxForwardBoostForce, ratio);
             float staminaCost = Mathf.Lerp(dadStaminaCostMin, dadStaminaCostMax, ratio);
 
@@ -350,7 +345,7 @@ namespace Blocks.Gameplay.Core
                 m_StatsHandler.TryConsumeStat(Animator.StringToHash("Stamina"), staminaCost);
             }
 
-            Vector3 launchDirection = transform.forward;
+            Vector3 launchDirection = horizontalDir.sqrMagnitude > 0.01f ? horizontalDir : transform.forward;
 
             // Gửi lực phóng tới Con
             if (m_PartnerBoostAbility != null)
@@ -371,6 +366,12 @@ namespace Blocks.Gameplay.Core
                 {
                     partnerAbility.ApplyLaunchLocally(launchDirection, finalVerticalVel, finalForwardForce);
                 }
+            }
+
+            // Trả camera về góc nhìn mượt mà bình thường
+            if (m_CameraController != null)
+            {
+                m_CameraController.SetAimZoom(false);
             }
 
             // Đảm bảo Animator của Ba ở lại locomotion (Idle Walk Run), không bị kẹt vào InAir
@@ -395,73 +396,7 @@ namespace Blocks.Gameplay.Core
             if (m_LandingMarker != null) m_LandingMarker.SetActive(false);
 
             UISoundManager.PlayClick();
-            Debug.Log($"[CoopBoost] 🔥 🧔 Ba QUĂNG CON ĐI! Lực: {(int)(ratio * 100)}% (V_Vel={finalVerticalVel:F1}m/s, Fwd={finalForwardForce:F1})");
-        }
-
-        private void ExecuteChildLeap(float ratio)
-        {
-            float finalVerticalVel = Mathf.Lerp(minVerticalBoost, maxVerticalBoost, ratio);
-            float finalForwardForce = Mathf.Lerp(minForwardBoostForce, maxForwardBoostForce, ratio);
-
-            Vector3 launchDirection = transform.forward;
-            if (m_PartnerTransform != null)
-            {
-                Vector3 combinedDir = (transform.forward * 1.5f + m_PartnerTransform.forward).normalized;
-                if (combinedDir.sqrMagnitude > 0.01f) launchDirection = combinedDir;
-            }
-
-            // Con tự phóng mình theo quán tính đạn đạo
-            ApplyLaunchLocally(launchDirection, finalVerticalVel, finalForwardForce);
-
-            // Báo cho Ba để Ba nhún người Rebound
-            if (m_PartnerBoostAbility != null && m_PartnerBoostAbility.IsSpawned && !m_PartnerBoostAbility.IsLocalPlayerCharacter)
-            {
-                m_PartnerBoostAbility.NotifyPartnerLeapedRpc();
-            }
-
-            m_CooldownTimer = boostCooldown;
-            m_IsCharging = false;
-            m_CurrentChargeTime = 0f;
-            m_CurrentChargeRatio = 0f;
-
-            if (m_TrajectoryLine != null) m_TrajectoryLine.enabled = false;
-            if (m_LandingMarker != null) m_LandingMarker.SetActive(false);
-
-            UISoundManager.PlayClick();
-            Debug.Log($"[CoopBoost] 🚀 👶 Con BẬT NHẢY KHỎI VAI BA! Lực: {(int)(ratio * 100)}% (V_Vel={finalVerticalVel:F1}m/s, Fwd={finalForwardForce:F1})");
-        }
-
-        [Rpc(SendTo.Owner)]
-        public void NotifyPartnerLeapedRpc()
-        {
-            StartCoroutine(RoutineReboundStretch());
-            UISoundManager.PlayClick();
-        }
-
-        private void RequestRoleSwap()
-        {
-            if (NetworkManager.Singleton == null) return;
-
-            if (NetworkManager.Singleton.IsServer)
-            {
-                if (RoleBasedSpawner.Instance != null)
-                {
-                    RoleBasedSpawner.Instance.SwapRolesBetweenPlayers();
-                }
-            }
-            else
-            {
-                RequestRoleSwapServerRpc();
-            }
-        }
-
-        [Rpc(SendTo.Server)]
-        private void RequestRoleSwapServerRpc()
-        {
-            if (RoleBasedSpawner.Instance != null)
-            {
-                RoleBasedSpawner.Instance.SwapRolesBetweenPlayers();
-            }
+            Debug.Log($"[CoopBoost] 🔥 🧔 Ba QUĂNG CON THEO HƯỚNG CHUỘT! Lực: {(int)(ratio * 100)}% (Dir={launchDirection}, V_Vel={finalVerticalVel:F1}m/s, Fwd={finalForwardForce:F1})");
         }
 
         private void CancelCharge()
@@ -469,6 +404,12 @@ namespace Blocks.Gameplay.Core
             m_IsCharging = false;
             m_CurrentChargeTime = 0f;
             m_CurrentChargeRatio = 0f;
+
+            // Trả góc nhìn camera về bình thường mượt mà
+            if (m_CameraController != null)
+            {
+                m_CameraController.SetAimZoom(false);
+            }
 
             if (m_VisualModel != null)
             {
@@ -676,23 +617,17 @@ namespace Blocks.Gameplay.Core
             m_LandingMarker.SetActive(false);
         }
 
-        private void UpdateTrajectoryArc(float ratio)
+        private void UpdateTrajectoryArc(float ratio, Vector3 horizontalDir, Vector3 camForward)
         {
             if (m_TrajectoryLine == null) return;
 
-            float vY = Mathf.Lerp(minVerticalBoost, maxVerticalBoost, ratio);
+            float pitchAngle = camForward.y;
+            float verticalBonus = Mathf.Clamp(pitchAngle, -0.2f, 0.65f) * 6.5f;
+            float vY = Mathf.Lerp(minVerticalBoost, maxVerticalBoost, ratio) + verticalBonus;
             float fF = Mathf.Lerp(minForwardBoostForce, maxForwardBoostForce, ratio);
 
-            Vector3 startPos = IsDad
-                ? transform.position + transform.forward * 0.7f + Vector3.up * 1.3f
-                : transform.position + transform.forward * 0.4f + Vector3.up * 0.6f;
-
-            Vector3 forwardDir = transform.forward;
-            if (!IsDad && m_PartnerTransform != null)
-            {
-                Vector3 combinedDir = (transform.forward * 1.5f + m_PartnerTransform.forward).normalized;
-                if (combinedDir.sqrMagnitude > 0.01f) forwardDir = combinedDir;
-            }
+            Vector3 forwardDir = horizontalDir.sqrMagnitude > 0.01f ? horizontalDir : transform.forward;
+            Vector3 startPos = transform.position + forwardDir * 0.7f + Vector3.up * 1.3f;
 
             Vector3 velocity = forwardDir * fF + Vector3.up * vY;
             Vector3 gravity = Physics.gravity;
@@ -853,7 +788,7 @@ namespace Blocks.Gameplay.Core
                 alignment = TextAnchor.MiddleCenter
             };
 
-            // 0. VẼ ROLE BADGE Ở GÓC TRÊN BÊN TRÁI MÀN HÌNH
+            // 0. VẼ ROLE BADGE Ở GÓC TRÊN BÊN TRÁI MÀN HÌNH (ĐÃ BỎ ĐỔI VAI)
             var roleBadgeBox = new GUIStyle(GUI.skin.box)
             {
                 fontSize = 13,
@@ -863,15 +798,15 @@ namespace Blocks.Gameplay.Core
             };
             roleBadgeBox.normal.textColor = IsDad ? new Color(1f, 0.85f, 0.25f) : new Color(0.35f, 0.9f, 1f);
             string roleBadgeText = IsDad 
-                ? "🧔 VAI TRÒ: BA (DAD)  |  [T] Đổi vai" 
-                : "👶 VAI TRÒ: CON (CHILD)  |  [T] Đổi vai";
+                ? "🧔 VAI TRÒ: BA (DAD)" 
+                : "👶 VAI TRÒ: CON (CHILD)";
             GUI.color = new Color(0.08f, 0.1f, 0.15f, 0.88f);
-            GUI.Box(new Rect(18, 18, 270, 32), GUIContent.none);
+            GUI.Box(new Rect(18, 18, 220, 32), GUIContent.none);
             GUI.color = Color.white;
-            GUI.Label(new Rect(24, 18, 260, 32), roleBadgeText, roleBadgeBox);
+            GUI.Label(new Rect(24, 18, 210, 32), roleBadgeText, roleBadgeBox);
 
-            // 1. KHI ĐANG GỒNG TÍCH LỰC (CHARGING FORCE GAUGE)
-            if (m_IsCharging)
+            // 1. KHI ĐANG GỒNG TÍCH LỰC (CHARGING FORCE GAUGE - CHỈ BA GỒNG)
+            if (m_IsCharging && IsDad)
             {
                 float barWidth = 440f;
                 float barHeight = 28f;
@@ -885,9 +820,7 @@ namespace Blocks.Gameplay.Core
                 GUI.Box(new Rect(posX, posY, panelWidth, panelHeight), GUIContent.none);
 
                 int percent = Mathf.RoundToInt(m_CurrentChargeRatio * 100f);
-                string title = IsDad
-                    ? $"⚡ 🧔 BA GỒNG LỰC NÉM CON: {percent}% (THẢ [F] ĐỂ QUĂNG!)"
-                    : $"⚡ 👶 CON TÍCH LỰC NHẢY KHỎI VAI BA: {percent}% (THẢ [F] ĐỂ BAY!)";
+                string title = $"⚡ 🧔 BA GỒNG LỰC & NGẮM CHUỘT: {percent}% (THẢ [F] ĐỂ QUĂNG CON!)";
                 GUI.Label(new Rect(posX, posY + 6f, panelWidth, 24f), title, titleStyle);
 
                 float innerX = posX + 20f;
@@ -947,11 +880,11 @@ namespace Blocks.Gameplay.Core
                 boxStyle.normal.textColor = Color.white;
 
                 string prompt = IsDad
-                    ? "🚀 [BẠN ĐANG LÀ BA 🧔] GIỮ [F] ĐỂ GỒNG LỰC NÉM CON (Thả [F] Để Quăng!)"
-                    : "🚀 [BẠN ĐANG LÀ CON 👶] GIỮ [F] ĐỂ TÍCH LỰC NHẢY KHỎI VAI BA (Thả [F] Để Bay!)";
+                    ? "🚀 [BẠN ĐANG LÀ BA 🧔] GIỮ [F] ĐỂ GỒNG LỰC & NGẮM CHUỘT NÉM CON (Thả [F] Để Quăng!)"
+                    : "💡 [BẠN ĐANG LÀ CON 👶] ĐANG ĐỨNG CẠNH BA. HÃY ĐỂ BA GIỮ [F] ĐỂ NÉM BẠN QUA VỰC!";
 
-                GUI.color = new Color(0.15f, 0.95f, 0.45f, 0.95f);
-                GUI.Box(new Rect(Screen.width / 2f - 300, Screen.height - 165, 600, 44), prompt, boxStyle);
+                GUI.color = IsDad ? new Color(0.15f, 0.95f, 0.45f, 0.95f) : new Color(0.2f, 0.8f, 1f, 0.95f);
+                GUI.Box(new Rect(Screen.width / 2f - 320, Screen.height - 165, 640, 44), prompt, boxStyle);
             }
         }
 

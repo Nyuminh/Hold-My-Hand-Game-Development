@@ -30,6 +30,36 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Default maximum angle in degrees the camera can look up or down (used when camera doesn't override).")]
         [SerializeField] private float defaultVerticalLookLimit = 70.0f;
 
+        [Header("Smooth Look & Pitch Clamping")]
+        [Tooltip("Góc nhìn ngước lên tối đa (độ âm, camera hạ thấp gần đất)")]
+        [SerializeField] private float minVerticalLookAngle = -28.0f;
+        [Tooltip("Góc nhìn cúi xuống tối đa (độ dương, camera nâng lên cao)")]
+        [SerializeField] private float maxVerticalLookAngle = 48.0f;
+        [Tooltip("Thời gian làm mượt chuyển động chuột (Smooth Damp Time, giây)")]
+        [SerializeField] private float lookSmoothTime = 0.035f;
+
+        [Header("Third Person Framing & Aim Zoom")]
+        [Tooltip("Khoảng cách camera mặc định (mét)")]
+        [SerializeField] private float defaultCameraDistance = 3.6f;
+        [Tooltip("Khoảng cách camera khi ngắm / gồng ném OTS (mét)")]
+        [SerializeField] private float aimCameraDistance = 2.0f;
+        [Tooltip("Độ lệch vai mặc định (Shoulder Offset)")]
+        [SerializeField] private Vector3 defaultShoulderOffset = new Vector3(0.18f, 0.08f, 0f);
+        [Tooltip("Độ lệch vai phải khi ngắm OTS (Shoulder Offset)")]
+        [SerializeField] private Vector3 aimShoulderOffset = new Vector3(0.72f, 0.20f, 0f);
+        [Tooltip("Thời gian chuyển mượt mà giữa góc nhìn thường và ngắm OTS (giây)")]
+        [SerializeField] private float zoomSmoothTime = 0.18f;
+
+        [Header("Wall Collision Avoidance")]
+        [Tooltip("Bật cơ chế chống camera xuyên tường")]
+        [SerializeField] private bool enableWallCollision = true;
+        [Tooltip("Bán kính sphere cast kiểm tra vật cản tường")]
+        [SerializeField] private float collisionSphereRadius = 0.22f;
+        [Tooltip("Khoảng cách tối thiểu tới nhân vật khi chạm tường")]
+        [SerializeField] private float minCollisionDistance = 0.70f;
+        [Tooltip("Layer kiểm tra va chạm tường")]
+        [SerializeField] private LayerMask obstacleLayers = ~0;
+
         [Header("Listening to Events")]
         [Tooltip("Event that provides look input from the CoreInputHandler.")]
         [SerializeField] private Vector2Event onLookInput;
@@ -49,11 +79,28 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public CoreCameraMode ActiveCameraMode { get; private set; }
 
+        /// <summary>
+        /// Checks if OTS right-shoulder aim zoom is currently active.
+        /// </summary>
+        public bool IsAiming => m_IsAiming;
+
         // Internal state for look angles and sensitivity.
+        private float m_TargetVerticalLookAngle;
+        private float m_TargetHorizontalLookAngle;
         private float m_CurrentVerticalLookAngle;
         private float m_CurrentHorizontalLookAngle;
+        private float m_HorizontalLookVelocity;
+        private float m_VerticalLookVelocity;
         private float m_LookSensitivity;
         private float m_VerticalLookLimit;
+
+        // OTS Aim Zoom & Wall Collision state.
+        private bool m_IsAiming = false;
+        private float m_CurrentCameraDistance = 3.6f;
+        private float m_DistanceVelocity;
+        private Vector3 m_CurrentShoulderOffset = new Vector3(0.18f, 0.08f, 0f);
+        private Vector3 m_ShoulderOffsetVelocity;
+        private CinemachineThirdPersonFollow m_ActiveThirdPersonFollow;
 
         // Runtime references.
         private CinemachineBrain m_CinemachineBrain;
@@ -82,6 +129,12 @@ namespace Blocks.Gameplay.Core
 
             // Initialize horizontal angle based on the initial rotation of the player object.
             m_CurrentHorizontalLookAngle = transform.rotation.eulerAngles.y;
+            m_TargetHorizontalLookAngle = m_CurrentHorizontalLookAngle;
+            m_CurrentVerticalLookAngle = 0f;
+            m_TargetVerticalLookAngle = 0f;
+
+            m_CurrentCameraDistance = defaultCameraDistance;
+            m_CurrentShoulderOffset = defaultShoulderOffset;
         }
 
         public override void OnNetworkSpawn()
@@ -148,15 +201,43 @@ namespace Blocks.Gameplay.Core
             // This prevents visual jitter.
             if (lookTarget != null && IsOwner && enableLookInput)
             {
+                // Smoothly damp horizontal look angle
+                m_CurrentHorizontalLookAngle = Mathf.SmoothDampAngle(
+                    m_CurrentHorizontalLookAngle,
+                    m_TargetHorizontalLookAngle,
+                    ref m_HorizontalLookVelocity,
+                    lookSmoothTime
+                );
+
+                // Smoothly damp vertical look angle
+                m_CurrentVerticalLookAngle = Mathf.SmoothDamp(
+                    m_CurrentVerticalLookAngle,
+                    m_TargetVerticalLookAngle,
+                    ref m_VerticalLookVelocity,
+                    lookSmoothTime
+                );
+
                 Quaternion horizontalRotation = Quaternion.Euler(0f, m_CurrentHorizontalLookAngle, 0f);
                 Quaternion verticalRotation = Quaternion.Euler(m_CurrentVerticalLookAngle, 0f, 0f);
                 lookTarget.rotation = horizontalRotation * verticalRotation;
+
+                // Smooth OTS Aim Zoom & Wall Collision Avoidance
+                UpdateCameraFramingAndCollision();
             }
         }
 
         #endregion
 
         #region Public API
+
+        /// <summary>
+        /// Kích hoạt hoặc hủy chế độ phóng to lệch vai phải (Over-The-Shoulder Aim Zoom) khi gồng ném hoặc ngắm.
+        /// </summary>
+        /// <param name="isAiming">True để zoom sát vai phải, False để trả về góc nhìn mặc định.</param>
+        public void SetAimZoom(bool isAiming)
+        {
+            m_IsAiming = isAiming;
+        }
 
         /// <summary>
         /// Sets the look input, updating the horizontal and vertical look angles.
@@ -166,10 +247,17 @@ namespace Blocks.Gameplay.Core
         {
             if (!IsOwner || !enableLookInput) return;
 
-            m_CurrentHorizontalLookAngle += lookInput.x * m_LookSensitivity;
+            m_TargetHorizontalLookAngle += lookInput.x * m_LookSensitivity;
 
-            // Clamp the vertical angle to prevent the camera from flipping over.
-            m_CurrentVerticalLookAngle = Mathf.Clamp(m_CurrentVerticalLookAngle - (lookInput.y * m_LookSensitivity), -m_VerticalLookLimit, m_VerticalLookLimit);
+            // Clamp vertical angle between min and max bounds to prevent camera clipping through floor or flipping overhead.
+            float minLimit = (minVerticalLookAngle < 0f) ? minVerticalLookAngle : -m_VerticalLookLimit;
+            float maxLimit = (maxVerticalLookAngle > 0f) ? maxVerticalLookAngle : m_VerticalLookLimit;
+
+            m_TargetVerticalLookAngle = Mathf.Clamp(
+                m_TargetVerticalLookAngle - (lookInput.y * m_LookSensitivity),
+                minLimit,
+                maxLimit
+            );
         }
 
         /// <summary>
@@ -217,6 +305,16 @@ namespace Blocks.Gameplay.Core
             {
                 m_LookSensitivity = defaultLookSensitivity;
                 m_VerticalLookLimit = defaultVerticalLookLimit;
+            }
+
+            // Update active CinemachineThirdPersonFollow reference
+            m_ActiveThirdPersonFollow = targetMode.CinemachineCamera != null 
+                ? targetMode.CinemachineCamera.GetComponent<CinemachineThirdPersonFollow>() 
+                : null;
+            if (m_ActiveThirdPersonFollow != null)
+            {
+                m_ActiveThirdPersonFollow.CameraDistance = m_CurrentCameraDistance;
+                m_ActiveThirdPersonFollow.ShoulderOffset = m_CurrentShoulderOffset;
             }
 
             // Set priorities: the target camera gets active priority, all others get inactive.
@@ -448,6 +546,63 @@ namespace Blocks.Gameplay.Core
                 m_RegisteredCameraModes.Add(instance);
                 m_InstantiatedCameraModes.Add(instance);
             }
+        }
+
+        /// <summary>
+        /// Cập nhật khoảng cách camera và độ lệch vai mượt mà, đồng thời kiểm tra tránh xuyên tường bằng SphereCast.
+        /// </summary>
+        private void UpdateCameraFramingAndCollision()
+        {
+            if (m_ActiveThirdPersonFollow == null)
+            {
+                if (ActiveCameraMode != null && ActiveCameraMode.CinemachineCamera != null)
+                {
+                    m_ActiveThirdPersonFollow = ActiveCameraMode.CinemachineCamera.GetComponent<CinemachineThirdPersonFollow>();
+                }
+                if (m_ActiveThirdPersonFollow == null) return;
+            }
+
+            // Khoảng cách và độ lệch vai mục tiêu tùy thuộc vào trạng thái ngắm OTS
+            float targetDistance = m_IsAiming ? aimCameraDistance : defaultCameraDistance;
+            Vector3 targetShoulderOffset = m_IsAiming ? aimShoulderOffset : defaultShoulderOffset;
+
+            // Kiểm tra vật cản (tường, trần, vách đá)
+            float safeDistance = targetDistance;
+            if (enableWallCollision && lookTarget != null)
+            {
+                Vector3 targetLookPos = lookTarget.position;
+                Vector3 camDirection = -lookTarget.forward;
+                Vector3 shoulderWorld = lookTarget.right * targetShoulderOffset.x + lookTarget.up * targetShoulderOffset.y;
+                Vector3 rayOrigin = targetLookPos + shoulderWorld * 0.5f;
+
+                LayerMask mask = obstacleLayers & ~(LayerMask.GetMask("Player", "Ignore Raycast"));
+
+                if (Physics.SphereCast(rayOrigin, collisionSphereRadius, camDirection, out RaycastHit hit, targetDistance, mask, QueryTriggerInteraction.Ignore))
+                {
+                    if (!hit.transform.IsChildOf(transform) && !transform.IsChildOf(hit.transform))
+                    {
+                        safeDistance = Mathf.Clamp(hit.distance - 0.12f, minCollisionDistance, targetDistance);
+                    }
+                }
+            }
+
+            // Smooth Damp Camera Distance
+            m_CurrentCameraDistance = Mathf.SmoothDamp(
+                m_CurrentCameraDistance,
+                safeDistance,
+                ref m_DistanceVelocity,
+                zoomSmoothTime
+            );
+            m_ActiveThirdPersonFollow.CameraDistance = m_CurrentCameraDistance;
+
+            // Smooth Damp Shoulder Offset
+            m_CurrentShoulderOffset = Vector3.SmoothDamp(
+                m_CurrentShoulderOffset,
+                targetShoulderOffset,
+                ref m_ShoulderOffsetVelocity,
+                zoomSmoothTime
+            );
+            m_ActiveThirdPersonFollow.ShoulderOffset = m_CurrentShoulderOffset;
         }
 
         #endregion
