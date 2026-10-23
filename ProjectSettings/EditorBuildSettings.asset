@@ -12,6 +12,9 @@ EditorBuildSettings:
     path: Assets/Core/TestScenes/LoginScene.unity
     guid: 0312f248b50c43c48977c5e373959952
   - enabled: 1
+    path: Assets/Core/TestScenes/Tutorial.unity
+    guid: 05c679bdeb81e9f4c8d578f19b77212d
+  - enabled: 1
     path: Assets/Core/TestScenes/Lobby.unity
     guid: 6e907ae890a838149afca46eb660d536
   - enabled: 1
