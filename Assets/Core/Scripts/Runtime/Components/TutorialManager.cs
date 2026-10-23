@@ -93,24 +93,52 @@ namespace Blocks.Gameplay.Core
             UISoundManager.BindButtons(root);
         }
 
+        private GameObject m_CompanionInstance;
+
+        private void OnDestroy()
+        {
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+            }
+            CleanupCompanion();
+        }
+
         private IEnumerator InitTutorialRoutine()
         {
             yield return null;
 
-            // Xóa cache spawn cũ để tránh conflict
-            RoleBasedSpawner.ClearSpawnedClients();
+            // Kiểm tra xem có phải đang kết nối Multiplayer từ Lobby qua AutoSessionStarter hay không
+            bool isMultiplayerSession = FindAnyObjectByType<AutoSessionStarter>() != null || 
+                                         (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && NetworkManager.Singleton.ConnectedClients.Count > 1);
 
-            // Khởi động NetworkManager ở chế độ Host cục bộ (1 người chơi)
+            if (!isMultiplayerSession)
+            {
+                // Xóa cache spawn cũ để tránh conflict trong chế độ Solo
+                RoleBasedSpawner.ClearSpawnedClients();
+
+                // Khởi động NetworkManager ở chế độ Host cục bộ
+                if (NetworkManager.Singleton != null)
+                {
+                    if (NetworkManager.Singleton.IsListening)
+                    {
+                        NetworkManager.Singleton.Shutdown();
+                        yield return new WaitForSecondsRealtime(0.2f);
+                    }
+
+                    NetworkManager.Singleton.StartHost();
+                    Debug.Log("[TutorialManager] Khởi động Host cục bộ thành công!");
+                }
+            }
+            else
+            {
+                Debug.Log("[TutorialManager] Phát hiện phiên chơi 2 người từ Lobby. Duy trì kết nối mạng Netcode!");
+            }
+
             if (NetworkManager.Singleton != null)
             {
-                if (NetworkManager.Singleton.IsListening)
-                {
-                    NetworkManager.Singleton.Shutdown();
-                    yield return new WaitForSecondsRealtime(0.2f);
-                }
-
-                NetworkManager.Singleton.StartHost();
-                Debug.Log("[TutorialManager] Khởi động Host cục bộ thành công!");
+                NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+                NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
             }
 
             // Đợi NetworkManager và Spawner sẵn sàng
@@ -129,11 +157,134 @@ namespace Blocks.Gameplay.Core
 
             yield return new WaitForSecondsRealtime(0.2f);
 
-            // Mở khóa chuột và di chuyển ngay lập tức (không cần chờ người thứ 2)
+            // Mở khóa chuột và di chuyển ngay lập tức
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
+            // Nếu chỉ có 1 người chơi (Solo Test): Tự động tạo Bạn Đồng Hành (Companion) để test co-op
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients.Count <= 1)
+            {
+                SpawnOrUpdateCompanion(Lobby3DManager.AmIDad);
+            }
+
             UpdateRoleBadge();
+        }
+
+        private void OnClientConnected(ulong clientId)
+        {
+            // Khi có người chơi thật thứ 2 tham gia qua mạng -> Tự động dọn dẹp Dummy bot
+            if (NetworkManager.Singleton != null && clientId != NetworkManager.Singleton.LocalClientId)
+            {
+                CleanupCompanion();
+                Debug.Log($"[TutorialManager] 🎮 Người chơi thứ 2 (Client {clientId}) đã kết nối! Đã dọn dẹp Dummy companion.");
+            }
+        }
+
+        private void CleanupCompanion()
+        {
+            if (m_CompanionInstance != null)
+            {
+                var netObj = m_CompanionInstance.GetComponent<NetworkObject>();
+                if (netObj != null && netObj.IsSpawned)
+                {
+                    netObj.Despawn(true);
+                }
+                else
+                {
+                    Destroy(m_CompanionInstance);
+                }
+                m_CompanionInstance = null;
+            }
+        }
+
+        private void SpawnOrUpdateCompanion(bool isLocalPlayerDad)
+        {
+            if (m_Spawner == null || NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
+
+            CleanupCompanion();
+
+            // Chỉ spawn companion khi chỉ có 1 client duy nhất
+            if (NetworkManager.Singleton.ConnectedClients.Count <= 1)
+            {
+                bool companionIsDad = !isLocalPlayerDad;
+                GameObject companionPrefab = m_Spawner.ResolvePrefab(companionIsDad);
+                if (companionPrefab != null)
+                {
+                    Vector3 localPos = Vector3.zero;
+                    Quaternion localRot = Quaternion.identity;
+
+                    if (NetworkManager.Singleton.LocalClient?.PlayerObject != null)
+                    {
+                        localPos = NetworkManager.Singleton.LocalClient.PlayerObject.transform.position;
+                        localRot = NetworkManager.Singleton.LocalClient.PlayerObject.transform.rotation;
+                    }
+                    else if (spawnPoint != null)
+                    {
+                        localPos = spawnPoint.position;
+                        localRot = spawnPoint.rotation;
+                    }
+
+                    Vector3 companionPos = localPos + localRot * (Vector3.right * 1.8f);
+                    m_CompanionInstance = Instantiate(companionPrefab, companionPos, localRot);
+                    m_CompanionInstance.name = companionIsDad ? "Dad_Companion_Dummy" : "Child_Companion_Dummy";
+
+                    CharacterStatsService.ApplyStatsToCharacter(m_CompanionInstance, companionIsDad);
+
+                    // 1. Gỡ listener và tắt CorePlayerManager để dummy không nhận input
+                    if (m_CompanionInstance.TryGetComponent<CorePlayerManager>(out var pm))
+                    {
+                        pm.UnregisterEventListeners();
+                        pm.SetMovementInputEnabled(false);
+                        pm.enabled = false;
+                    }
+
+                    // 2. Khóa di chuyển trên CoreMovement để dummy đứng yên cố định
+                    if (m_CompanionInstance.TryGetComponent<CoreMovement>(out var mov))
+                    {
+                        mov.SetMoveInput(Vector2.zero);
+                        mov.SetSprintState(false);
+                        mov.IsMovementEnabled = false;
+                    }
+
+                    // 3. Tắt CoreInputHandler
+                    if (m_CompanionInstance.TryGetComponent<CoreInputHandler>(out var inputHandler))
+                    {
+                        inputHandler.enabled = false;
+                    }
+
+                    // 4. Tắt Camera Controller và AudioListener để không giành quyền điều khiển góc nhìn
+                    if (m_CompanionInstance.TryGetComponent<CoreCameraController>(out var camCtrl))
+                    {
+                        camCtrl.enabled = false;
+                    }
+                    if (m_CompanionInstance.TryGetComponent<AudioListener>(out var listener))
+                    {
+                        listener.enabled = false;
+                    }
+                    if (m_CompanionInstance.TryGetComponent<CoreHUD>(out var hud))
+                    {
+                        hud.enabled = false;
+                    }
+
+                    // 5. Đảm bảo có đủ CoopHoldHandAbility và CoopBoostThrowAbility
+                    if (m_CompanionInstance.GetComponent<CoopHoldHandAbility>() == null)
+                    {
+                        m_CompanionInstance.AddComponent<CoopHoldHandAbility>();
+                    }
+                    if (m_CompanionInstance.GetComponent<CoopBoostThrowAbility>() == null)
+                    {
+                        m_CompanionInstance.AddComponent<CoopBoostThrowAbility>();
+                    }
+
+                    var netObj = m_CompanionInstance.GetComponent<NetworkObject>();
+                    if (netObj != null && !netObj.IsSpawned)
+                    {
+                        netObj.Spawn(true);
+                    }
+
+                    Debug.Log($"[TutorialManager] 🤖 Đã tạo Bạn Đồng Hành '{(companionIsDad ? "Dad" : "Child")}' đứng yên làm đối tác test Nắm Tay [H] & Kiệu Phóng [F]!");
+                }
+            }
         }
 
         /// <summary>
@@ -163,6 +314,9 @@ namespace Blocks.Gameplay.Core
             {
                 Lobby3DManager.AmIDad = newIsDad;
             }
+
+            // Đồng thời đổi bạn đồng hành đứng cạnh sang vai còn lại
+            SpawnOrUpdateCompanion(newIsDad);
 
             UpdateRoleBadge();
 

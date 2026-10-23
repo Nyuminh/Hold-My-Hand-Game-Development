@@ -24,6 +24,8 @@ GameObject:
   - component: {fileID: 3432624027115298979}
   - component: {fileID: 691561724687605723}
   - component: {fileID: 8293538361845572120}
+  - component: {fileID: 1091346121072667700}
+  - component: {fileID: 6460511059432588354}
   m_Layer: 3
   m_Name: The Child
   m_TagString: Player
@@ -388,6 +390,43 @@ MonoBehaviour:
   soundDefPlayerEliminated: {fileID: 11400000, guid: f94375e27624be640bcec5f9f675346c, type: 2}
   useRagdollOnElimination: 0
   ragdollRoot: {fileID: 0}
+--- !u!114 &1091346121072667700
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fc8dfc1d71104e4da8edf072a93ae54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopHoldHandAbility
+  ShowTopMostFoldoutHeaderGroup: 1
+  interactDistance: 2.5
+  breakDistance: 3.5
+  idealDistance: 1
+  followSharpness: 8
+  holdHandKey: 104
+--- !u!114 &6460511059432588354
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6529a1b42dde3a440b715a71e7671f40, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopBoostThrowAbility
+  ShowTopMostFoldoutHeaderGroup: 1
+  verticalBoostVelocity: 11.5
+  forwardBoostForce: 6
+  maxBoostDistance: 2.5
+  boostCooldown: 2
+  dadStaminaCost: 15
+  boostKey: 102
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0

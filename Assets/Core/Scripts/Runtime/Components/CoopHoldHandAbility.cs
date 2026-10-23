@@ -79,7 +79,7 @@ namespace Blocks.Gameplay.Core
         /// <summary>
         /// Kiểm tra xem nhân vật này là Ba hay Con.
         /// </summary>
-        public bool IsDad => m_RoleVisuals != null && m_RoleVisuals.IsDad;
+        public bool IsDad => m_RoleVisuals != null ? m_RoleVisuals.IsDad : gameObject.name.ToLower().Contains("dad");
 
         #endregion
 
@@ -94,6 +94,7 @@ namespace Blocks.Gameplay.Core
         {
             m_RoleVisuals = GetComponent<PlayerRoleVisuals>();
             m_StatsHandler = GetComponent<CoreStatsHandler>();
+            if (m_Motor == null) m_Motor = GetComponent<CoreMovement>();
         }
 
         public override void OnNetworkSpawn()
@@ -133,7 +134,7 @@ namespace Blocks.Gameplay.Core
                 SetHoldingHands(false);
             }
 
-            // Xử lý phím bấm (Hỗ trợ cả Input System mới và cũ)
+            // Xử lý phím bấm H
             bool togglePressed = false;
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null && Keyboard.current.hKey.wasPressedThisFrame)
@@ -141,7 +142,7 @@ namespace Blocks.Gameplay.Core
                 togglePressed = true;
             }
 #else
-            if (Input.GetKeyDown(holdHandKey))
+            if (Input.GetKeyDown(holdHandKey) || Input.GetKeyDown(KeyCode.H))
             {
                 togglePressed = true;
             }
@@ -228,13 +229,38 @@ namespace Blocks.Gameplay.Core
         {
             if (m_PartnerTransform != null) return;
 
+            // 1. Quét qua AllPlayers
             foreach (var player in PlayerRoleVisuals.AllPlayers)
             {
                 if (player != null && player.gameObject != this.gameObject)
                 {
                     m_PartnerTransform = player.transform;
                     m_PartnerHandAbility = player.GetComponent<CoopHoldHandAbility>();
-                    break;
+                    return;
+                }
+            }
+
+            // 2. Fallback: Quét qua các component CoopHoldHandAbility khác trong Scene
+            var allAbilities = FindObjectsByType<CoopHoldHandAbility>(FindObjectsSortMode.None);
+            foreach (var ability in allAbilities)
+            {
+                if (ability != null && ability.gameObject != this.gameObject)
+                {
+                    m_PartnerTransform = ability.transform;
+                    m_PartnerHandAbility = ability;
+                    return;
+                }
+            }
+
+            // 3. Fallback: Quét qua tất cả CoreMovement trong Scene
+            var allMotors = FindObjectsByType<CoreMovement>(FindObjectsSortMode.None);
+            foreach (var motor in allMotors)
+            {
+                if (motor != null && motor.gameObject != this.gameObject)
+                {
+                    m_PartnerTransform = motor.transform;
+                    m_PartnerHandAbility = motor.GetComponent<CoopHoldHandAbility>();
+                    return;
                 }
             }
         }
@@ -247,19 +273,27 @@ namespace Blocks.Gameplay.Core
         {
             if (!IsOwner) return;
 
+            var boxStyle = new GUIStyle(GUI.skin.box)
+            {
+                fontSize = 18,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            boxStyle.normal.textColor = Color.white;
+
             // Hiển thị gợi ý phím trực quan trên màn hình
             if (m_IsPartnerNearby && !m_IsHoldingHands.Value)
             {
                 string partnerName = IsDad ? "Con (👶)" : "Ba (🧔)";
-                GUI.color = Color.yellow;
-                GUI.Box(new Rect(Screen.width / 2f - 160, Screen.height - 120, 320, 35), 
-                    $"🤝 Bấm [H] để Nắm Tay {partnerName}");
+                GUI.color = new Color(1f, 0.85f, 0.2f, 0.95f);
+                GUI.Box(new Rect(Screen.width / 2f - 180, Screen.height - 110, 360, 42), 
+                    $"🤝 Bấm [H] để Nắm Tay {partnerName}", boxStyle);
             }
             else if (m_IsHoldingHands.Value)
             {
-                GUI.color = Color.cyan;
-                GUI.Box(new Rect(Screen.width / 2f - 160, Screen.height - 120, 320, 35), 
-                    $"🤝 Đang Nắm Tay! (Bấm [H] để buông tay)");
+                GUI.color = new Color(0.2f, 0.9f, 1f, 0.95f);
+                GUI.Box(new Rect(Screen.width / 2f - 180, Screen.height - 110, 360, 42), 
+                    $"🤝 Đang Nắm Tay! (Bấm [H] để buông tay)", boxStyle);
             }
         }
 

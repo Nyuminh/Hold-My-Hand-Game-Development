@@ -96,8 +96,7 @@ namespace Blocks.Gameplay.Core
 
             if (controller == null) return;
 
-            // Kiểm tra role: Ba hay Con
-            bool isDad = visuals != null ? visuals.IsDad : false;
+            bool isDad = visuals != null ? visuals.IsDad : (other.name.ToLower().Contains("dad") || other.transform.root.name.ToLower().Contains("dad"));
 
             if (isDad)
             {

@@ -54,7 +54,7 @@ namespace Blocks.Gameplay.Core
 
         #region Properties
 
-        public bool IsDad => m_RoleVisuals != null && m_RoleVisuals.IsDad;
+        public bool IsDad => m_RoleVisuals != null ? m_RoleVisuals.IsDad : gameObject.name.ToLower().Contains("dad");
 
         #endregion
 
@@ -95,7 +95,7 @@ namespace Blocks.Gameplay.Core
                 boostPressed = true;
             }
 #else
-            if (Input.GetKeyDown(boostKey))
+            if (Input.GetKeyDown(boostKey) || Input.GetKeyDown(KeyCode.F))
             {
                 boostPressed = true;
             }
@@ -113,7 +113,7 @@ namespace Blocks.Gameplay.Core
 
         private void ExecuteBoost()
         {
-            if (m_PartnerTransform == null || m_PartnerBoostAbility == null) return;
+            if (m_PartnerTransform == null) return;
 
             // Trường hợp 1: Người chơi đang điều khiển Ba (Dad) -> Phóng Con lên
             if (IsDad)
@@ -127,8 +127,29 @@ namespace Blocks.Gameplay.Core
                 m_CooldownTimer = boostCooldown;
                 Vector3 launchDirection = transform.forward;
                 
-                // Gửi RPC sang Client của Con để thực hiện phóng
-                m_PartnerBoostAbility.ReceiveBoostLaunchRpc(launchDirection, verticalBoostVelocity, forwardBoostForce);
+                if (m_PartnerBoostAbility != null)
+                {
+                    // Nếu là người chơi remote qua mạng -> Gửi RPC
+                    if (m_PartnerBoostAbility.IsSpawned && !m_PartnerBoostAbility.IsOwner)
+                    {
+                        m_PartnerBoostAbility.ReceiveBoostLaunchRpc(launchDirection, verticalBoostVelocity, forwardBoostForce);
+                    }
+                    else // Nếu là dummy bot hoặc cùng máy chủ cục bộ -> Phóng trực tiếp
+                    {
+                        m_PartnerBoostAbility.ApplyLaunchLocally(launchDirection, verticalBoostVelocity, forwardBoostForce);
+                    }
+                }
+                else
+                {
+                    // Fallback nếu partner chỉ có CoreMovement
+                    var partnerMotor = m_PartnerTransform.GetComponent<CoreMovement>();
+                    if (partnerMotor != null)
+                    {
+                        partnerMotor.SetVerticalVelocity(verticalBoostVelocity);
+                        partnerMotor.ApplyExternalForce(launchDirection * forwardBoostForce, ForceMode.Impulse);
+                    }
+                }
+
                 UISoundManager.PlayClick();
                 Debug.Log("[CoopBoost] 🧔 Ba đã kiệu phóng 👶 Con lên cao!");
             }
@@ -150,8 +171,9 @@ namespace Blocks.Gameplay.Core
             ApplyLaunchLocally(forwardDirection, verticalVelocity, forwardForce);
         }
 
-        private void ApplyLaunchLocally(Vector3 forwardDirection, float verticalVelocity, float forwardForce)
+        public void ApplyLaunchLocally(Vector3 forwardDirection, float verticalVelocity, float forwardForce)
         {
+            if (m_Motor == null) m_Motor = GetComponent<CoreMovement>();
             if (m_Motor == null) return;
 
             // Đặt vận tốc bay bổng lên trời
@@ -168,13 +190,38 @@ namespace Blocks.Gameplay.Core
         {
             if (m_PartnerTransform != null) return;
 
+            // 1. Quét AllPlayers
             foreach (var player in PlayerRoleVisuals.AllPlayers)
             {
                 if (player != null && player.gameObject != this.gameObject)
                 {
                     m_PartnerTransform = player.transform;
                     m_PartnerBoostAbility = player.GetComponent<CoopBoostThrowAbility>();
-                    break;
+                    return;
+                }
+            }
+
+            // 2. Fallback: Quét các component CoopBoostThrowAbility trong Scene
+            var allBoostAbilities = FindObjectsByType<CoopBoostThrowAbility>(FindObjectsSortMode.None);
+            foreach (var ability in allBoostAbilities)
+            {
+                if (ability != null && ability.gameObject != this.gameObject)
+                {
+                    m_PartnerTransform = ability.transform;
+                    m_PartnerBoostAbility = ability;
+                    return;
+                }
+            }
+
+            // 3. Fallback: Quét CoreMovement trong Scene
+            var allMotors = FindObjectsByType<CoreMovement>(FindObjectsSortMode.None);
+            foreach (var motor in allMotors)
+            {
+                if (motor != null && motor.gameObject != this.gameObject)
+                {
+                    m_PartnerTransform = motor.transform;
+                    m_PartnerBoostAbility = motor.GetComponent<CoopBoostThrowAbility>();
+                    return;
                 }
             }
         }
@@ -187,14 +234,22 @@ namespace Blocks.Gameplay.Core
         {
             if (!IsOwner) return;
 
+            var boxStyle = new GUIStyle(GUI.skin.box)
+            {
+                fontSize = 18,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            boxStyle.normal.textColor = Color.white;
+
             if (m_CanBoostPartner)
             {
                 string prompt = IsDad 
                     ? "🚀 Bấm [F] để Kiệu Phóng Con Lên Cao (Boost Jump)"
                     : "🚀 Bấm [F] để Nhảy Lên Vai Ba Phóng Lên";
 
-                GUI.color = new Color(0.3f, 1f, 0.4f);
-                GUI.Box(new Rect(Screen.width / 2f - 180, Screen.height - 165, 360, 35), prompt);
+                GUI.color = new Color(0.2f, 1f, 0.4f, 0.95f);
+                GUI.Box(new Rect(Screen.width / 2f - 220, Screen.height - 165, 440, 42), prompt, boxStyle);
             }
         }
 

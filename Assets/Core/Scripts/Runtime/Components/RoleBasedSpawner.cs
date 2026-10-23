@@ -116,7 +116,7 @@ public class RoleBasedSpawner : MonoBehaviour
         Debug.Log($"[RoleBasedSpawner] Client {clientId} đã ngắt kết nối. Đã xóa khỏi danh sách spawn.");
     }
 
-    private GameObject ResolvePrefab(bool shouldSpawnDad)
+    public GameObject ResolvePrefab(bool shouldSpawnDad)
     {
         GameObject prefab = shouldSpawnDad ? dadPrefab : childPrefab;
         if (prefab != null) return prefab;
