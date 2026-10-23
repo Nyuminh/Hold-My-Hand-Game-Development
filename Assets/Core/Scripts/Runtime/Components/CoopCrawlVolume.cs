@@ -6,7 +6,7 @@ namespace Blocks.Gameplay.Core
     /// <summary>
     /// Vùng Hạn Chế Khe Hẹp (Asymmetric Crawl Volume):
     /// - Chỉ cho phép 👶 Con (Child) với vóc dáng nhỏ nhắn chui lọt qua.
-    /// - Khi Con vào bên trong: Tự động hạ chiều cao CharacterController để khom người bò qua.
+    /// - Khi Con vào bên trong: Tự động hạ chiều cao CharacterController và ép dẹp scale hình ảnh (Crawl Pose) để khom người bò qua.
     /// - Khi 🧔 Ba (Dad) cố tình chui vào: Bị chặn lại, đẩy lùi và hiển thị cảnh báo yêu cầu Con vào trợ giúp.
     /// </summary>
     [RequireComponent(typeof(Collider))]
@@ -32,8 +32,12 @@ namespace Blocks.Gameplay.Core
         private Collider m_Collider;
         private readonly Dictionary<CharacterController, float> m_OriginalHeights = new Dictionary<CharacterController, float>();
         private readonly Dictionary<CharacterController, Vector3> m_OriginalCenters = new Dictionary<CharacterController, Vector3>();
+        private readonly Dictionary<Transform, Vector3> m_OriginalModelScales = new Dictionary<Transform, Vector3>();
+        private readonly List<Transform> m_ActiveCrawlers = new List<Transform>();
+
         private string m_CurrentWarning = "";
         private float m_WarningTimer = 0f;
+        private bool m_ChildIsCrawling = false;
 
         #endregion
 
@@ -55,6 +59,23 @@ namespace Blocks.Gameplay.Core
                     m_CurrentWarning = "";
                 }
             }
+
+            // Mượt mà điều chỉnh tỷ lệ cơ thể khi bò qua khe
+            for (int i = m_ActiveCrawlers.Count - 1; i >= 0; i--)
+            {
+                var crawler = m_ActiveCrawlers[i];
+                if (crawler == null)
+                {
+                    m_ActiveCrawlers.RemoveAt(i);
+                    continue;
+                }
+
+                if (m_OriginalModelScales.TryGetValue(crawler, out Vector3 origScale))
+                {
+                    Vector3 targetScale = new Vector3(origScale.x * 1.05f, origScale.y * 0.58f, origScale.z * 1.15f);
+                    crawler.localScale = Vector3.Lerp(crawler.localScale, targetScale, Time.deltaTime * 10f);
+                }
+            }
         }
 
         private void OnTriggerEnter(Collider other)
@@ -64,7 +85,6 @@ namespace Blocks.Gameplay.Core
 
         private void OnTriggerStay(Collider other)
         {
-            // Đảm bảo Ba không thể lách sâu vào bên trong
             var visuals = other.GetComponentInParent<PlayerRoleVisuals>();
             if (visuals != null && visuals.IsDad)
             {
@@ -100,7 +120,6 @@ namespace Blocks.Gameplay.Core
 
             if (isDad)
             {
-                // Ba bị chặn đứng
                 if (motor != null)
                 {
                     Vector3 pushDir = -motor.transform.forward;
@@ -114,7 +133,9 @@ namespace Blocks.Gameplay.Core
             }
             else
             {
-                // Con được phép chui qua -> Hạ chiều cao CharacterController
+                m_ChildIsCrawling = true;
+
+                // Hạ CharacterController
                 if (!m_OriginalHeights.ContainsKey(controller))
                 {
                     m_OriginalHeights[controller] = controller.height;
@@ -128,7 +149,18 @@ namespace Blocks.Gameplay.Core
                     controller.center.z
                 );
 
-                Debug.Log($"[CoopCrawlVolume] 👶 Con đang khom người chui qua khe hẹp '{gameObject.name}'!");
+                // Tìm model mesh để ép dẹp scale thành tư thế khom bò (Crawl Pose)
+                Transform visualTransform = GetVisualTransform(controller.gameObject);
+                if (visualTransform != null && !m_OriginalModelScales.ContainsKey(visualTransform))
+                {
+                    m_OriginalModelScales[visualTransform] = visualTransform.localScale;
+                    if (!m_ActiveCrawlers.Contains(visualTransform))
+                    {
+                        m_ActiveCrawlers.Add(visualTransform);
+                    }
+                }
+
+                Debug.Log($"[CoopCrawlVolume] 👶 Con đang khom người bò qua khe hẹp '{gameObject.name}'!");
             }
         }
 
@@ -136,6 +168,8 @@ namespace Blocks.Gameplay.Core
         {
             var controller = other.GetComponentInParent<CharacterController>();
             if (controller == null) return;
+
+            m_ChildIsCrawling = false;
 
             // Khôi phục chiều cao ban đầu khi ra khỏi khe hẹp
             if (m_OriginalHeights.TryGetValue(controller, out float originalHeight))
@@ -148,8 +182,32 @@ namespace Blocks.Gameplay.Core
 
                 m_OriginalHeights.Remove(controller);
                 m_OriginalCenters.Remove(controller);
+            }
+
+            Transform visualTransform = GetVisualTransform(controller.gameObject);
+            if (visualTransform != null && m_OriginalModelScales.TryGetValue(visualTransform, out Vector3 origScale))
+            {
+                visualTransform.localScale = origScale;
+                m_OriginalModelScales.Remove(visualTransform);
+                m_ActiveCrawlers.Remove(visualTransform);
                 Debug.Log($"[CoopCrawlVolume] 👶 Con đã chui ra ngoài an toàn và đứng thẳng dậy.");
             }
+        }
+
+        private Transform GetVisualTransform(GameObject root)
+        {
+            var visuals = root.GetComponent<PlayerRoleVisuals>();
+            if (visuals != null && visuals.childModel != null)
+            {
+                return visuals.childModel.transform;
+            }
+
+            var anim = root.GetComponentInChildren<Animator>();
+            if (anim != null) return anim.transform;
+
+            if (root.transform.childCount > 0) return root.transform.GetChild(0);
+
+            return root.transform;
         }
 
         #endregion
@@ -158,11 +216,24 @@ namespace Blocks.Gameplay.Core
 
         private void OnGUI()
         {
+            var boxStyle = new GUIStyle(GUI.skin.box)
+            {
+                fontSize = 17,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            boxStyle.normal.textColor = Color.white;
+
             if (!string.IsNullOrEmpty(m_CurrentWarning))
             {
-                GUI.color = new Color(1f, 0.35f, 0.35f);
-                GUI.Box(new Rect(Screen.width / 2f - 260, 80, 520, 45), 
-                    $"\n{m_CurrentWarning}");
+                GUI.color = new Color(1f, 0.25f, 0.25f, 0.95f);
+                GUI.Box(new Rect(Screen.width / 2f - 280, 80, 560, 45), m_CurrentWarning, boxStyle);
+            }
+            else if (m_ChildIsCrawling)
+            {
+                GUI.color = new Color(0.2f, 0.9f, 0.5f, 0.9f);
+                GUI.Box(new Rect(Screen.width / 2f - 220, 80, 440, 40), 
+                    "👶 Bé đang bò chui qua khe hẹp...", boxStyle);
             }
         }
 
