@@ -139,7 +139,17 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        public bool IsHoldingHands => m_IsHoldingHands.Value;
+        private bool m_IsLocalHoldingHands = false;
+
+        public bool IsHoldingHands
+        {
+            get
+            {
+                if (m_IsLocalHoldingHands || m_IsHoldingHands.Value) return true;
+                if (m_PartnerHandAbility != null && (m_PartnerHandAbility.m_IsLocalHoldingHands || m_PartnerHandAbility.m_IsHoldingHands.Value)) return true;
+                return false;
+            }
+        }
 
         public bool IsDad
         {
@@ -154,6 +164,52 @@ namespace Blocks.Gameplay.Core
         }
 
         public float WeightKg => weightKg;
+
+        public float CurrentMoveSpeed => m_Motor != null ? m_Motor.CurrentSpeed : 0f;
+        public bool IsSprinting => m_Motor != null && m_Motor.IsSprinting;
+        public bool IsCrouching => m_Motor != null && m_Motor.IsCrouching;
+
+        public float PartnerMoveSpeed
+        {
+            get
+            {
+                if (m_PartnerHandAbility != null) return m_PartnerHandAbility.CurrentMoveSpeed;
+                if (m_PartnerTransform != null)
+                {
+                    var motor = m_PartnerTransform.GetComponent<CoreMovement>();
+                    if (motor != null) return motor.CurrentSpeed;
+                }
+                return 0f;
+            }
+        }
+
+        public bool IsPartnerSprinting
+        {
+            get
+            {
+                if (m_PartnerHandAbility != null) return m_PartnerHandAbility.IsSprinting;
+                if (m_PartnerTransform != null)
+                {
+                    var motor = m_PartnerTransform.GetComponent<CoreMovement>();
+                    if (motor != null) return motor.IsSprinting;
+                }
+                return false;
+            }
+        }
+
+        public bool IsPartnerCrouching
+        {
+            get
+            {
+                if (m_PartnerHandAbility != null) return m_PartnerHandAbility.IsCrouching;
+                if (m_PartnerTransform != null)
+                {
+                    var motor = m_PartnerTransform.GetComponent<CoreMovement>();
+                    if (motor != null) return motor.IsCrouching;
+                }
+                return false;
+            }
+        }
 
         #endregion
 
@@ -667,18 +723,30 @@ namespace Blocks.Gameplay.Core
 
         #region Internal Logic & Synchronization
 
+        public void SetHoldingHandsDirect(bool isHolding)
+        {
+            m_IsLocalHoldingHands = isHolding;
+            if (IsOwner && IsSpawned)
+            {
+                m_IsHoldingHands.Value = isHolding;
+            }
+            UpdateAnimatorState(isHolding);
+        }
+
         private void SetHoldingHands(bool isHolding)
         {
-            if (m_IsHoldingHands.Value == isHolding) return;
+            if (m_IsHoldingHands.Value == isHolding && m_IsLocalHoldingHands == isHolding) return;
 
-            m_IsHoldingHands.Value = isHolding;
+            m_IsLocalHoldingHands = isHolding;
 
-            if (m_PartnerHandAbility != null && m_PartnerHandAbility.m_IsHoldingHands.Value != isHolding)
+            if (!IsSpawned || IsOwner)
             {
-                if (!IsSpawned || !m_PartnerHandAbility.IsSpawned || m_PartnerHandAbility.IsOwner)
-                {
-                    m_PartnerHandAbility.m_IsHoldingHands.Value = isHolding;
-                }
+                m_IsHoldingHands.Value = isHolding;
+            }
+
+            if (m_PartnerHandAbility != null)
+            {
+                m_PartnerHandAbility.SetHoldingHandsDirect(isHolding);
             }
 
             UpdateAnimatorState(isHolding);

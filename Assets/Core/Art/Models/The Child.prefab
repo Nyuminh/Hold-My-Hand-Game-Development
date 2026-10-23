@@ -52,6 +52,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: The Child
       objectReference: {fileID: 0}
+    - target: {fileID: 4624746069607934574, guid: 49d7ccf1eea8886499cafcf2eb808ccd, type: 3}
+      propertyPath: m_UpdateWhenOffscreen
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -82,7 +86,7 @@ Animator:
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: 49d7ccf1eea8886499cafcf2eb808ccd, type: 3}
   m_Controller: {fileID: 9100000, guid: 94b1f5801cc8c4d1f9b88513857e3f29, type: 2}
-  m_CullingMode: 1
+  m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
@@ -288,6 +292,18 @@ MonoBehaviour:
       NameHash: -1385924231
       Synchronize: 1
       ParameterType: 9
+    - name: IsSitting
+      NameHash: 209758592
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsPiggybacking
+      NameHash: 338973827
+      Synchronize: 1
+      ParameterType: 4
+    - name: IsCrouching
+      NameHash: -1154928320
+      Synchronize: 1
+      ParameterType: 4
   AnimatorParametersExpanded: 0
   coreMovement: {fileID: 0}
   soundDefFootstep: {fileID: 0}

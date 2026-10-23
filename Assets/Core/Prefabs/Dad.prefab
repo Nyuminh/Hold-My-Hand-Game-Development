@@ -423,10 +423,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopHoldHandAbility
   ShowTopMostFoldoutHeaderGroup: 1
+  weightKg: 85
   interactDistance: 2.5
   breakDistance: 3.5
   idealDistance: 1
-  followSharpness: 8
+  pullSpringStrength: 8.5
+  requiredHoldDuration: 0.5
   holdHandKey: 104
 --- !u!114 &8996121794572864917
 MonoBehaviour:
@@ -500,6 +502,14 @@ PrefabInstance:
       propertyPath: soundDefFootstep
       value: 
       objectReference: {fileID: 11400000, guid: 0ac20e1c8db2ca94e99dc720070a8b23, type: 2}
+    - target: {fileID: 20955027778414388, guid: e402cdfd3f1910d4196e6c33957912a8, type: 3}
+      propertyPath: m_UpdateWhenOffscreen
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4465324076086412266, guid: e402cdfd3f1910d4196e6c33957912a8, type: 3}
+      propertyPath: m_CullingMode
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6941165155517252394, guid: e402cdfd3f1910d4196e6c33957912a8, type: 3}
       propertyPath: m_Name
       value: Dad

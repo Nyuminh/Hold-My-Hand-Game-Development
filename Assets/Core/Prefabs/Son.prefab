@@ -218,6 +218,9 @@ MonoBehaviour:
   rotationSmoothTime: 0.1
   speedChangeRate: 15
   forceDecayRate: 5
+  crouchSpeed: 2
+  crouchHeight: 1.15
+  crouchCenterY: 0.58
   gravity: -15
   jumpHeight: 3
   groundedOffset: -0.14
@@ -279,6 +282,23 @@ MonoBehaviour:
   enableLookInput: 1
   defaultLookSensitivity: 1
   defaultVerticalLookLimit: 70
+  minVerticalLookAngle: -28
+  maxVerticalLookAngle: 48
+  lookSmoothTime: 0.035
+  defaultCameraDistance: 3.6
+  dadCameraDistance: 5.2
+  aimCameraDistance: 2
+  defaultShoulderOffset: {x: 0.18, y: 0.04, z: 0}
+  dadDefaultShoulderOffset: {x: 0.18, y: -0.22, z: 0}
+  dadAimShoulderOffset: {x: 0.68, y: -0.16, z: 0}
+  childAimShoulderOffset: {x: 0.55, y: 0.05, z: 0}
+  zoomSmoothTime: 0.18
+  enableWallCollision: 1
+  collisionSphereRadius: 0.22
+  minCollisionDistance: 0.7
+  obstacleLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
   onLookInput: {fileID: 11400000, guid: 8af931367978e4bc9bae53b88856ff5b, type: 2}
 --- !u!114 &8754785922802519086
 MonoBehaviour:
@@ -491,6 +511,14 @@ PrefabInstance:
       propertyPath: soundDefFootstep
       value: 
       objectReference: {fileID: 11400000, guid: 0ac20e1c8db2ca94e99dc720070a8b23, type: 2}
+    - target: {fileID: 5478610859780587356, guid: 464ba1a78787ce2439ebac7e4c53f81b, type: 3}
+      propertyPath: m_UpdateWhenOffscreen
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6410531274625911027, guid: 464ba1a78787ce2439ebac7e4c53f81b, type: 3}
+      propertyPath: m_CullingMode
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

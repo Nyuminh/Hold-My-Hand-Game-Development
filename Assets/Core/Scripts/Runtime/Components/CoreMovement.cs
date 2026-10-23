@@ -276,13 +276,16 @@ namespace Blocks.Gameplay.Core
 
         private void Update()
         {
-            if (!IsOwner) return;
+            // Luôn cập nhật GroundedCheck cho mọi nhân vật (kể cả companion dummy hay remote proxy) để Animator không bị kẹt ở InAir
+            GroundedCheck();
 
             // Update landing timer when grounded
             if (IsGrounded)
             {
                 m_TimeSinceLanded += Time.deltaTime;
             }
+
+            if (!IsOwner) return;
 
             if (!isMovementEnabled)
             {

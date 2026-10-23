@@ -49,9 +49,9 @@ namespace Blocks.Gameplay.Core
                 m_Motor.IsMovementEnabled = true;
             }
 
-            // Đồng bộ Animation khi KHÔNG ở trong trạng thái nắm tay (ví dụ: rơi tự do, bị ném, đáp đất)
-            // Khi đang nắm tay, CoopHoldHandAbility sẽ trực tiếp điều khiển Animator đồng nhịp với Ba
-            if (m_Animator != null && (m_HoldAbility == null || !m_HoldAbility.IsHoldingHands))
+            // Nếu không có CoreAnimator trên nhân vật thì SoloCompanionDummy mới trực tiếp cập nhật Animator fallback
+            var coreAnim = GetComponentInChildren<CoreAnimator>();
+            if (coreAnim == null && m_Animator != null && (m_HoldAbility == null || !m_HoldAbility.IsHoldingHands))
             {
                 bool isGrounded = m_CharacterController != null && m_CharacterController.isGrounded;
                 m_Animator.SetBool("Grounded", isGrounded);

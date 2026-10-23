@@ -7,7 +7,9 @@ namespace Blocks.Gameplay.Core
     public class CoreDirector : MonoBehaviour
     {
         private static CoreDirector s_Instance;
+        public static CoreDirector Instance => s_Instance;
         public static CoreDirector GetInstance() => s_Instance;
+        public bool IsSoundSystemReady => m_SoundSystem != null;
 
         [Header("Audio Settings")]
         [Tooltip("The Unity Audio Mixer for managing audio groups and effects.")]
