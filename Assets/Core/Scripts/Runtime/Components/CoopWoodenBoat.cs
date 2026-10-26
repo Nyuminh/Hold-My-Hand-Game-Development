@@ -144,13 +144,24 @@ namespace Blocks.Gameplay.Core
         // Va chạm chướng ngại vật
         private Collider m_BoatCollider = null;
 
-        // Network synchronization variables
-        private NetworkVariable<float> m_NetSpeed = new NetworkVariable<float>(
-            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
-        private NetworkVariable<float> m_NetTiller = new NetworkVariable<float>(
-            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
-        private NetworkVariable<bool> m_NetIsRowing = new NetworkVariable<bool>(
-            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        // Biến điều khiển lùi của Ba
+        private bool m_DadReverse = false;
+
+        // Network synchronization variables (Server authoritative)
+        private readonly NetworkVariable<Vector3> m_NetBoatPosition = new NetworkVariable<Vector3>(
+            Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<Quaternion> m_NetBoatRotation = new NetworkVariable<Quaternion>(
+            Quaternion.identity, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<float> m_NetSpeed = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<float> m_NetTiller = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<bool> m_NetIsRowing = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<NetworkObjectReference> m_NetDadPlayer = new NetworkVariable<NetworkObjectReference>(
+            default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<NetworkObjectReference> m_NetChildPlayer = new NetworkVariable<NetworkObjectReference>(
+            default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         private static readonly int s_PiggybackingHash = Animator.StringToHash("IsPiggybacking");
         private static readonly int s_SittingHash = Animator.StringToHash("IsSitting");
@@ -182,17 +193,90 @@ namespace Blocks.Gameplay.Core
             StoreInitialTransforms();
         }
 
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+
+            if (IsServer)
+            {
+                m_NetBoatPosition.Value = transform.position;
+                m_NetBoatRotation.Value = transform.rotation;
+                m_NetSpeed.Value = 0f;
+                m_NetTiller.Value = 0f;
+                m_NetIsRowing.Value = false;
+                m_NetDadPlayer.Value = default;
+                m_NetChildPlayer.Value = default;
+            }
+            else
+            {
+                m_NetDadPlayer.OnValueChanged += OnNetDadPlayerChanged;
+                m_NetChildPlayer.OnValueChanged += OnNetChildPlayerChanged;
+
+                if (m_NetBoatPosition.Value != Vector3.zero)
+                {
+                    transform.position = m_NetBoatPosition.Value;
+                    transform.rotation = m_NetBoatRotation.Value;
+                }
+
+                OnNetDadPlayerChanged(default, m_NetDadPlayer.Value);
+                OnNetChildPlayerChanged(default, m_NetChildPlayer.Value);
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            if (!IsServer)
+            {
+                m_NetDadPlayer.OnValueChanged -= OnNetDadPlayerChanged;
+                m_NetChildPlayer.OnValueChanged -= OnNetChildPlayerChanged;
+            }
+            base.OnNetworkDespawn();
+        }
+
         private void Update()
         {
             HandlePlayerMountInputs();
             ReadMountedPlayerControls();
-            SimulateBoatPhysics();
+
+            if (!IsSpawned || IsServer)
+            {
+                // Server hoặc Local Singleplayer: Mô phỏng vật lý và sóng nước
+                SimulateBoatPhysics();
+                UpdateBuoyancyBobbing();
+
+                // Ghi vào NetworkVariable đồng bộ xuống các Client
+                if (IsSpawned && IsServer)
+                {
+                    m_NetBoatPosition.Value = transform.position;
+                    m_NetBoatRotation.Value = transform.rotation;
+                    m_NetSpeed.Value = m_CurrentSpeed;
+                    m_NetTiller.Value = m_CurrentTillerAngle;
+                    m_NetIsRowing.Value = m_IsDadRowing;
+                }
+            }
+            else
+            {
+                // Client: Đồng bộ mượt mà từ Server
+                SyncTransformFromNetwork();
+            }
+
             AnimateOarsAndRudder();
-            UpdateBuoyancyBobbing();
         }
 
         private void LateUpdate()
         {
+            if (IsSpawned && !IsServer)
+            {
+                if (m_DadPlayer == null && m_NetDadPlayer.Value.TryGet(out NetworkObject dadNet))
+                {
+                    MountPlayer(dadNet.gameObject, true);
+                }
+                if (m_ChildPlayer == null && m_NetChildPlayer.Value.TryGet(out NetworkObject childNet))
+                {
+                    MountPlayer(childNet.gameObject, false);
+                }
+            }
+
             StickPlayersToSeats();
         }
 
@@ -306,17 +390,26 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
+            bool isMeDad = m_DadPlayer == localPlayer;
+            bool isMeChild = m_ChildPlayer == localPlayer;
+
             // 2. Kiểm tra xem người chơi này đang ngồi trên thuyền chưa -> Xuống thuyền
-            if (m_DadPlayer == localPlayer)
+            if (isMeDad || isMeChild)
             {
-                Debug.Log($"[CoopWoodenBoat] 🚪 Người chơi 🧔 Ba ({localPlayer.name}) đang ngồi trên thuyền -> Thực hiện XUỐNG THUYỀN (Dismount)!");
-                DismountPlayer(true);
-                return;
-            }
-            if (m_ChildPlayer == localPlayer)
-            {
-                Debug.Log($"[CoopWoodenBoat] 🚪 Người chơi 👶 Con ({localPlayer.name}) đang ngồi trên thuyền -> Thực hiện XUỐNG THUYỀN (Dismount)!");
-                DismountPlayer(false);
+                Debug.Log($"[CoopWoodenBoat] 🚪 Người chơi {localPlayer.name} đang ngồi trên thuyền -> Thực hiện XUỐNG THUYỀN (Dismount)!");
+                if (IsSpawned && !IsServer)
+                {
+                    RequestDismountServerRpc(isMeDad);
+                }
+                else
+                {
+                    DismountPlayer(isMeDad);
+                    if (IsSpawned && IsServer)
+                    {
+                        if (isMeDad) m_NetDadPlayer.Value = default;
+                        else m_NetChildPlayer.Value = default;
+                    }
+                }
                 return;
             }
 
@@ -340,8 +433,6 @@ namespace Blocks.Gameplay.Core
                     Debug.LogWarning($"[CoopWoodenBoat] ⚠️ Vị trí ghế 🧔 Ba (Rower) đã có người ngồi ({m_DadPlayer.name})!");
                     return;
                 }
-                Debug.Log($"[CoopWoodenBoat] ✅ Lên thuyền thành công! Nhân vật '{localPlayer.name}' vào vị trí 🧔 Ba (Chèo thuyền - Oars).");
-                MountPlayer(localPlayer, true);
             }
             else
             {
@@ -350,12 +441,37 @@ namespace Blocks.Gameplay.Core
                     Debug.LogWarning($"[CoopWoodenBoat] ⚠️ Vị trí ghế 👶 Con (Navigator) đã có người ngồi ({m_ChildPlayer.name})!");
                     return;
                 }
-                Debug.Log($"[CoopWoodenBoat] ✅ Lên thuyền thành công! Nhân vật '{localPlayer.name}' vào vị trí 👶 Con (Cần bẻ lái - Rudder).");
-                MountPlayer(localPlayer, false);
             }
 
-            // 5. Nếu trong scene có SoloCompanionDummy (chế độ 1 người chơi), tự động cho dummy lên ghế còn lại
-            CheckAndMountCompanionDummy();
+            // 5. Lên thuyền (hỗ trợ cả Network RPC cho Client lẫn Server/Local)
+            if (IsSpawned && !IsServer)
+            {
+                var netObj = localPlayer.GetComponent<NetworkObject>();
+                if (netObj != null)
+                {
+                    Debug.Log($"[CoopWoodenBoat] 📡 Gửi yêu cầu lên thuyền tới Host (Client -> ServerRpc)...");
+                    RequestMountServerRpc(netObj, isDad);
+                }
+                else
+                {
+                    MountPlayer(localPlayer, isDad);
+                }
+            }
+            else
+            {
+                Debug.Log($"[CoopWoodenBoat] ✅ Lên thuyền thành công! Nhân vật '{localPlayer.name}' vào vị trí {(isDad ? "🧔 Ba" : "👶 Con")}.");
+                MountPlayer(localPlayer, isDad);
+                if (IsSpawned && IsServer)
+                {
+                    var netObj = localPlayer.GetComponent<NetworkObject>();
+                    if (netObj != null)
+                    {
+                        if (isDad) m_NetDadPlayer.Value = netObj;
+                        else m_NetChildPlayer.Value = netObj;
+                    }
+                }
+                CheckAndMountCompanionDummy();
+            }
         }
 
         /// <summary>
@@ -405,6 +521,11 @@ namespace Blocks.Gameplay.Core
             player.transform.position = seatPos;
             player.transform.rotation = facingRot;
 
+            if (motor != null && motor.IsOwner)
+            {
+                motor.SetPosition(seatPos, false);
+            }
+
             // Kích hoạt tư thế ngồi
             if (anim != null)
             {
@@ -441,7 +562,11 @@ namespace Blocks.Gameplay.Core
             player.transform.position = safePos;
 
             if (cc != null) cc.enabled = true;
-            if (motor != null) motor.IsMovementEnabled = true;
+            if (motor != null)
+            {
+                motor.IsMovementEnabled = true;
+                if (motor.IsOwner) motor.SetPosition(safePos, false);
+            }
 
             if (anim != null)
             {
@@ -500,89 +625,161 @@ namespace Blocks.Gameplay.Core
         #region Controls & Physics Simulation
 
         /// <summary>
+        /// Đồng bộ mượt mà vị trí, góc quay và vận tốc từ Server xuống Client.
+        /// </summary>
+        private void SyncTransformFromNetwork()
+        {
+            if (m_NetBoatPosition.Value == Vector3.zero) return;
+
+            float dist = Vector3.Distance(transform.position, m_NetBoatPosition.Value);
+            if (dist > 5.0f)
+            {
+                // Nhảy vị trí ngay nếu lệch quá xa (vừa vào game hoặc teleport)
+                transform.position = m_NetBoatPosition.Value;
+                transform.rotation = m_NetBoatRotation.Value;
+            }
+            else
+            {
+                // Nội suy mượt mà theo vị trí từ Server
+                transform.position = Vector3.Lerp(transform.position, m_NetBoatPosition.Value, Time.deltaTime * 20f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, m_NetBoatRotation.Value, Time.deltaTime * 20f);
+            }
+
+            m_CurrentSpeed = Mathf.Lerp(m_CurrentSpeed, m_NetSpeed.Value, Time.deltaTime * 10f);
+            m_CurrentTillerAngle = Mathf.Lerp(m_CurrentTillerAngle, m_NetTiller.Value, Time.deltaTime * 10f);
+            m_IsDadRowing = m_NetIsRowing.Value;
+        }
+
+        private void OnNetDadPlayerChanged(NetworkObjectReference oldRef, NetworkObjectReference newRef)
+        {
+            if (newRef.TryGet(out NetworkObject netObj))
+            {
+                MountPlayer(netObj.gameObject, true);
+            }
+            else
+            {
+                DismountPlayer(true);
+            }
+        }
+
+        private void OnNetChildPlayerChanged(NetworkObjectReference oldRef, NetworkObjectReference newRef)
+        {
+            if (newRef.TryGet(out NetworkObject netObj))
+            {
+                MountPlayer(netObj.gameObject, false);
+            }
+            else
+            {
+                DismountPlayer(false);
+            }
+        }
+
+        /// <summary>
         /// Đọc phím điều khiển từ người chơi.
         /// Ba: Phím [W] / [S] chèo thuyền thẳng.
         /// Con: Phím [A] / [D] bẻ cần lái.
         /// </summary>
         private void ReadMountedPlayerControls()
         {
-            m_IsDadRowing = false;
-            bool dadReverse = false;
-            m_ChildSteerInput = 0f;
+            // QUY TẮC CỐT LÕI (FIX LỖI 2):
+            // Nếu KHÔNG CÓ AI trên thuyền (cả Ba và Con đều chưa lên thuyền):
+            // Thuyền bắt buộc phải ĐỨNG YÊN HOÀN TOÀN, cản nước hãm tốc độ về 0.
+            if (m_DadPlayer == null && m_ChildPlayer == null)
+            {
+                m_IsDadRowing = false;
+                m_DadReverse = false;
+                m_ChildSteerInput = 0f;
+                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, waterDrag * Time.deltaTime * 3f);
+                m_CurrentTillerAngle = Mathf.MoveTowards(m_CurrentTillerAngle, 0f, tillerTurnSpeed * Time.deltaTime);
+                return;
+            }
+
+            // Kiểm tra xem người chơi cục bộ có ĐANG NGỒI TRÊN THUYỀN hay không:
+            var localPlayer = FindLocalPlayer();
+            bool isMeDad = m_DadPlayer != null && m_DadPlayer == localPlayer;
+            bool isMeChild = m_ChildPlayer != null && m_ChildPlayer == localPlayer;
+
+            // Nếu người chơi cục bộ đang đi bộ trên cạn (chưa lên thuyền):
+            // KHÔNG đọc bất kỳ phím nào của người này cho thuyền!
+            if (!isMeDad && !isMeChild)
+            {
+                return;
+            }
+
+            bool isRowing = false;
+            bool isReverse = false;
+            float steerInput = 0f;
 
             // 1. Nhận diện phím New Input System
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null)
             {
-                if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
-                {
-                    m_IsDadRowing = true;
-                }
-                if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
-                {
-                    dadReverse = true;
-                }
-
-                if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
-                {
-                    m_ChildSteerInput += 1f;
-                }
-                if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
-                {
-                    m_ChildSteerInput -= 1f;
-                }
+                if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) isRowing = true;
+                if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) isReverse = true;
+                if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) steerInput += 1f;
+                if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) steerInput -= 1f;
             }
 #else
             // 2. Nhận diện phím Legacy Input Fallback (chỉ dùng khi không có New Input System)
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) m_IsDadRowing = true;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) dadReverse = true;
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) m_ChildSteerInput += 1f;
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) m_ChildSteerInput -= 1f;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) isRowing = true;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) isReverse = true;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) steerInput += 1f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) steerInput -= 1f;
 #endif
 
-            m_ChildSteerInput = Mathf.Clamp(m_ChildSteerInput, -1f, 1f);
+            steerInput = Mathf.Clamp(steerInput, -1f, 1f);
 
             // 3. Phân quyền vai trò:
-            // Nếu không có Ba trên thuyền -> Không thể tự chèo tiến lên
-            if (m_DadPlayer == null && !soloTestMode)
+            if (isMeDad)
             {
-                m_IsDadRowing = false;
-                dadReverse = false;
+                m_IsDadRowing = isRowing;
+                m_DadReverse = isReverse;
+                if (soloTestMode) m_ChildSteerInput = steerInput;
+
+                // Nếu đang là Client, gửi input lên Server
+                if (IsSpawned && !IsServer)
+                {
+                    SendRowInputServerRpc(m_IsDadRowing, m_DadReverse);
+                    if (soloTestMode) SendSteerInputServerRpc(m_ChildSteerInput);
+                }
+            }
+            else if (isMeChild)
+            {
+                m_ChildSteerInput = steerInput;
+                if (soloTestMode)
+                {
+                    m_IsDadRowing = isRowing;
+                    m_DadReverse = isReverse;
+                }
+
+                // Nếu đang là Client, gửi input lên Server
+                if (IsSpawned && !IsServer)
+                {
+                    SendSteerInputServerRpc(m_ChildSteerInput);
+                    if (soloTestMode) SendRowInputServerRpc(m_IsDadRowing, m_DadReverse);
+                }
             }
 
-            // Nếu không có Con trên thuyền -> Cần lái đứng yên ở vị trí giữa
-            if (m_ChildPlayer == null && !soloTestMode)
+            // Cập nhật gia tốc tiến/lùi và góc cần lái trên máy chủ hoặc local
+            if (!IsSpawned || IsServer)
             {
-                m_ChildSteerInput = 0f;
-            }
+                if (m_IsDadRowing)
+                {
+                    m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, maxRowSpeed, rowAcceleration * Time.deltaTime);
+                    m_RowCycleTime += Time.deltaTime * strokeFrequency;
+                }
+                else if (m_DadReverse)
+                {
+                    m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, -reverseSpeed, rowAcceleration * 0.7f * Time.deltaTime);
+                    m_RowCycleTime -= Time.deltaTime * (strokeFrequency * 0.7f);
+                }
+                else
+                {
+                    m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, waterDrag * Time.deltaTime);
+                }
 
-            // Cập nhật gia tốc tiến/lùi của Ba
-            if (m_IsDadRowing)
-            {
-                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, maxRowSpeed, rowAcceleration * Time.deltaTime);
-                m_RowCycleTime += Time.deltaTime * strokeFrequency;
-            }
-            else if (dadReverse)
-            {
-                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, -reverseSpeed, rowAcceleration * 0.7f * Time.deltaTime);
-                m_RowCycleTime -= Time.deltaTime * (strokeFrequency * 0.7f);
-            }
-            else
-            {
-                // Nước cản thuyền dừng dần
-                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, waterDrag * Time.deltaTime);
-            }
-
-            // Cập nhật góc cần bẻ lái của Con
-            float targetTillerAngle = m_ChildSteerInput * maxTillerAngle;
-            m_CurrentTillerAngle = Mathf.MoveTowards(m_CurrentTillerAngle, targetTillerAngle, tillerTurnSpeed * Time.deltaTime);
-
-            // Đồng bộ mạng nếu có
-            if (IsSpawned && HasAuthority)
-            {
-                m_NetSpeed.Value = m_CurrentSpeed;
-                m_NetTiller.Value = m_CurrentTillerAngle;
-                m_NetIsRowing.Value = m_IsDadRowing;
+                float targetTillerAngle = m_ChildSteerInput * maxTillerAngle;
+                m_CurrentTillerAngle = Mathf.MoveTowards(m_CurrentTillerAngle, targetTillerAngle, tillerTurnSpeed * Time.deltaTime);
             }
         }
 
@@ -980,6 +1177,70 @@ namespace Blocks.Gameplay.Core
 
             string statusText = $"Tốc độ: {m_CurrentSpeed:F1} m/s | {rudderDirectionText}";
             GUI.Label(new Rect(hudX + 16, hudY + 108, hudW - 32, 20), statusText, statusStyle);
+        }
+
+        #endregion
+
+        #region Network RPCs
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        private void RequestMountServerRpc(NetworkObjectReference playerRef, bool asDad)
+        {
+            if (playerRef.TryGet(out NetworkObject playerNet))
+            {
+                float dist = GetDistanceToPlayer(playerNet.transform.position);
+                if (dist <= boardInteractionRadius + 2.5f)
+                {
+                    if (asDad)
+                    {
+                        if (m_NetDadPlayer.Value.TryGet(out _)) return;
+                        m_NetDadPlayer.Value = playerRef;
+                        MountPlayer(playerNet.gameObject, true);
+                    }
+                    else
+                    {
+                        if (m_NetChildPlayer.Value.TryGet(out _)) return;
+                        m_NetChildPlayer.Value = playerRef;
+                        MountPlayer(playerNet.gameObject, false);
+                    }
+
+                    Debug.Log($"[CoopWoodenBoat] 🌐 Server đã chấp nhận {playerNet.name} lên ghế {(asDad ? "Ba" : "Con")}!");
+                }
+                else
+                {
+                    Debug.LogWarning($"[CoopWoodenBoat] 🌐 Server từ chối: {playerNet.name} quá xa thuyền ({dist:F1}m)!");
+                }
+            }
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        private void RequestDismountServerRpc(bool isDad)
+        {
+            if (isDad)
+            {
+                m_NetDadPlayer.Value = default;
+                DismountPlayer(true);
+            }
+            else
+            {
+                m_NetChildPlayer.Value = default;
+                DismountPlayer(false);
+            }
+
+            Debug.Log($"[CoopWoodenBoat] 🌐 Server đã thực hiện xuống thuyền cho {(isDad ? "Ba" : "Con")}.");
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        private void SendRowInputServerRpc(bool isRowing, bool isReverse)
+        {
+            m_IsDadRowing = isRowing;
+            m_DadReverse = isReverse;
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        private void SendSteerInputServerRpc(float steerInput)
+        {
+            m_ChildSteerInput = steerInput;
         }
 
         #endregion
