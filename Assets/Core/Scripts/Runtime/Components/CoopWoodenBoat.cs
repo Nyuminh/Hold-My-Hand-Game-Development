@@ -1,0 +1,1003 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using Unity.Netcode;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
+namespace Blocks.Gameplay.Core
+{
+    /// <summary>
+    /// Cơ chế Lái Thuyền Co-op (Co-op Wooden Boat Gameplay):
+    /// - 🧔 Người cha (Dad): Ngồi tại ghế chèo (Player1_Rower_MountPoint), chèo 2 mái chèo (Oar_Left, Oar_Right).
+    ///   Khi người cha chèo, thuyền chỉ đi thẳng về phía trước theo hướng mũi thuyền.
+    /// - 👶 Người con (Child): Ngồi tại vị trí bẻ lái (Player2_Navigator_MountPoint), điều khiển cần lái (Rudder_Assembly).
+    ///   Cơ chế lái đòn bẩy thực tế:
+    ///   + Cần lái bẻ sang PHẢI (phím D) -> Thuyền lái sang TRÁI.
+    ///   + Cần lái bẻ sang TRÁI (phím A) -> Thuyền lái sang PHẢI.
+    /// - Nhấn [E] để lên / xuống thuyền.
+    /// </summary>
+    public class CoopWoodenBoat : NetworkBehaviour
+    {
+        #region Serialized Fields
+
+        [Header("Gắn kết các bộ phận thuyền (Boat Transforms)")]
+        [Tooltip("Vị trí ngồi của Ba (Rower Mount Point)")]
+        [SerializeField] private Transform rowerMountPoint;
+
+        [Tooltip("Vị trí ngồi của Con (Navigator / Rudder Mount Point)")]
+        [SerializeField] private Transform navigatorMountPoint;
+
+        [Tooltip("Cụm cần lái & bánh lái (Rudder Assembly)")]
+        [SerializeField] private Transform rudderAssembly;
+
+        [Tooltip("Mái chèo bên trái (Oar Left)")]
+        [SerializeField] private Transform oarLeft;
+
+        [Tooltip("Mái chèo bên phải (Oar Right)")]
+        [SerializeField] private Transform oarRight;
+
+        [Tooltip("Ghế ngồi chèo thuyền")]
+        [SerializeField] private Transform seatRower;
+
+        [Tooltip("Ghế ngồi bẻ lái")]
+        [SerializeField] private Transform seatNavigator;
+
+        [Header("Thông số Tốc độ & Chèo thuyền (Dad Rowing)")]
+        [Tooltip("Tốc độ tiến tối đa khi Ba chèo thuyền (mét/giây)")]
+        [SerializeField] private float maxRowSpeed = 4.2f;
+
+        [Tooltip("Gia tốc khi chèo thuyền (mét/giây^2)")]
+        [SerializeField] private float rowAcceleration = 2.4f;
+
+        [Tooltip("Lực cản nước làm chậm thuyền khi không chèo (mét/giây^2)")]
+        [SerializeField] private float waterDrag = 1.2f;
+
+        [Tooltip("Tốc độ lùi tối đa khi chèo lùi (mét/giây)")]
+        [SerializeField] private float reverseSpeed = 1.5f;
+
+        [Tooltip("Tốc độ nhịp chèo (chu kỳ/giây)")]
+        [SerializeField] private float strokeFrequency = 2.8f;
+
+        [Tooltip("Góc quét của mái chèo khi chèo (độ)")]
+        [SerializeField] private float oarStrokeAngle = 22.0f;
+
+        [Tooltip("Góc cắm mái chèo xuống nước khi kéo (độ)")]
+        [SerializeField] private float oarDipAngle = 8.0f;
+
+        [Header("Thông số Cần bẻ lái (Child Rudder Steering)")]
+        [Tooltip("Góc quay tối đa của cần lái (độ)")]
+        [SerializeField] private float maxTillerAngle = 30.0f;
+
+        [Tooltip("Tốc độ bẻ cần lái qua lại (độ/giây)")]
+        [SerializeField] private float tillerTurnSpeed = 75.0f;
+
+        [Tooltip("Độ nhạy quay thuyền (độ/giây)")]
+        [SerializeField] private float boatTurnSensitivity = 40.0f;
+
+        [Tooltip("Quy tắc bẻ cần: Cần sang Phải -> Thuyền rẽ Trái và ngược lại (mặc định true)")]
+        [SerializeField] private bool invertTillerSteering = true;
+
+        [Header("Mặt nước & Độ nổi (Water & Buoyancy)")]
+        [Tooltip("Độ cao mặt nước trong scene")]
+        [SerializeField] private float waterSurfaceY = 0.50f;
+
+        [Tooltip("Độ cao thân thuyền so với mặt nước")]
+        [SerializeField] private float restingHeightOffset = 0.03f;
+
+        [Tooltip("Tần số sóng nhấp nhô")]
+        [SerializeField] private float bobbingFrequency = 1.8f;
+
+        [Tooltip("Biên độ sóng nhấp nhô (mét)")]
+        [SerializeField] private float bobbingAmplitude = 0.025f;
+
+        [Tooltip("Biên độ lắc lư nhẹ theo sóng (độ)")]
+        [SerializeField] private float gentleRollAmplitude = 1.0f;
+
+        [Header("Tương tác & Lên thuyền (Interaction)")]
+        [Tooltip("Bán kính có thể nhấn [E] lên thuyền (mét)")]
+        [SerializeField] private float boardInteractionRadius = 5.5f;
+
+#pragma warning disable 0414
+        [Tooltip("Phím lên/xuống thuyền (Legacy Input)")]
+        [SerializeField] private KeyCode boardKey = KeyCode.E;
+#pragma warning restore 0414
+
+        [Tooltip("Bật chế độ thử nghiệm Solo: khi chỉ có 1 người chơi thì người đó được chèo lẫn lái")]
+        [SerializeField] private bool soloTestMode = true;
+
+        [Header("Độ lệch vị trí ngồi (Seat Offsets)")]
+        [SerializeField] private Vector3 dadSeatLocalOffset = new Vector3(0f, 0.06f, 0f);
+        [SerializeField] private Vector3 childSeatLocalOffset = new Vector3(0f, 0.06f, 0f);
+
+        #endregion
+
+        #region Private Fields
+
+        // Trạng thái nhân vật đang ngồi trên thuyền
+        private GameObject m_DadPlayer = null;
+        private GameObject m_ChildPlayer = null;
+
+        private CharacterController m_DadCC = null;
+        private CharacterController m_ChildCC = null;
+
+        private CoreMovement m_DadMovement = null;
+        private CoreMovement m_ChildMovement = null;
+
+        private Animator m_DadAnimator = null;
+        private Animator m_ChildAnimator = null;
+
+        // Trạng thái vật lý thuyền
+        private float m_CurrentSpeed = 0f;
+        private float m_CurrentTillerAngle = 0f;
+        private float m_RowCycleTime = 0f;
+        private bool m_IsDadRowing = false;
+        private float m_ChildSteerInput = 0f;
+
+        // Góc ban đầu của các bộ phận
+        private Quaternion m_OarLeftInitialRot = Quaternion.identity;
+        private Quaternion m_OarRightInitialRot = Quaternion.identity;
+        private Quaternion m_RudderInitialRot = Quaternion.identity;
+
+        // Va chạm chướng ngại vật
+        private Collider m_BoatCollider = null;
+
+        // Network synchronization variables
+        private NetworkVariable<float> m_NetSpeed = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private NetworkVariable<float> m_NetTiller = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private NetworkVariable<bool> m_NetIsRowing = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+
+        private static readonly int s_PiggybackingHash = Animator.StringToHash("IsPiggybacking");
+        private static readonly int s_SittingHash = Animator.StringToHash("IsSitting");
+
+        #endregion
+
+        #region Properties
+
+        public bool IsDadMounted => m_DadPlayer != null;
+        public bool IsChildMounted => m_ChildPlayer != null;
+        public float CurrentSpeed => m_CurrentSpeed;
+        public float CurrentTillerAngle => m_CurrentTillerAngle;
+        public bool IsRowing => m_IsDadRowing;
+
+        #endregion
+
+        #region Unity Lifecycle
+
+        private void Awake()
+        {
+            if (boardInteractionRadius < 5.0f) boardInteractionRadius = 5.5f;
+            AutoAssignReferences();
+            StoreInitialTransforms();
+            EnsureCollider();
+        }
+
+        private void Start()
+        {
+            StoreInitialTransforms();
+        }
+
+        private void Update()
+        {
+            HandlePlayerMountInputs();
+            ReadMountedPlayerControls();
+            SimulateBoatPhysics();
+            AnimateOarsAndRudder();
+            UpdateBuoyancyBobbing();
+        }
+
+        private void LateUpdate()
+        {
+            StickPlayersToSeats();
+        }
+
+        #endregion
+
+        #region Setup & Initialization
+
+        private void AutoAssignReferences()
+        {
+            if (rowerMountPoint == null) rowerMountPoint = transform.Find("Player1_Rower_MountPoint");
+            if (navigatorMountPoint == null) navigatorMountPoint = transform.Find("Player2_Navigator_MountPoint");
+            if (rudderAssembly == null) rudderAssembly = transform.Find("Rudder_Assembly");
+            if (oarLeft == null) oarLeft = transform.Find("Oar_Left");
+            if (oarRight == null) oarRight = transform.Find("Oar_Right");
+            if (seatRower == null) seatRower = transform.Find("Seat_Rower");
+            if (seatNavigator == null) seatNavigator = transform.Find("Seat_Navigator");
+
+            if (rowerMountPoint == null && seatRower != null) rowerMountPoint = seatRower;
+            if (navigatorMountPoint == null && seatNavigator != null) navigatorMountPoint = seatNavigator;
+        }
+
+        private void StoreInitialTransforms()
+        {
+            if (oarLeft != null) m_OarLeftInitialRot = oarLeft.localRotation;
+            if (oarRight != null) m_OarRightInitialRot = oarRight.localRotation;
+            if (rudderAssembly != null) m_RudderInitialRot = rudderAssembly.localRotation;
+        }
+
+        private void EnsureCollider()
+        {
+            m_BoatCollider = GetComponent<Collider>();
+            if (m_BoatCollider == null)
+            {
+                var box = gameObject.AddComponent<BoxCollider>();
+                // Thân thuyền dài ~4.5m, rộng ~1.6m, cao ~0.8m theo trục Blender Z-up
+                box.center = new Vector3(0f, -0.6f, 0.35f);
+                box.size = new Vector3(1.7f, 4.2f, 0.9f);
+                m_BoatCollider = box;
+            }
+        }
+
+        #endregion
+
+        #region Boarding & Mounting Logic
+
+        /// <summary>
+        /// Xử lý nhấn [E] để người chơi bước lên hoặc rời thuyền.
+        /// Thêm log chi tiết cho từng bước chẩn đoán lỗi.
+        /// </summary>
+        private void HandlePlayerMountInputs()
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            // Phím tắt kiểm thử nhanh: [B] Dịch chuyển người chơi và bạn đồng hành đến cạnh thuyền
+            bool bPressed = false;
+#if ENABLE_INPUT_SYSTEM
+            if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame) bPressed = true;
+#else
+            if (Input.GetKeyDown(KeyCode.B)) bPressed = true;
+#endif
+
+            if (bPressed)
+            {
+                var p = FindLocalPlayer();
+                if (p != null)
+                {
+                    var cc = p.GetComponent<CharacterController>();
+                    if (cc != null) cc.enabled = false;
+                    p.transform.position = transform.position + GetBoatWorldRight() * 2.2f + Vector3.up * 0.4f;
+                    if (cc != null) cc.enabled = true;
+
+                    var dummy = FindAnyObjectByType<SoloCompanionDummy>();
+                    if (dummy != null)
+                    {
+                        var dummyCC = dummy.GetComponent<CharacterController>();
+                        if (dummyCC != null) dummyCC.enabled = false;
+                        dummy.transform.position = transform.position + GetBoatWorldRight() * 2.2f + Vector3.forward * 1.5f + Vector3.up * 0.4f;
+                        if (dummyCC != null) dummyCC.enabled = true;
+                    }
+
+                    Debug.Log("[CoopWoodenBoat] 🚀 Phím [B]: Đã dịch chuyển người chơi và bạn đồng hành đến cạnh thuyền!");
+                }
+                else
+                {
+                    Debug.LogWarning("[CoopWoodenBoat] ⚠️ Phím [B]: Không tìm thấy nhân vật người chơi để dịch chuyển.");
+                }
+            }
+#endif
+
+            bool ePressed = false;
+#if ENABLE_INPUT_SYSTEM
+            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+            {
+                ePressed = true;
+            }
+#else
+            if (Input.GetKeyDown(boardKey))
+            {
+                ePressed = true;
+            }
+#endif
+
+            if (!ePressed) return;
+
+            Debug.Log("[CoopWoodenBoat] 🎮 Bấm phím [E] tương tác thuyền!");
+
+            // 1. Tìm nhân vật của người chơi cục bộ
+            var localPlayer = FindLocalPlayer();
+            if (localPlayer == null)
+            {
+                Debug.LogError("[CoopWoodenBoat] ❌ LỖI: Không tìm thấy GameObject của LocalPlayer trong Scene! Hãy kiểm tra spawn nhân vật.");
+                return;
+            }
+
+            // 2. Kiểm tra xem người chơi này đang ngồi trên thuyền chưa -> Xuống thuyền
+            if (m_DadPlayer == localPlayer)
+            {
+                Debug.Log($"[CoopWoodenBoat] 🚪 Người chơi 🧔 Ba ({localPlayer.name}) đang ngồi trên thuyền -> Thực hiện XUỐNG THUYỀN (Dismount)!");
+                DismountPlayer(true);
+                return;
+            }
+            if (m_ChildPlayer == localPlayer)
+            {
+                Debug.Log($"[CoopWoodenBoat] 🚪 Người chơi 👶 Con ({localPlayer.name}) đang ngồi trên thuyền -> Thực hiện XUỐNG THUYỀN (Dismount)!");
+                DismountPlayer(false);
+                return;
+            }
+
+            // 3. Nếu chưa lên thuyền, đo khoảng cách tới thuyền
+            float dist = GetDistanceToPlayer(localPlayer.transform.position);
+            bool isDad = IsPlayerDad(localPlayer);
+
+            Debug.Log($"[CoopWoodenBoat] 📍 Khoảng cách tới thuyền: {dist:F2}m (Bán kính cho phép: {boardInteractionRadius:F1}m) | Người chơi: '{localPlayer.name}' | Vai trò nhận diện: {(isDad ? "🧔 Ba (Chèo thuyền)" : "👶 Con (Bẻ lái)")}");
+
+            if (dist > boardInteractionRadius)
+            {
+                Debug.LogWarning($"[CoopWoodenBoat] ⚠️ Quá xa thuyền ({dist:F2}m > {boardInteractionRadius:F1}m)! Vui lòng bước lại gần mạn thuyền hoặc mép cầu tàu để lên thuyền.");
+                return;
+            }
+
+            // 4. Kiểm tra chỗ ngồi theo vai trò
+            if (isDad)
+            {
+                if (m_DadPlayer != null)
+                {
+                    Debug.LogWarning($"[CoopWoodenBoat] ⚠️ Vị trí ghế 🧔 Ba (Rower) đã có người ngồi ({m_DadPlayer.name})!");
+                    return;
+                }
+                Debug.Log($"[CoopWoodenBoat] ✅ Lên thuyền thành công! Nhân vật '{localPlayer.name}' vào vị trí 🧔 Ba (Chèo thuyền - Oars).");
+                MountPlayer(localPlayer, true);
+            }
+            else
+            {
+                if (m_ChildPlayer != null)
+                {
+                    Debug.LogWarning($"[CoopWoodenBoat] ⚠️ Vị trí ghế 👶 Con (Navigator) đã có người ngồi ({m_ChildPlayer.name})!");
+                    return;
+                }
+                Debug.Log($"[CoopWoodenBoat] ✅ Lên thuyền thành công! Nhân vật '{localPlayer.name}' vào vị trí 👶 Con (Cần bẻ lái - Rudder).");
+                MountPlayer(localPlayer, false);
+            }
+
+            // 5. Nếu trong scene có SoloCompanionDummy (chế độ 1 người chơi), tự động cho dummy lên ghế còn lại
+            CheckAndMountCompanionDummy();
+        }
+
+        /// <summary>
+        /// Đưa người chơi vào ghế ngồi trên thuyền và cố định vị trí ngay lập tức.
+        /// </summary>
+        public void MountPlayer(GameObject player, bool asDad)
+        {
+            if (player == null) return;
+
+            var cc = player.GetComponent<CharacterController>();
+            var motor = player.GetComponent<CoreMovement>();
+            var anim = player.GetComponentInChildren<Animator>();
+
+            if (asDad)
+            {
+                m_DadPlayer = player;
+                m_DadCC = cc;
+                m_DadMovement = motor;
+                m_DadAnimator = anim;
+            }
+            else
+            {
+                m_ChildPlayer = player;
+                m_ChildCC = cc;
+                m_ChildMovement = motor;
+                m_ChildAnimator = anim;
+            }
+
+            // Tắt CharacterController và ngắt input di chuyển chân
+            if (cc != null) cc.enabled = false;
+            if (motor != null)
+            {
+                motor.SetMoveInput(Vector2.zero);
+                motor.IsMovementEnabled = false;
+            }
+
+            // Khóa vị trí nhân vật ngay lập tức vào ghế ngồi
+            Transform mountPoint = asDad ? (rowerMountPoint ?? seatRower) : (navigatorMountPoint ?? seatNavigator);
+            Vector3 seatOffset = asDad ? dadSeatLocalOffset : childSeatLocalOffset;
+            Vector3 bowDir = GetBoatWorldForward();
+            Quaternion facingRot = Quaternion.LookRotation(bowDir, Vector3.up);
+
+            Vector3 seatPos = mountPoint != null 
+                ? mountPoint.position + seatOffset 
+                : transform.position + (asDad ? bowDir * 0.5f : -bowDir * 1.2f) + seatOffset;
+
+            player.transform.position = seatPos;
+            player.transform.rotation = facingRot;
+
+            // Kích hoạt tư thế ngồi
+            if (anim != null)
+            {
+                anim.SetBool(s_PiggybackingHash, true);
+                anim.SetBool(s_SittingHash, true);
+                anim.CrossFadeInFixedTime("Piggyback_Sit", 0.15f);
+            }
+
+            Debug.Log($"[CoopWoodenBoat] 🪑 Đã cố định nhân vật '{player.name}' vào ghế {(asDad ? "🧔 Ba" : "👶 Con")}!");
+        }
+
+        /// <summary>
+        /// Cho người chơi rời khỏi thuyền và đứng trên bờ an toàn.
+        /// </summary>
+        public void DismountPlayer(bool isDad)
+        {
+            GameObject player = isDad ? m_DadPlayer : m_ChildPlayer;
+            if (player == null) return;
+
+            var cc = isDad ? m_DadCC : m_ChildCC;
+            var motor = isDad ? m_DadMovement : m_ChildMovement;
+            var anim = isDad ? m_DadAnimator : m_ChildAnimator;
+
+            // Đặt người chơi xuống mạn thuyền bên phải an toàn (hướng cầu tàu)
+            Vector3 boatRight = GetBoatWorldRight();
+            Vector3 safePos = transform.position + boatRight * 2.0f + Vector3.up * 0.5f;
+
+            // Kiểm tra raycast xuống sàn cầu tàu hoặc đất liền
+            if (Physics.Raycast(safePos + Vector3.up * 2f, Vector3.down, out var groundHit, 5f))
+            {
+                safePos = groundHit.point + Vector3.up * 0.1f;
+            }
+
+            player.transform.position = safePos;
+
+            if (cc != null) cc.enabled = true;
+            if (motor != null) motor.IsMovementEnabled = true;
+
+            if (anim != null)
+            {
+                anim.SetBool(s_PiggybackingHash, false);
+                anim.SetBool(s_SittingHash, false);
+                anim.CrossFadeInFixedTime("Idle Walk Run Blend", 0.15f);
+            }
+
+            if (isDad)
+            {
+                m_DadPlayer = null;
+                m_DadCC = null;
+                m_DadMovement = null;
+                m_DadAnimator = null;
+            }
+            else
+            {
+                m_ChildPlayer = null;
+                m_ChildCC = null;
+                m_ChildMovement = null;
+                m_ChildAnimator = null;
+            }
+
+            Debug.Log($"[CoopWoodenBoat] ⚓ Người chơi {(isDad ? "🧔 Ba" : "👶 Con")} đã xuống thuyền an toàn tại {safePos}.");
+
+            // Nếu người còn lại trên thuyền là SoloCompanionDummy, cho dummy xuống cùng người chơi
+            GameObject other = isDad ? m_ChildPlayer : m_DadPlayer;
+            if (other != null && other.GetComponent<SoloCompanionDummy>() != null)
+            {
+                Debug.Log($"[CoopWoodenBoat] 🤖 Tự động cho Bạn Đồng Hành ({other.name}) cùng xuống thuyền theo người chơi.");
+                DismountPlayer(!isDad);
+            }
+        }
+
+        private void CheckAndMountCompanionDummy()
+        {
+            var dummy = FindAnyObjectByType<SoloCompanionDummy>();
+            if (dummy == null) return;
+
+            // Nếu Ba đã lên và Con còn trống -> Dummy lên ghế Con
+            if (m_DadPlayer != null && m_ChildPlayer == null)
+            {
+                Debug.Log($"[CoopWoodenBoat] 🤖 Tự động đưa Bạn Đồng Hành ({dummy.name}) lên ghế 👶 Con để hỗ trợ bẻ lái!");
+                MountPlayer(dummy.gameObject, false);
+            }
+            // Nếu Con đã lên và Ba còn trống -> Dummy lên ghế Ba
+            else if (m_ChildPlayer != null && m_DadPlayer == null)
+            {
+                Debug.Log($"[CoopWoodenBoat] 🤖 Tự động đưa Bạn Đồng Hành ({dummy.name}) lên ghế 🧔 Ba để hỗ trợ chèo thuyền!");
+                MountPlayer(dummy.gameObject, true);
+            }
+        }
+
+        #endregion
+
+        #region Controls & Physics Simulation
+
+        /// <summary>
+        /// Đọc phím điều khiển từ người chơi.
+        /// Ba: Phím [W] / [S] chèo thuyền thẳng.
+        /// Con: Phím [A] / [D] bẻ cần lái.
+        /// </summary>
+        private void ReadMountedPlayerControls()
+        {
+            m_IsDadRowing = false;
+            bool dadReverse = false;
+            m_ChildSteerInput = 0f;
+
+            // 1. Nhận diện phím New Input System
+#if ENABLE_INPUT_SYSTEM
+            if (Keyboard.current != null)
+            {
+                if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
+                {
+                    m_IsDadRowing = true;
+                }
+                if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
+                {
+                    dadReverse = true;
+                }
+
+                if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
+                {
+                    m_ChildSteerInput += 1f;
+                }
+                if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
+                {
+                    m_ChildSteerInput -= 1f;
+                }
+            }
+#else
+            // 2. Nhận diện phím Legacy Input Fallback (chỉ dùng khi không có New Input System)
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) m_IsDadRowing = true;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) dadReverse = true;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) m_ChildSteerInput += 1f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) m_ChildSteerInput -= 1f;
+#endif
+
+            m_ChildSteerInput = Mathf.Clamp(m_ChildSteerInput, -1f, 1f);
+
+            // 3. Phân quyền vai trò:
+            // Nếu không có Ba trên thuyền -> Không thể tự chèo tiến lên
+            if (m_DadPlayer == null && !soloTestMode)
+            {
+                m_IsDadRowing = false;
+                dadReverse = false;
+            }
+
+            // Nếu không có Con trên thuyền -> Cần lái đứng yên ở vị trí giữa
+            if (m_ChildPlayer == null && !soloTestMode)
+            {
+                m_ChildSteerInput = 0f;
+            }
+
+            // Cập nhật gia tốc tiến/lùi của Ba
+            if (m_IsDadRowing)
+            {
+                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, maxRowSpeed, rowAcceleration * Time.deltaTime);
+                m_RowCycleTime += Time.deltaTime * strokeFrequency;
+            }
+            else if (dadReverse)
+            {
+                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, -reverseSpeed, rowAcceleration * 0.7f * Time.deltaTime);
+                m_RowCycleTime -= Time.deltaTime * (strokeFrequency * 0.7f);
+            }
+            else
+            {
+                // Nước cản thuyền dừng dần
+                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, waterDrag * Time.deltaTime);
+            }
+
+            // Cập nhật góc cần bẻ lái của Con
+            float targetTillerAngle = m_ChildSteerInput * maxTillerAngle;
+            m_CurrentTillerAngle = Mathf.MoveTowards(m_CurrentTillerAngle, targetTillerAngle, tillerTurnSpeed * Time.deltaTime);
+
+            // Đồng bộ mạng nếu có
+            if (IsSpawned && HasAuthority)
+            {
+                m_NetSpeed.Value = m_CurrentSpeed;
+                m_NetTiller.Value = m_CurrentTillerAngle;
+                m_NetIsRowing.Value = m_IsDadRowing;
+            }
+        }
+
+        /// <summary>
+        /// Mô phỏng di chuyển thẳng của thuyền và góc bẻ lái ngược hướng.
+        /// </summary>
+        private void SimulateBoatPhysics()
+        {
+            float dt = Time.deltaTime;
+            Vector3 forwardDir = GetBoatWorldForward();
+
+            // 1. TÍNH TOÁN BẺ LÁI (CHILD STEERING)
+            // QUY TẮC CỐT LÕI THEO YÊU CẦU CỦA USER:
+            // "Khi người cần lái ở bên phải thì thuyền sẽ lái sang trái và ngược lại"
+            // Tiller sang Phải (+Angle) -> Yaw âm (Rẽ TRÁI trong không gian 3D Unity).
+            // Tiller sang Trái (-Angle) -> Yaw dương (Rẽ PHẢI trong không gian 3D Unity).
+            if (Mathf.Abs(m_CurrentTillerAngle) > 0.1f)
+            {
+                float tillerRatio = m_CurrentTillerAngle / maxTillerAngle;
+                float turnDirection = invertTillerSteering ? -tillerRatio : tillerRatio;
+
+                // Thuyền chuyển hướng nhạy nhất khi đang có đà lướt nước
+                float speedFactor = Mathf.Clamp01(Mathf.Abs(m_CurrentSpeed) / maxRowSpeed);
+                float effectiveTurnRate = boatTurnSensitivity * (0.25f + 0.75f * speedFactor);
+
+                float yawDelta = turnDirection * effectiveTurnRate * dt;
+                transform.Rotate(Vector3.up, yawDelta, Space.World);
+            }
+
+            // 2. TÍNH TOÁN TIẾN THẲNG (DAD ROWING)
+            // QUY TẮC CỐT LÕI:
+            // "Khi người cha chèo thuyền chỉ đi thẳng"
+            if (Mathf.Abs(m_CurrentSpeed) > 0.01f)
+            {
+                Vector3 desiredMove = forwardDir * (m_CurrentSpeed * dt);
+
+                // Quét va chạm chướng ngại vật phía trước (Terrain, Rocks...)
+                if (CheckObstacleCollision(desiredMove, out Vector3 slideMove))
+                {
+                    transform.position += slideMove;
+                }
+                else
+                {
+                    transform.position += desiredMove;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Quét vật cản để chống thuyền xuyên thủng bờ đá hoặc leo lên núi.
+        /// </summary>
+        private bool CheckObstacleCollision(Vector3 moveDelta, out Vector3 safeMove)
+        {
+            safeMove = moveDelta;
+            float checkDist = moveDelta.magnitude + 0.4f;
+            Vector3 checkOrigin = transform.position + Vector3.up * 0.3f;
+
+            if (Physics.SphereCast(checkOrigin, 0.7f, moveDelta.normalized, out var hit, checkDist))
+            {
+                // Nếu va vào Terrain hoặc Rock cứng
+                if (!hit.collider.isTrigger && hit.collider != m_BoatCollider)
+                {
+                    // Trượt dọc theo mặt phẳng tiếp tuyến của vật cản
+                    safeMove = Vector3.ProjectOnPlane(moveDelta, hit.normal);
+                    safeMove.y = 0f;
+                    m_CurrentSpeed *= 0.6f; // Giảm tốc khi cọ quẹt bờ
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Tạo hiệu ứng bập bênh mặt nước sống động.
+        /// </summary>
+        private void UpdateBuoyancyBobbing()
+        {
+            float waveY = Mathf.Sin(Time.time * bobbingFrequency) * bobbingAmplitude;
+            float rollAngle = Mathf.Sin(Time.time * (bobbingFrequency * 0.8f)) * gentleRollAmplitude;
+
+            // Giữ thuyền luôn nổi thăng bằng ở cao độ mặt nước
+            float targetY = waterSurfaceY + restingHeightOffset + waveY;
+            Vector3 curPos = transform.position;
+            transform.position = new Vector3(curPos.x, targetY, curPos.z);
+        }
+
+        /// <summary>
+        /// Visual Animation: Xoay mái chèo theo nhịp chèo của Ba và xoay cần lái theo tay Con.
+        /// </summary>
+        private void AnimateOarsAndRudder()
+        {
+            // 1. CẦN LÁI (RUDDER ASSEMBLY)
+            // Xoay cần lái quanh trục thẳng đứng Z trong tọa độ Blender FBX
+            if (rudderAssembly != null)
+            {
+                rudderAssembly.localEulerAngles = new Vector3(0f, 0f, m_CurrentTillerAngle);
+            }
+
+            // 2. MÁI CHÈO (OAR LEFT & RIGHT)
+            if (oarLeft != null && oarRight != null)
+            {
+                if (Mathf.Abs(m_CurrentSpeed) > 0.05f || m_IsDadRowing)
+                {
+                    float strokeSin = Mathf.Sin(m_RowCycleTime);
+                    float strokeRot = strokeSin * oarStrokeAngle;
+                    float dipRot = strokeSin > 0 ? oarDipAngle : 0f;
+
+                    // Mái chèo quét tới lui đồng bộ
+                    Quaternion strokeL = Quaternion.AngleAxis(strokeRot, Vector3.forward);
+                    Quaternion strokeR = Quaternion.AngleAxis(-strokeRot, Vector3.forward);
+
+                    oarLeft.localRotation = strokeL * m_OarLeftInitialRot;
+                    oarRight.localRotation = strokeR * m_OarRightInitialRot;
+                }
+                else
+                {
+                    // Trả mái chèo về trạng thái nghỉ tự nhiên
+                    oarLeft.localRotation = Quaternion.Slerp(oarLeft.localRotation, m_OarLeftInitialRot, Time.deltaTime * 3f);
+                    oarRight.localRotation = Quaternion.Slerp(oarRight.localRotation, m_OarRightInitialRot, Time.deltaTime * 3f);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Giữ chặt người chơi tại ghế ngồi khi thuyền di chuyển.
+        /// </summary>
+        private void StickPlayersToSeats()
+        {
+            Vector3 bowDir = GetBoatWorldForward();
+            Quaternion facingRot = Quaternion.LookRotation(bowDir, Vector3.up);
+
+            if (m_DadPlayer != null)
+            {
+                Vector3 seatPos = (rowerMountPoint != null ? rowerMountPoint.position : transform.position + bowDir * 0.5f) + dadSeatLocalOffset;
+                m_DadPlayer.transform.position = seatPos;
+                m_DadPlayer.transform.rotation = facingRot;
+            }
+
+            if (m_ChildPlayer != null)
+            {
+                Vector3 seatPos = (navigatorMountPoint != null ? navigatorMountPoint.position : transform.position - bowDir * 1.2f) + childSeatLocalOffset;
+                m_ChildPlayer.transform.position = seatPos;
+                m_ChildPlayer.transform.rotation = facingRot;
+            }
+        }
+
+        #endregion
+
+        #region Helpers & Coordinate Transformations
+
+        /// <summary>
+        /// Tính khoảng cách ngắn nhất từ người chơi tới thân thuyền, mạn thuyền hoặc 2 ghế ngồi.
+        /// Giúp người chơi đứng ở bất kỳ vị trí nào trên bến tàu cạnh thuyền cũng nhấn [E] được.
+        /// </summary>
+        public float GetDistanceToPlayer(Vector3 playerPos)
+        {
+            float minDist = Vector3.Distance(transform.position, playerPos);
+
+            if (rowerMountPoint != null)
+            {
+                float d = Vector3.Distance(rowerMountPoint.position, playerPos);
+                if (d < minDist) minDist = d;
+            }
+
+            if (navigatorMountPoint != null)
+            {
+                float d = Vector3.Distance(navigatorMountPoint.position, playerPos);
+                if (d < minDist) minDist = d;
+            }
+
+            if (m_BoatCollider != null)
+            {
+                Vector3 closest = m_BoatCollider.ClosestPoint(playerPos);
+                float d = Vector3.Distance(closest, playerPos);
+                if (d < minDist) minDist = d;
+            }
+
+            return minDist;
+        }
+
+        /// <summary>
+        /// Hướng mũi thuyền trong không gian thế giới (World Forward).
+        /// Do FBX Blender có trục Y hướng về mũi thuyền (Local Y = Bow).
+        /// </summary>
+        public Vector3 GetBoatWorldForward()
+        {
+            Vector3 fwd = transform.TransformDirection(new Vector3(0f, 1f, 0f));
+            fwd.y = 0f;
+            return fwd.normalized;
+        }
+
+        /// <summary>
+        /// Hướng mạn phải thuyền trong không gian thế giới (World Right).
+        /// </summary>
+        public Vector3 GetBoatWorldRight()
+        {
+            Vector3 bow = GetBoatWorldForward();
+            return Vector3.Cross(Vector3.up, bow).normalized;
+        }
+
+        private GameObject FindLocalPlayer()
+        {
+            // 1. Nếu có NetworkManager, lấy local player từ LocalClient
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null)
+            {
+                var localNetObj = NetworkManager.Singleton.LocalClient.PlayerObject;
+                if (localNetObj != null) return localNetObj.gameObject;
+            }
+
+            // 2. Tìm nhân vật có CoreCameraController ĐANG ENABLED và ACTIVE (không phải dummy)
+            var camControllers = FindObjectsByType<CoreCameraController>();
+            foreach (var cam in camControllers)
+            {
+                if (cam.enabled && cam.gameObject.activeInHierarchy && cam.GetComponent<SoloCompanionDummy>() == null)
+                {
+                    return cam.gameObject;
+                }
+            }
+
+            // 3. Tìm CoreMovement có IsOwner hoặc active (không phải dummy)
+            var movements = FindObjectsByType<CoreMovement>();
+            foreach (var m in movements)
+            {
+                if (m.gameObject.activeInHierarchy && m.GetComponent<SoloCompanionDummy>() == null)
+                {
+                    if (m.TryGetComponent<NetworkObject>(out var netObj))
+                    {
+                        if (netObj.IsOwner) return m.gameObject;
+                    }
+                    else
+                    {
+                        return m.gameObject;
+                    }
+                }
+            }
+
+            // 4. Fallback: Bất kỳ CoreMovement nào không phải Dummy
+            foreach (var m in movements)
+            {
+                if (m.GetComponent<SoloCompanionDummy>() == null)
+                {
+                    return m.gameObject;
+                }
+            }
+
+            return null;
+        }
+
+        private bool IsPlayerDad(GameObject player)
+        {
+            if (player == null) return false;
+
+            if (player.TryGetComponent<PlayerRoleVisuals>(out var visuals))
+            {
+                return visuals.IsDad;
+            }
+
+            if (player.TryGetComponent<CoopBoostThrowAbility>(out var boost))
+            {
+                return boost.IsDad;
+            }
+
+            string lower = player.name.ToLower();
+            if (lower.Contains("child") || lower.Contains("son") || lower.Contains("con")) return false;
+            if (lower.Contains("dad") || lower.Contains("ba") || lower.Contains("father")) return true;
+
+            var cc = player.GetComponent<CharacterController>();
+            if (cc != null && cc.height < 1.45f) return false;
+
+            return Lobby3DManager.AmIDad;
+        }
+
+        #endregion
+
+        #region OnGUI Visual HUD & Prompts
+
+        private void OnGUI()
+        {
+            var localPlayer = FindLocalPlayer();
+            if (localPlayer == null) return;
+
+            bool isMeDadOnBoat = m_DadPlayer == localPlayer;
+            bool isMeChildOnBoat = m_ChildPlayer == localPlayer;
+            bool isMeOnBoat = isMeDadOnBoat || isMeChildOnBoat;
+
+            float dist = GetDistanceToPlayer(localPlayer.transform.position);
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!isMeOnBoat && dist > boardInteractionRadius)
+            {
+                GUIStyle debugStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 13,
+                    fontStyle = FontStyle.Bold
+                };
+                debugStyle.normal.textColor = new Color(1f, 0.9f, 0.3f, 0.9f);
+                GUI.Label(new Rect(20, 20, 450, 25), $"[Thuyền Co-op] Bấm phím [B] để dịch chuyển nhanh đến thuyền ({dist:F0}m)", debugStyle);
+            }
+#endif
+
+            // 1. PROMPT KHI ĐỨNG GẦN THUYỀN (NEAR BOAT PROMPT)
+            if (!isMeOnBoat && dist <= boardInteractionRadius)
+            {
+                bool isDad = IsPlayerDad(localPlayer);
+                string seatName = isDad ? "🧔 Ba (Chèo thuyền - Oars)" : "👶 Con (Bẻ lái - Rudder)";
+                bool isSeatFree = isDad ? (m_DadPlayer == null) : (m_ChildPlayer == null);
+
+                GUIStyle promptStyle = new GUIStyle(GUI.skin.box)
+                {
+                    fontSize = 16,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                promptStyle.normal.textColor = Color.white;
+
+                string text = isSeatFree
+                    ? $"[E] LÊN THUYỀN\nVai trò: {seatName}"
+                    : $"Vị trí {seatName} đã có người ngồi!";
+
+                float boxW = 340f;
+                float boxH = 55f;
+                float boxX = (Screen.width - boxW) * 0.5f;
+                float boxY = Screen.height - 130f;
+
+                GUI.backgroundColor = new Color(0.1f, 0.15f, 0.25f, 0.88f);
+                GUI.Box(new Rect(boxX, boxY, boxW, boxH), text, promptStyle);
+            }
+
+            // 2. HUD ĐIỀU KHIỂN KHI ĐANG NGỒI TRÊN THUYỀN (MOUNTED HUD)
+            if (isMeOnBoat)
+            {
+                DrawMountedHUD(isMeDadOnBoat);
+            }
+        }
+
+        private void DrawMountedHUD(bool isDad)
+        {
+            float hudW = 460f;
+            float hudH = 135f;
+            float hudX = (Screen.width - hudW) * 0.5f;
+            float hudY = 25f;
+
+            GUIStyle cardStyle = new GUIStyle(GUI.skin.box)
+            {
+                alignment = TextAnchor.UpperLeft,
+                padding = new RectOffset(16, 16, 12, 12)
+            };
+            GUI.backgroundColor = new Color(0.08f, 0.12f, 0.2f, 0.92f);
+
+            GUIStyle titleStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 17,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft
+            };
+            titleStyle.normal.textColor = new Color(1f, 0.88f, 0.35f);
+
+            GUIStyle infoStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Normal,
+                alignment = TextAnchor.MiddleLeft
+            };
+            infoStyle.normal.textColor = Color.white;
+
+            GUIStyle statusStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Italic,
+                alignment = TextAnchor.MiddleRight
+            };
+            statusStyle.normal.textColor = new Color(0.6f, 0.9f, 1f);
+
+            GUI.Box(new Rect(hudX, hudY, hudW, hudH), GUIContent.none, cardStyle);
+
+            string myRoleText = isDad ? "🧔 BA: ĐIỀU KHIỂN CHÈO THUYỀN (ROWING)" : "👶 CON: ĐIỀU KHIỂN CẦN BẺ LÁI (STEERING)";
+            GUI.Label(new Rect(hudX + 16, hudY + 10, hudW - 32, 26), myRoleText, titleStyle);
+
+            string guide1 = isDad
+                ? "• [W] Giữ để chèo tiến thẳng (Straight Ahead) | [S] Hãm phanh"
+                : "• [A / D] Bẻ cần lái (Cần qua PHẢI -> Thuyền rẽ TRÁI, Cần qua TRÁI -> Thuyền rẽ PHẢI)";
+            string guide2 = isDad
+                ? "• Lưu ý: Người cha chỉ chèo thuyền đi thẳng, con sẽ phụ trách bẻ lái!"
+                : "• Lưu ý: Thuyền chỉ chuyển hướng linh hoạt khi Ba đang chèo lướt nước!";
+            string exitGuide = "• Nhấn [E] để XUỐNG THUYỀN";
+
+            GUI.Label(new Rect(hudX + 16, hudY + 40, hudW - 32, 20), guide1, infoStyle);
+            GUI.Label(new Rect(hudX + 16, hudY + 62, hudW - 32, 20), guide2, infoStyle);
+            GUI.Label(new Rect(hudX + 16, hudY + 84, hudW - 32, 20), exitGuide, infoStyle);
+
+            string rudderDirectionText = Mathf.Abs(m_CurrentTillerAngle) < 1.0f 
+                ? "Cần lái: GIỮA (Thẳng)"
+                : (m_CurrentTillerAngle > 0 ? $"Cần lái: PHẢI (+{m_CurrentTillerAngle:F0}°) -> Rẽ TRÁI ⬅" : $"Cần lái: TRÁI ({m_CurrentTillerAngle:F0}°) -> Rẽ PHẢI ➡");
+
+            string statusText = $"Tốc độ: {m_CurrentSpeed:F1} m/s | {rudderDirectionText}";
+            GUI.Label(new Rect(hudX + 16, hudY + 108, hudW - 32, 20), statusText, statusStyle);
+        }
+
+        #endregion
+
+#if UNITY_EDITOR
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(transform.position, boardInteractionRadius);
+
+            Vector3 fwd = GetBoatWorldForward();
+            Gizmos.color = Color.blue;
+            Gizmos.DrawRay(transform.position + Vector3.up * 0.5f, fwd * 3.5f);
+
+            Vector3 right = GetBoatWorldRight();
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(transform.position + Vector3.up * 0.5f, right * 2.0f);
+        }
+#endif
+    }
+}
