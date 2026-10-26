@@ -102,7 +102,10 @@ namespace Blocks.Sessions
 
         public async Task<IHostSession> CreateSessionAsync(SessionOptions sessionOptions)
         {
-            sessionOptions.Name = SessionName;
+            if (!string.IsNullOrEmpty(SessionName))
+            {
+                sessionOptions.Name = SessionName;
+            }
             return await MultiplayerService.Instance.CreateSessionAsync(sessionOptions);
         }
 

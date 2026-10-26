@@ -16,34 +16,89 @@
 }
 
 /* Health Info Container */
+/* Health Info Container - Compact & Minimal */
 #health-info-container {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
+    bottom: 16px;
+    left: 16px;
     right: auto;
-    background-color: rgba(0, 0, 0, 0.0);
-    padding: 15px;
-    border-radius: 5px;
-    width: 320px;
+    background-color: rgba(10, 12, 16, 0.70);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    width: 180px;
 }
 
-/* Progress Bars */
-#player-health-bar {
-    width: 100%;
-    height: 30px;
-    min-height: 30px;
-    -unity-background-image-tint-color: rgb(255, 255, 255);
-    flex-shrink: 0;
-    justify-content: center;
+.hud-stat-group {
+    flex-direction: column;
 }
 
+.hud-stat-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.hud-stat-title {
+    font-size: 9px;
+    -unity-font-style: bold;
+    letter-spacing: 0.5px;
+}
+
+.hp-title {
+    color: rgb(85, 230, 130);
+}
+
+.stamina-title {
+    color: rgb(255, 175, 55);
+}
+
+.hud-stat-value {
+    font-size: 9px;
+    -unity-font-style: bold;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* Progress Bars - Slim Modern Style */
+#player-health-bar,
 #player-stamina-bar {
     width: 100%;
-    height: 30px;
-    min-height: 30px;
-    -unity-background-image-tint-color: rgb(255, 255, 255);
+    height: 6px;
+    min-height: 6px;
+    max-height: 6px;
     flex-shrink: 0;
     justify-content: center;
+}
+
+#health-info-container .unity-progress-bar {
+    min-height: 6px;
+    max-height: 6px;
+    height: 6px;
+    background-color: rgba(18, 20, 24, 0.8);
+    border-radius: 3px;
+    border-width: 0px;
+}
+
+#health-info-container .unity-progress-bar__background {
+    min-height: 6px;
+    max-height: 6px;
+    height: 6px;
+    border-radius: 3px;
+    border-width: 0px;
+    background-color: rgba(22, 24, 30, 0.75);
+}
+
+#health-info-container .unity-progress-bar__progress {
+    height: 6px;
+    border-radius: 2px;
+    margin: 0px;
+}
+
+#health-info-container .unity-progress-bar__title {
+    display: none;
 }
 
 /* Notification Styles */

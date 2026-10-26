@@ -9,8 +9,21 @@
         </ui:VisualElement>
     </ui:VisualElement>
     <ui:VisualElement name="health-info-container">
-        <ui:ProgressBar value="63.8" title="my-progress" name="player-health-bar" class="blocks-progress-bar"/>
-        <ui:ProgressBar name="player-stamina-bar" low-value="0" high-value="100" value="100" class="blocks-progress-bar"/>
+        <ui:VisualElement class="hud-stat-group">
+            <ui:VisualElement class="hud-stat-header">
+                <ui:Label text="❤️ HP" class="hud-stat-title hp-title"/>
+                <ui:Label name="player-health-value-label" text="100 / 100" class="hud-stat-value hp-value"/>
+            </ui:VisualElement>
+            <ui:ProgressBar name="player-health-bar" low-value="0" high-value="100" value="100" class="blocks-progress-bar"/>
+        </ui:VisualElement>
+
+        <ui:VisualElement class="hud-stat-group" style="margin-top: 10px;">
+            <ui:VisualElement class="hud-stat-header">
+                <ui:Label text="⚡ STAMINA" class="hud-stat-title stamina-title"/>
+                <ui:Label name="player-stamina-value-label" text="120 / 120" class="hud-stat-value stamina-value"/>
+            </ui:VisualElement>
+            <ui:ProgressBar name="player-stamina-bar" low-value="0" high-value="100" value="100" class="blocks-progress-bar"/>
+        </ui:VisualElement>
     </ui:VisualElement>
     <ui:VisualElement name="notification-container" class="notification-container"/>
     <ui:VisualElement name="reticle-container">

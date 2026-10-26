@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "unity-mcp": {
+      "command": "C:/Users/Admin/.unity/relay/relay_win.exe",
+      "args": [
+        "--mcp"
+      ]
+    },
+    "ollama-mcp": {
+      "command": "node",
+      "args": ["C:/Users/Admin/Hold My Hand/.agents/mcp-servers/ollama/index.js"]
+    }
+  }
+}

@@ -1,0 +1,84 @@
+<engine:UXML xmlns:engine="UnityEngine.UIElements">
+    <engine:VisualElement style="flex-grow: 1; padding: 40px; justify-content: flex-end; align-items: flex-end;
+                                 background-color: transparent;">
+
+        <!-- Main Lobby Panel (Overlay on top of game) -->
+        <engine:VisualElement name="lobby-main-panel"
+            style="background-color: rgba(15,15,25,0.85); padding: 32px; border-radius: 16px;
+                   width: 450px; border-width: 1px; border-color: rgba(255,255,255,0.1);
+                   backdrop-filter: blur(10px);">
+
+            <engine:Label name="welcome-label" text="Xin chào, Player!"
+                style="font-size: 16px; color: rgba(255,255,255,0.7); margin-bottom: 24px;"/>
+
+            <!-- Room Info -->
+            <engine:VisualElement style="margin-bottom: 24px; align-items: center;">
+                <engine:Label text="MÃ PHÒNG"
+                    style="font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 2px; margin-bottom: 4px;"/>
+                <engine:VisualElement style="flex-direction: row; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.5); border-radius: 8px; padding: 8px 16px;">
+                    <engine:Label name="lobby-code-label" text="------"
+                        style="font-size: 32px; color: white; -unity-font-style: bold; letter-spacing: 4px; margin-right: 12px;"/>
+                    <engine:Button name="copy-code-button" text="📋"
+                        style="width: 40px; height: 40px; border-radius: 8px; background-color: rgba(255,255,255,0.1); border-width: 0; color: white; font-size: 16px;"/>
+                </engine:VisualElement>
+                <engine:Label name="lobby-status-label" text="Đang tạo phòng..."
+                    style="font-size: 14px; color: rgb(100,200,255); margin-top: 8px;"/>
+            </engine:VisualElement>
+
+            <!-- Player List -->
+            <engine:VisualElement style="margin-bottom: 24px; padding: 16px;
+                background-color: rgba(0,0,0,0.3); border-radius: 12px;">
+                <engine:Label name="dad-label" text="🧔 Ba: ---"
+                    style="font-size: 18px; color: rgb(200,180,120); margin-bottom: 12px;"/>
+                <engine:Label name="child-label" text="👶 Con: Đang chờ..."
+                    style="font-size: 18px; color: rgb(150,200,255);"/>
+            </engine:VisualElement>
+
+            <!-- Main Actions -->
+            <engine:VisualElement style="flex-direction: row; justify-content: space-between; margin-bottom: 12px;">
+                <engine:Button name="swap-button" text="🔄 ĐỔI VAI"
+                    style="flex-grow: 1; height: 48px; font-size: 14px; -unity-font-style: bold;
+                           background-color: rgba(255,255,255,0.1); color: white;
+                           border-radius: 8px; margin-right: 8px; border-width: 0;"/>
+                
+                <engine:Button name="leave-button" text="✕ TẠO PHÒNG MỚI"
+                    style="flex-grow: 1; height: 48px; font-size: 14px; -unity-font-style: bold;
+                           background-color: rgba(255,50,50,0.2); color: rgb(255,100,100);
+                           border-radius: 8px; border-width: 0;"/>
+            </engine:VisualElement>
+
+            <engine:Button name="play-button" text="PLAY"
+                style="height: 60px; font-size: 24px; -unity-font-style: bold; letter-spacing: 2px;
+                       background-color: rgb(240,160,40); color: white;
+                       border-radius: 8px; border-width: 0; margin-bottom: 16px;"/>
+
+            <engine:VisualElement style="height: 1px; background-color: rgba(255,255,255,0.1); margin-bottom: 16px;"/>
+
+            <engine:Button name="show-join-button" text="VÀO PHÒNG BẠN BÈ..."
+                style="height: 40px; font-size: 14px; background-color: transparent; color: rgb(150,200,255); border-width: 0;"/>
+        </engine:VisualElement>
+
+        <!-- Join Panel (Hidden by default) -->
+        <engine:VisualElement name="join-panel"
+            style="display: none; background-color: rgba(15,15,25,0.95); padding: 32px; border-radius: 16px;
+                   width: 450px; border-width: 1px; border-color: rgba(100,150,255,0.3);">
+            
+            <engine:Label text="THAM GIA PHÒNG"
+                style="font-size: 24px; color: white; -unity-text-align: middle-center; margin-bottom: 24px; -unity-font-style: bold;"/>
+
+            <engine:Label text="NHẬP MÃ PHÒNG (6 KÝ TỰ)"
+                style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px;"/>
+            <engine:TextField name="join-code-input"
+                style="margin-bottom: 24px; font-size: 24px; -unity-text-align: middle-center; letter-spacing: 4px; height: 50px;"/>
+
+            <engine:Button name="join-button" text="THAM GIA"
+                style="height: 50px; font-size: 16px; -unity-font-style: bold;
+                       background-color: rgb(60,120,220); color: white;
+                       border-radius: 8px; border-width: 0; margin-bottom: 12px;"/>
+            
+            <engine:Button name="back-to-host-button" text="QUAY LẠI"
+                style="height: 40px; font-size: 14px; background-color: transparent; color: rgba(255,255,255,0.5); border-width: 0;"/>
+        </engine:VisualElement>
+
+    </engine:VisualElement>
+</engine:UXML>

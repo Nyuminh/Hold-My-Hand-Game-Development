@@ -91,6 +91,7 @@ MonoBehaviour:
   Ownership: 1
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
+  m_InScenePlaced: 0
   ActiveSceneSynchronization: 0
   SceneMigrationSynchronization: 1
   SpawnWithObservers: 1
@@ -213,7 +214,7 @@ MonoBehaviour:
   SlerpPosition: 0
   directionMode: 2
   moveSpeed: 3
-  sprintSpeed: 9
+  sprintSpeed: 15
   rotationSmoothTime: 0.1
   speedChangeRate: 15
   forceDecayRate: 5

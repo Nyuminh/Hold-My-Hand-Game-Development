@@ -1,0 +1,103 @@
+<engine:UXML xmlns:engine="UnityEngine.UIElements" editor-extension-mode="False">
+    <engine:Style src="project://database/Assets/Core/UI/Lobby3DScreen.uss?fileID=7433441132597879392&amp;guid=d94a11f2ea84b5c43a0d923bb19a4f21&amp;type=3#Lobby3DScreen"/>
+    <engine:VisualElement name="lobby3d-root" picking-mode="Ignore">
+        <!-- Top Header Bar -->
+        <engine:VisualElement class="top-header-bar" picking-mode="Ignore">
+            <!-- Player Profile Card (Top-Left) -->
+            <engine:VisualElement class="player-profile-card" picking-mode="Position">
+                <engine:VisualElement class="avatar-icon-badge">
+                    <engine:Label text="👤" class="avatar-icon-label"/>
+                </engine:VisualElement>
+                <engine:VisualElement>
+                    <engine:Label name="player-name-label" text="Xin chào, Player!"/>
+                    <engine:Label name="player-role-label" text="Vai trò: ---"/>
+                </engine:VisualElement>
+            </engine:VisualElement>
+
+            <!-- Room Info Card (Top-Right) -->
+            <engine:VisualElement name="room-info-panel" class="room-info-panel" picking-mode="Position" style="display: none;">
+                <engine:Label text="MÃ PHÒNG" class="room-tag-label"/>
+                <engine:VisualElement class="room-code-row">
+                    <engine:Label name="room-code-label" text="------"/>
+                    <engine:Button name="copy-code-button" text="📋"/>
+                </engine:VisualElement>
+                <engine:Label name="room-status-label" text="Đang chờ..."/>
+            </engine:VisualElement>
+        </engine:VisualElement>
+
+        <!-- Center Toast Notification -->
+        <engine:VisualElement class="toast-container" picking-mode="Ignore">
+            <engine:Label name="toast-label" text="" style="display: none;"/>
+        </engine:VisualElement>
+
+        <!-- Bottom Controls Bar -->
+        <engine:VisualElement class="bottom-controls-bar" picking-mode="Ignore">
+            <!-- Session List Panel (Bottom-Left) -->
+            <engine:VisualElement name="session-list-panel" picking-mode="Position" style="display: none;">
+                <engine:Label text="DANH SÁCH PHÒNG" class="session-title-label"/>
+                <engine:ScrollView name="session-scroll">
+                    <engine:Label name="no-sessions-label" text="Chưa có phòng nào..."/>
+                </engine:ScrollView>
+                <engine:VisualElement class="session-button-row">
+                    <engine:Button name="refresh-sessions-button" text="🔄 LÀM MỚI"/>
+                    <engine:Button name="close-sessions-button" text="✕ ĐÓNG"/>
+                </engine:VisualElement>
+            </engine:VisualElement>
+            <engine:VisualElement name="bottom-left-spacer" picking-mode="Ignore" style="flex-grow: 1;"/>
+
+            <!-- Action Controls Panel (Bottom-Right) -->
+            <engine:VisualElement picking-mode="Position" style="align-items: flex-end;">
+                <!-- Join Code Input Subpanel -->
+                <engine:VisualElement name="join-code-panel" style="display: none;">
+                    <engine:Label text="NHẬP MÃ PHÒNG" class="dialog-heading-label"/>
+                    <engine:TextField name="join-code-input"/>
+                    <engine:VisualElement class="dialog-button-row">
+                        <engine:Button name="confirm-join-button" text="THAM GIA"/>
+                        <engine:Button name="cancel-join-button" text="HỦY"/>
+                    </engine:VisualElement>
+                </engine:VisualElement>
+
+                <!-- Tutorial Role Selection Subpanel -->
+                <engine:VisualElement name="tutorial-dialog-panel" style="display: none;">
+                    <engine:Label text="CHỌN NHÂN VẬT TẬP LUYỆN" class="dialog-heading-label"/>
+                    <engine:Label text="Chế độ 1 người chơi — Làm quen kỹ năng" class="dialog-sub-label"/>
+                    <engine:VisualElement class="tutorial-roles-row">
+                        <engine:Button name="select-dad-button" class="tutorial-role-card role-card-active">
+                            <engine:Label text="🧔" class="role-card-emoji"/>
+                            <engine:Label text="BA (DAD)" class="role-card-name"/>
+                            <engine:Label text="Cao lớn, thể lực tốt" class="role-card-desc"/>
+                        </engine:Button>
+                        <engine:Button name="select-child-button" class="tutorial-role-card">
+                            <engine:Label text="👶" class="role-card-emoji"/>
+                            <engine:Label text="CON (CHILD)" class="role-card-name"/>
+                            <engine:Label text="Nhỏ nhắn, nhảy cao" class="role-card-desc"/>
+                        </engine:Button>
+                    </engine:VisualElement>
+                    <engine:VisualElement class="dialog-button-row">
+                        <engine:Button name="confirm-tutorial-button" text="▶  BẮT ĐẦU"/>
+                        <engine:Button name="cancel-tutorial-button" text="HỦY"/>
+                    </engine:VisualElement>
+                </engine:VisualElement>
+
+                <!-- Main Menu Buttons (When not in a room) -->
+                <engine:VisualElement name="main-buttons-panel">
+                    <engine:Button name="create-room-button" text="👑  TẠO PHÒNG"/>
+                    <engine:VisualElement class="secondary-buttons-row">
+                        <engine:Button name="join-room-button" text="🔑  VÀO MÃ"/>
+                        <engine:Button name="browse-sessions-button" text="🔍  TÌM"/>
+                    </engine:VisualElement>
+                    <engine:Button name="tutorial-button" text="🎓  TẬP LUYỆN (TUTORIAL)" class="tutorial-btn"/>
+                </engine:VisualElement>
+
+                <!-- In-Lobby Room Controls (When inside a room) -->
+                <engine:VisualElement name="lobby-buttons-panel" style="display: none;">
+                    <engine:Button name="play-button" text="▶  BẮT ĐẦU"/>
+                    <engine:VisualElement class="in-room-actions-row">
+                        <engine:Button name="swap-role-button" text="🔄 ĐỔI VAI"/>
+                        <engine:Button name="leave-room-button" text="✕ RỜI PHÒNG"/>
+                    </engine:VisualElement>
+                </engine:VisualElement>
+            </engine:VisualElement>
+        </engine:VisualElement>
+    </engine:VisualElement>
+</engine:UXML>

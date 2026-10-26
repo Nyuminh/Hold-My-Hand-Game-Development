@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   statName: Stamina
   minValue: 0
-  maxValue: 100
-  startingValue: 100
-  regenRate: 20
-  regenDelay: 1
-  eventFlags: 1
+  maxValue: 120
+  startingValue: 120
+  regenRate: 15
+  regenDelay: 0.5
+  eventFlags: 3

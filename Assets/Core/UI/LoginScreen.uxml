@@ -1,0 +1,32 @@
+<engine:UXML xmlns:engine="UnityEngine.UIElements" xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/Core/UI/LoginScreen.uss?fileID=7433441132597879392&amp;guid=e4921424ed93d304c932be2e271f0383&amp;type=3#LoginScreen"/>
+    <engine:VisualElement name="main-container" style="background-image: url(&quot;project://database/Assets/Core/UI/Background.jpg?fileID=2800000&amp;guid=f4c1343d15a977f4180f92176a7cdb5f&amp;type=3#Background&quot;);">
+        <engine:VisualElement name="glass-card">
+            <engine:VisualElement name="title-container">
+                <engine:Label text="HOLD MY HAND" class="title-main"/>
+                <engine:Label text="Welcome back" class="title-sub"/>
+            </engine:VisualElement>
+            <engine:VisualElement class="divider"/>
+            <engine:VisualElement name="login-form">
+                <engine:Label text="USERNAME" class="field-label"/>
+                <engine:VisualElement class="input-wrapper">
+                    <engine:Label text="👤" class="input-icon"/>
+                    <engine:TextField name="username-input" class="input-field"/>
+                </engine:VisualElement>
+                <engine:Label text="PASSWORD" class="field-label"/>
+                <engine:VisualElement class="input-wrapper">
+                    <engine:Label text="🔒" class="input-icon"/>
+                    <engine:TextField name="password-input" password="true" class="input-field"/>
+                </engine:VisualElement>
+                <engine:Button name="login-button" text="ĐĂNG NHẬP"/>
+            </engine:VisualElement>
+            <engine:VisualElement name="logged-in-state">
+                <engine:Label name="welcome-label" text="Xin chào, Player!"/>
+                <engine:Button name="play-button" text="▶  VÀO GAME"/>
+                <engine:Button name="logout-button" text="Đăng xuất"/>
+            </engine:VisualElement>
+            <engine:Label name="status-label" text=""/>
+            <engine:Label text="v1.0 — Hold My Hand" class="version-tag"/>
+        </engine:VisualElement>
+    </engine:VisualElement>
+</engine:UXML>

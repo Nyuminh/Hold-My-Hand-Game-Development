@@ -100,6 +100,14 @@ namespace Blocks.Gameplay.Core
         }
 
         /// <summary>
+        /// Updates the AudioListener transform reference when scenes change.
+        /// </summary>
+        public void SetListenerTransform(Transform listenerTransform)
+        {
+            m_ListenerTransform = listenerTransform;
+        }
+
+        /// <summary>
         /// Stops the SoundGameObjects within a SoundEmitter, optionally fading out their volume over n seconds.
         /// If fadeOutTime = 0, optionally release the SoundEmitter so that it is available to be allocated again.
         /// The SoundEmitter is not freed if it has been reserved. This allows for the SoundDef to be played again, with clip selection information preserved.
@@ -395,6 +403,13 @@ namespace Blocks.Gameplay.Core
             }
 
             m_SoundEmitterActiveList.Add(soundEmitter);
+
+            if (m_ListenerTransform == null)
+            {
+                var audioListener = Object.FindAnyObjectByType<AudioListener>();
+                if (audioListener != null) m_ListenerTransform = audioListener.transform;
+            }
+
             soundEmitter.Play(m_ListenerTransform, m_SoundMixer.MixerGroups);
             return true;
         }

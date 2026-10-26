@@ -1,4 +1,6 @@
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 using UnityEngine.Audio;
 using Random = UnityEngine.Random;
@@ -510,8 +512,37 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
+            if (m_ListenerTransform == null)
+            {
+                var audioListener = Object.FindAnyObjectByType<AudioListener>();
+                if (audioListener != null)
+                {
+                    m_ListenerTransform = audioListener.transform;
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            if (m_ListenerTransform == null) return;
+
             Vector3 position = GetPosition();
-            Vector3 listenerPosition = m_ListenerTransform.position;
+            Vector3 listenerPosition;
+            try
+            {
+                listenerPosition = m_ListenerTransform.position;
+            }
+            catch (MissingReferenceException)
+            {
+                m_ListenerTransform = null;
+                return;
+            }
+            catch (System.Exception)
+            {
+                return;
+            }
+
             float dist = Vector3.Distance(position, listenerPosition);
 
             SoundDef.Distance distanceInfo = m_SoundDef.distanceInfo;

@@ -7,7 +7,9 @@ namespace Blocks.Gameplay.Core
     public class CoreDirector : MonoBehaviour
     {
         private static CoreDirector s_Instance;
+        public static CoreDirector Instance => s_Instance;
         public static CoreDirector GetInstance() => s_Instance;
+        public bool IsSoundSystemReady => m_SoundSystem != null;
 
         [Header("Audio Settings")]
         [Tooltip("The Unity Audio Mixer for managing audio groups and effects.")]
@@ -58,6 +60,30 @@ namespace Blocks.Gameplay.Core
                 {
                     Debug.LogWarning("[CoreDirector] No CinemachineImpulseSource found. Camera shake will not work. Add a CinemachineImpulseSource component to the CoreDirector prefab.");
                 }
+            }
+        }
+
+        private void OnEnable()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnDisable()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+
+        private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            RefreshAudioListener();
+        }
+
+        public void RefreshAudioListener()
+        {
+            var audioListener = FindAnyObjectByType<AudioListener>();
+            if (audioListener != null && m_SoundSystem != null)
+            {
+                m_SoundSystem.SetListenerTransform(audioListener.transform);
             }
         }
 

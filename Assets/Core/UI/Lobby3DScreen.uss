@@ -1,0 +1,621 @@
+/* ============================================================
+   Lobby3DScreen.uss — Premium 3D Lobby UI for Hold My Hand
+   Theme: Frameless Dark Glassmorphism, Sharp Corners, Amber Accent
+   ============================================================ */
+
+/* ── Root Canvas ────────────────────────────────────────────── */
+#lobby3d-root {
+    flex-grow: 1;
+    background-color: rgba(0, 0, 0, 0);
+    justify-content: space-between;
+}
+
+/* ── Top Header Bar ─────────────────────────────────────────── */
+.top-header-bar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 24px 32px;
+}
+
+/* ── Player Profile Card ────────────────────────────────────── */
+.player-profile-card {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgba(10, 12, 18, 0.88);
+    padding: 10px 18px;
+    border-radius: 0;
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    transition-property: background-color;
+    transition-duration: 0.2s;
+}
+
+.player-profile-card:hover {
+    background-color: rgba(16, 20, 32, 0.95);
+}
+
+.avatar-icon-badge {
+    width: 38px;
+    height: 38px;
+    border-radius: 0;
+    background-color: rgba(240, 180, 50, 0.18);
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    justify-content: center;
+    align-items: center;
+    margin-right: 12px;
+}
+
+.avatar-icon-label {
+    font-size: 20px;
+    -unity-text-align: middle-center;
+}
+
+#player-name-label {
+    font-size: 15px;
+    color: rgb(255, 255, 255);
+    -unity-font-style: bold;
+    letter-spacing: 0.5px;
+}
+
+#player-role-label {
+    font-size: 12px;
+    color: rgb(245, 195, 60);
+    margin-top: 2px;
+    -unity-font-style: bold;
+}
+
+/* ── Room Info Panel (Top Right) ────────────────────────────── */
+#room-info-panel {
+    align-items: flex-end;
+    background-color: rgba(10, 12, 18, 0.88);
+    padding: 12px 20px;
+    border-radius: 0;
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+}
+
+.room-tag-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.45);
+    letter-spacing: 2px;
+    -unity-font-style: bold;
+}
+
+.room-code-row {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 2px;
+}
+
+#room-code-label {
+    font-size: 28px;
+    color: rgb(120, 220, 255);
+    -unity-font-style: bold;
+    letter-spacing: 3px;
+    margin-right: 10px;
+}
+
+#copy-code-button {
+    width: 34px;
+    height: 34px;
+    border-radius: 0;
+    background-color: rgba(100, 200, 255, 0.18);
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    color: rgb(255, 255, 255);
+    font-size: 15px;
+    justify-content: center;
+    align-items: center;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#copy-code-button:hover {
+    background-color: rgba(100, 200, 255, 0.35);
+    scale: 1.05;
+}
+
+#copy-code-button:active {
+    scale: 0.95;
+}
+
+#room-status-label {
+    font-size: 12px;
+    color: rgb(255, 200, 100);
+    margin-top: 4px;
+    -unity-font-style: bold;
+}
+
+/* ── Toast Center Notification ──────────────────────────────── */
+.toast-container {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 40%;
+    align-items: center;
+    justify-content: center;
+}
+
+#toast-label {
+    background-color: rgba(10, 12, 18, 0.95);
+    color: rgb(255, 225, 120);
+    font-size: 14px;
+    -unity-font-style: bold;
+    padding: 10px 24px;
+    border-radius: 0;
+    border-width: 0;
+    letter-spacing: 1px;
+}
+
+/* ── Bottom Controls Bar ────────────────────────────────────── */
+.bottom-controls-bar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 24px 32px;
+}
+
+/* ── Session List Panel (Bottom Left) ───────────────────────── */
+#session-list-panel {
+    background-color: rgba(10, 12, 18, 0.94);
+    padding: 16px 18px;
+    border-radius: 0;
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    width: 380px;
+    max-height: 300px;
+}
+
+.session-title-label {
+    font-size: 13px;
+    color: rgb(245, 195, 60);
+    -unity-font-style: bold;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+}
+
+#session-scroll {
+    flex-grow: 1;
+    max-height: 180px;
+    margin-bottom: 12px;
+}
+
+#no-sessions-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.45);
+    -unity-text-align: middle-center;
+    padding: 20px 10px;
+}
+
+.session-button-row {
+    flex-direction: row;
+}
+
+#refresh-sessions-button {
+    flex-grow: 1;
+    height: 36px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgb(255, 255, 255);
+    border-radius: 0;
+    border-width: 0;
+    margin-right: 8px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#refresh-sessions-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    scale: 1.02;
+}
+
+#close-sessions-button {
+    height: 36px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    background-color: rgba(220, 50, 50, 0.25);
+    color: rgb(255, 130, 130);
+    border-radius: 0;
+    border-width: 0;
+    padding: 0 16px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#close-sessions-button:hover {
+    background-color: rgba(220, 50, 50, 0.45);
+    scale: 1.02;
+}
+
+/* ── Join Code Dialog Panel (Bottom Right) ──────────────────── */
+#join-code-panel {
+    background-color: rgba(10, 12, 18, 0.95);
+    padding: 18px 20px;
+    border-radius: 0;
+    border-width: 0;
+    border-color: rgba(0, 0, 0, 0);
+    margin-bottom: 12px;
+    width: 300px;
+}
+
+.dialog-heading-label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 1.5px;
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+}
+
+#join-code-input {
+    font-size: 20px;
+    -unity-text-align: middle-center;
+    letter-spacing: 3px;
+    height: 40px;
+    margin-bottom: 12px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 0;
+    border-width: 0;
+    color: rgb(255, 255, 255);
+}
+
+#join-code-input:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+#join-code-input .unity-base-text-field__input {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+}
+
+.dialog-button-row {
+    flex-direction: row;
+}
+
+#confirm-join-button {
+    flex-grow: 1;
+    height: 38px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    background-color: rgb(230, 170, 40);
+    color: rgb(20, 15, 5);
+    border-radius: 0;
+    border-width: 0;
+    margin-right: 8px;
+    letter-spacing: 1px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#confirm-join-button:hover {
+    background-color: rgb(245, 190, 55);
+    scale: 1.02;
+}
+
+#confirm-join-button:active {
+    background-color: rgb(200, 145, 25);
+    scale: 0.98;
+}
+
+#cancel-join-button {
+    height: 38px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.65);
+    border-radius: 0;
+    border-width: 0;
+    padding: 0 18px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#cancel-join-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: rgb(255, 255, 255);
+}
+
+/* ── Main Buttons Panel (Not In Room) ───────────────────────── */
+#main-buttons-panel {
+    align-items: flex-end;
+}
+
+#create-room-button {
+    width: 270px;
+    height: 48px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    background-color: rgb(230, 170, 40);
+    color: rgb(20, 15, 5);
+    border-radius: 0;
+    border-width: 0;
+    margin-bottom: 10px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#create-room-button:hover {
+    background-color: rgb(245, 190, 55);
+    scale: 1.02;
+}
+
+#create-room-button:active {
+    background-color: rgb(200, 145, 25);
+    scale: 0.98;
+}
+
+.secondary-buttons-row {
+    flex-direction: row;
+}
+
+#join-room-button {
+    width: 150px;
+    height: 40px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    background-color: rgba(255, 255, 255, 0.10);
+    color: rgb(240, 240, 245);
+    border-radius: 0;
+    border-width: 0;
+    margin-right: 8px;
+    letter-spacing: 0.5px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#join-room-button:hover {
+    background-color: rgba(255, 255, 255, 0.20);
+    color: rgb(255, 255, 255);
+    scale: 1.02;
+}
+
+#join-room-button:active {
+    scale: 0.98;
+}
+
+#browse-sessions-button {
+    width: 112px;
+    height: 40px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.75);
+    border-radius: 0;
+    border-width: 0;
+    letter-spacing: 0.5px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#browse-sessions-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: rgb(255, 255, 255);
+    scale: 1.02;
+}
+
+#browse-sessions-button:active {
+    scale: 0.98;
+}
+
+/* ── Lobby Buttons Panel (Inside Room) ──────────────────────── */
+#lobby-buttons-panel {
+    align-items: flex-end;
+}
+
+#play-button {
+    width: 270px;
+    height: 52px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    border-radius: 0;
+    border-width: 0;
+    margin-bottom: 10px;
+    transition-property: scale, background-color;
+    transition-duration: 0.15s;
+}
+
+#play-button:hover {
+    scale: 1.02;
+}
+
+#play-button:active {
+    scale: 0.98;
+}
+
+.in-room-actions-row {
+    flex-direction: row;
+}
+
+#swap-role-button {
+    height: 38px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    background-color: rgba(255, 255, 255, 0.10);
+    color: rgba(255, 255, 255, 0.85);
+    border-radius: 0;
+    border-width: 0;
+    padding: 0 16px;
+    margin-right: 8px;
+    letter-spacing: 0.5px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#swap-role-button:hover {
+    background-color: rgba(255, 255, 255, 0.20);
+    color: rgb(255, 255, 255);
+    scale: 1.02;
+}
+
+#swap-role-button:active {
+    scale: 0.98;
+}
+
+#leave-room-button {
+    height: 38px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    background-color: rgba(220, 50, 50, 0.20);
+    color: rgb(255, 120, 120);
+    border-radius: 0;
+    border-width: 0;
+    padding: 0 16px;
+    letter-spacing: 0.5px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#leave-room-button:hover {
+    background-color: rgba(220, 50, 50, 0.38);
+    color: rgb(255, 180, 180);
+    scale: 1.02;
+}
+
+#leave-room-button:active {
+    scale: 0.98;
+}
+
+/* ── Tutorial Dialog & Button ───────────────────────────────── */
+.tutorial-btn {
+    width: 270px;
+    height: 42px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    letter-spacing: 1.5px;
+    background-color: rgba(60, 160, 240, 0.22);
+    color: rgb(140, 220, 255);
+    border-radius: 0;
+    border-width: 1px;
+    border-color: rgba(100, 200, 255, 0.45);
+    margin-top: 8px;
+    transition-property: background-color, border-color, scale;
+    transition-duration: 0.15s;
+}
+
+.tutorial-btn:hover {
+    background-color: rgba(60, 160, 240, 0.42);
+    border-color: rgb(150, 230, 255);
+    color: rgb(255, 255, 255);
+    scale: 1.02;
+}
+
+.tutorial-btn:active {
+    scale: 0.98;
+}
+
+#tutorial-dialog-panel {
+    background-color: rgba(10, 12, 18, 0.96);
+    padding: 20px 22px;
+    border-radius: 0;
+    border-width: 1px;
+    border-color: rgba(245, 195, 60, 0.35);
+    margin-bottom: 12px;
+    width: 340px;
+}
+
+.dialog-sub-label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 12px;
+}
+
+.tutorial-roles-row {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.tutorial-role-card {
+    flex-grow: 1;
+    background-color: rgba(255, 255, 255, 0.06);
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.12);
+    border-radius: 0;
+    padding: 12px 8px;
+    align-items: center;
+    justify-content: center;
+    margin: 0 4px;
+    transition-property: background-color, border-color, scale;
+    transition-duration: 0.15s;
+}
+
+.tutorial-role-card:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(245, 195, 60, 0.6);
+    scale: 1.02;
+}
+
+.tutorial-role-card.role-card-active {
+    background-color: rgba(245, 195, 60, 0.18);
+    border-color: rgb(245, 195, 60);
+}
+
+.role-card-emoji {
+    font-size: 28px;
+    margin-bottom: 4px;
+    -unity-text-align: middle-center;
+}
+
+.role-card-name {
+    font-size: 13px;
+    color: rgb(255, 255, 255);
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+}
+
+.tutorial-role-card.role-card-active .role-card-name {
+    color: rgb(245, 195, 60);
+}
+
+.role-card-desc {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.55);
+    -unity-text-align: middle-center;
+}
+
+#confirm-tutorial-button {
+    flex-grow: 1;
+    height: 40px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    background-color: rgb(230, 170, 40);
+    color: rgb(20, 15, 5);
+    border-radius: 0;
+    border-width: 0;
+    margin-right: 8px;
+    letter-spacing: 1px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#confirm-tutorial-button:hover {
+    background-color: rgb(245, 190, 55);
+    scale: 1.02;
+}
+
+#cancel-tutorial-button {
+    height: 40px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    border-radius: 0;
+    border-width: 0;
+    padding: 0 16px;
+    transition-property: background-color, scale;
+    transition-duration: 0.15s;
+}
+
+#cancel-tutorial-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: rgb(255, 255, 255);
+}
+

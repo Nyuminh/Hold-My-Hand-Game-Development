@@ -1,0 +1,375 @@
+{
+  "bark_brown": {
+    "asset": "bark_brown",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_brown/bark_brown_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_brown/bark_brown_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_brown/bark_brown_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_brown/bark_brown_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_brown/bark_brown_rough.jpg"
+    }
+  },
+  "bark_cedar": {
+    "asset": "japanese_cedar_bark",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_cedar/bark_cedar_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_cedar/bark_cedar_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_cedar/bark_cedar_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_cedar/bark_cedar_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_cedar/bark_cedar_rough.jpg"
+    }
+  },
+  "bark_pine": {
+    "asset": "pine_bark",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_pine/bark_pine_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_pine/bark_pine_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_pine/bark_pine_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_pine/bark_pine_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/bark_pine/bark_pine_rough.jpg"
+    }
+  },
+  "castle_stone": {
+    "asset": "stone_wall",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/castle_stone/castle_stone_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/castle_stone/castle_stone_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/castle_stone/castle_stone_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/castle_stone/castle_stone_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/castle_stone/castle_stone_rough.jpg"
+    }
+  },
+  "cliff_side": {
+    "asset": "cliff_side",
+    "res": "2k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/cliff_side/cliff_side_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/cliff_side/cliff_side_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/cliff_side/cliff_side_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/cliff_side/cliff_side_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/cliff_side/cliff_side_rough.jpg"
+    }
+  },
+  "cobblestone": {
+    "asset": "cobblestone_01",
+    "res": "1k",
+    "maps": {
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/cobblestone/cobblestone_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/cobblestone/cobblestone_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/cobblestone/cobblestone_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/cobblestone/cobblestone_rough.jpg"
+    }
+  },
+  "forest_floor": {
+    "asset": "forest_ground_04",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor/forest_floor_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor/forest_floor_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor/forest_floor_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor/forest_floor_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor/forest_floor_rough.jpg"
+    }
+  },
+  "forest_floor2": {
+    "asset": "forest_ground_05",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor2/forest_floor2_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor2/forest_floor2_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor2/forest_floor2_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor2/forest_floor2_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/forest_floor2/forest_floor2_rough.jpg"
+    }
+  },
+  "grass": {
+    "asset": "grass_ground",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass/grass_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass/grass_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass/grass_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass/grass_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass/grass_rough.jpg"
+    }
+  },
+  "grass2": {
+    "asset": "grass_ground_02",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass2/grass2_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass2/grass2_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass2/grass2_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass2/grass2_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass2/grass2_rough.jpg"
+    }
+  },
+  "grass_sparse": {
+    "asset": "grass_sparse_02",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass_sparse/grass_sparse_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass_sparse/grass_sparse_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass_sparse/grass_sparse_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass_sparse/grass_sparse_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/grass_sparse/grass_sparse_rough.jpg"
+    }
+  },
+  "gravel": {
+    "asset": "gravel",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/gravel/gravel_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/gravel/gravel_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/gravel/gravel_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/gravel/gravel_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/gravel/gravel_rough.jpg"
+    }
+  },
+  "leaf_litter": {
+    "asset": "forest_ground_06",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/leaf_litter/leaf_litter_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/leaf_litter/leaf_litter_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/leaf_litter/leaf_litter_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/leaf_litter/leaf_litter_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/leaf_litter/leaf_litter_rough.jpg"
+    }
+  },
+  "rock_bedrock": {
+    "asset": "rock_01",
+    "res": "2k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_bedrock/rock_bedrock_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_bedrock/rock_bedrock_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_bedrock/rock_bedrock_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_bedrock/rock_bedrock_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_bedrock/rock_bedrock_rough.jpg"
+    }
+  },
+  "rock_face": {
+    "asset": "rock_face_04",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face/rock_face_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face/rock_face_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face/rock_face_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face/rock_face_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face/rock_face_rough.jpg"
+    }
+  },
+  "rock_face2": {
+    "asset": "rock_face_02",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face2/rock_face2_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face2/rock_face2_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face2/rock_face2_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face2/rock_face2_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_face2/rock_face2_rough.jpg"
+    }
+  },
+  "rock_grey": {
+    "asset": "gray_rocks",
+    "res": "2k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_grey/rock_grey_ao.png",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_grey/rock_grey_diff.png",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_grey/rock_grey_disp.png",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_grey/rock_grey_nor_gl.png",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_grey/rock_grey_rough.png"
+    }
+  },
+  "rock_ground": {
+    "asset": "rock_ground_02",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground/rock_ground_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground/rock_ground_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground/rock_ground_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground/rock_ground_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground/rock_ground_rough.jpg"
+    }
+  },
+  "rock_ground2": {
+    "asset": "rock_ground_03",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground2/rock_ground2_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground2/rock_ground2_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground2/rock_ground2_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground2/rock_ground2_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_ground2/rock_ground2_rough.jpg"
+    }
+  },
+  "rock_lichen": {
+    "asset": "lichen_rock",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_lichen/rock_lichen_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_lichen/rock_lichen_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_lichen/rock_lichen_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_lichen/rock_lichen_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_lichen/rock_lichen_rough.jpg"
+    }
+  },
+  "rock_mossy": {
+    "asset": "mossy_rock",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_mossy/rock_mossy_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_mossy/rock_mossy_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_mossy/rock_mossy_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_mossy/rock_mossy_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_mossy/rock_mossy_rough.jpg"
+    }
+  },
+  "rock_surface": {
+    "asset": "rock_surface",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_surface/rock_surface_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_surface/rock_surface_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_surface/rock_surface_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_surface/rock_surface_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/rock_surface/rock_surface_rough.jpg"
+    }
+  },
+  "roof_clay": {
+    "asset": "clay_roof_tiles",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_clay/roof_clay_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_clay/roof_clay_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_clay/roof_clay_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_clay/roof_clay_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_clay/roof_clay_rough.jpg"
+    }
+  },
+  "roof_slate": {
+    "asset": "roof_slates_02",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate/roof_slate_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate/roof_slate_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate/roof_slate_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate/roof_slate_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate/roof_slate_rough.jpg"
+    }
+  },
+  "roof_slate2": {
+    "asset": "roof_slates_03",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate2/roof_slate2_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate2/roof_slate2_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate2/roof_slate2_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate2/roof_slate2_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/roof_slate2/roof_slate2_rough.jpg"
+    }
+  },
+  "sand": {
+    "asset": "sand_01",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/sand/sand_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/sand/sand_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/sand/sand_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/sand/sand_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/sand/sand_rough.jpg"
+    }
+  },
+  "stone_mossy": {
+    "asset": "stone_mossy",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_mossy/stone_mossy_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_mossy/stone_mossy_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_mossy/stone_mossy_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_mossy/stone_mossy_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_mossy/stone_mossy_rough.jpg"
+    }
+  },
+  "stone_old": {
+    "asset": "stone_old",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_old/stone_old_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_old/stone_old_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_old/stone_old_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_old/stone_old_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_old/stone_old_rough.jpg"
+    }
+  },
+  "stone_sandstone": {
+    "asset": "sandstone_brick_wall_01",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_sandstone/stone_sandstone_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_sandstone/stone_sandstone_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_sandstone/stone_sandstone_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_sandstone/stone_sandstone_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/stone_sandstone/stone_sandstone_rough.jpg"
+    }
+  },
+  "wood_dark": {
+    "asset": "dark_wooden_planks",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_dark/wood_dark_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_dark/wood_dark_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_dark/wood_dark_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_dark/wood_dark_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_dark/wood_dark_rough.jpg"
+    }
+  },
+  "wood_medieval": {
+    "asset": "medieval_wood",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_medieval/wood_medieval_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_medieval/wood_medieval_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_medieval/wood_medieval_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_medieval/wood_medieval_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_medieval/wood_medieval_rough.jpg"
+    }
+  },
+  "wood_planks": {
+    "asset": "wood_planks",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_planks/wood_planks_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_planks/wood_planks_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_planks/wood_planks_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_planks/wood_planks_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_planks/wood_planks_rough.jpg"
+    }
+  },
+  "wood_rough": {
+    "asset": "rough_wood",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_rough/wood_rough_ao.jpg",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_rough/wood_rough_diff.jpg",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_rough/wood_rough_disp.jpg",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_rough/wood_rough_nor_gl.jpg",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_rough/wood_rough_rough.jpg"
+    }
+  },
+  "wood_weathered": {
+    "asset": "weathered_planks",
+    "res": "1k",
+    "maps": {
+      "ao": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_weathered/wood_weathered_ao.png",
+      "diff": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_weathered/wood_weathered_diff.png",
+      "disp": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_weathered/wood_weathered_disp.png",
+      "nor_gl": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_weathered/wood_weathered_nor_gl.png",
+      "rough": "D:/Hold-My-hand/game-unity/Hold-My-Hand-Game-Development/Assets/Models/ForestMap/Textures/wood_weathered/wood_weathered_rough.png"
+    }
+  }
+}

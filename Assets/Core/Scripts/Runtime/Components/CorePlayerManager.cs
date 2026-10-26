@@ -202,7 +202,7 @@ namespace Blocks.Gameplay.Core
 
         private void HandleSprint(bool isSprinting)
         {
-            if (!m_IsMovementInputEnabled) return;
+            if (!IsOwner || !m_IsMovementInputEnabled) return;
 
             if (coreStats == null || coreMovement == null)
             {
@@ -220,7 +220,7 @@ namespace Blocks.Gameplay.Core
 
         private void HandleJump()
         {
-            if (!m_IsMovementInputEnabled) return;
+            if (!IsOwner || !m_IsMovementInputEnabled) return;
 
             if (coreMovement == null)
             {
@@ -245,7 +245,7 @@ namespace Blocks.Gameplay.Core
 
         private void HandleMoveInput(Vector2 input)
         {
-            if (!m_IsMovementInputEnabled) return;
+            if (!IsOwner || !m_IsMovementInputEnabled) return;
 
             if (coreMovement == null)
             {
@@ -361,7 +361,7 @@ namespace Blocks.Gameplay.Core
                 onStatDepleted.RegisterListener(HandleStatDepleted);
         }
 
-        private void UnregisterEventListeners()
+        public void UnregisterEventListeners()
         {
             if (onMoveInput != null)
                 onMoveInput.UnregisterListener(m_OnMoveInputHandler);
