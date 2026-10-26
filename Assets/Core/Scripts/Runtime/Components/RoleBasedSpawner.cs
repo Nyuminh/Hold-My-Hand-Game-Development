@@ -21,6 +21,8 @@ public class RoleBasedSpawner : MonoBehaviour
     {
         Instance = this;
         s_SpawnedClients.Clear();
+        if (dadPrefab == null) dadPrefab = ResolvePrefab(true);
+        if (childPrefab == null) childPrefab = ResolvePrefab(false);
         Debug.Log($"[RoleBasedSpawner] Awake trên GameObject '{gameObject.name}'. Sẵn sàng quản lý spawn nhân vật.");
     }
 
@@ -139,7 +141,7 @@ public class RoleBasedSpawner : MonoBehaviour
                         dadPrefab = item.Prefab;
                         return dadPrefab;
                     }
-                    if (!shouldSpawnDad && (pName.Contains("child") || pName.Contains("coreplayer")))
+                    if (!shouldSpawnDad && (pName.Contains("child") || pName.Contains("son") || pName.Contains("con")))
                     {
                         childPrefab = item.Prefab;
                         return childPrefab;
@@ -197,11 +199,11 @@ public class RoleBasedSpawner : MonoBehaviour
             var go = Instantiate(prefabToSpawn, spawnPos, spawnRot);
             go.name = shouldSpawnDad ? "Dad" : "The Child";
             CharacterStatsService.ApplyStatsToCharacter(go, shouldSpawnDad);
-            go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
             if (go.TryGetComponent<CoopBoostThrowAbility>(out var boostAbility))
             {
                 boostAbility.SetRole(shouldSpawnDad);
             }
+            go.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
             Debug.Log($"[RoleBasedSpawner] ✅ ĐÃ SPAWN {(shouldSpawnDad ? "Dad" : "Child")} cho Client {clientId} tại vị trí {spawnPos} thành công!");
         }
         else

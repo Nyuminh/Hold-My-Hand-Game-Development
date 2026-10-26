@@ -231,7 +231,9 @@ namespace Blocks.Gameplay.Core
             }
             else if (m_HoldHandAbility != null && m_HoldHandAbility.IsHoldingHands)
             {
-                isGrounded = true;
+                // Nếu đang nắm tay và đang bị treo lơ lửng dưới mép vực thì chuyển sang trạng thái rơi tự do FreeFall
+                bool isDanglingInAir = (coreMovement != null && !coreMovement.IsGrounded && coreMovement.VerticalVelocity < -1.5f);
+                isGrounded = !isDanglingInAir;
             }
             else if (coreMovement != null)
             {
