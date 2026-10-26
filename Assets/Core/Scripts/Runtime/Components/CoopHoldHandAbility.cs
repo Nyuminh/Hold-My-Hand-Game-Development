@@ -33,6 +33,7 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Khối lượng / Cân nặng nhân vật (kg). Ba: ~85kg, Con: ~28kg")]
         [SerializeField] private float weightKg = 85f;
 
+#pragma warning disable CS0414
         [Header("Khoảng cách tương tác & Lực kéo")]
         [Tooltip("Khoảng cách tối đa để có thể bắt đầu nắm tay (mét)")]
         [SerializeField] private float interactDistance = 2.8f;
@@ -50,7 +51,6 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Thời gian cần giữ phím [H] để nắm tay (giây)")]
         [SerializeField] private float requiredHoldDuration = 0.5f;
 
-#pragma warning disable CS0414
         [Header("Phím bấm")]
         [Tooltip("Phím mặc định để nắm tay")]
         [SerializeField] private KeyCode holdHandKey = KeyCode.H;

@@ -34,6 +34,7 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Lực đẩy phương ngang cực đại khi gồng đầy (mét/giây)")]
         [SerializeField] private float maxForwardBoostForce = 15.0f;
 
+#pragma warning disable CS0414
         [Header("Thông số Tích Lực (Charge Tuning)")]
         [Tooltip("Thời gian cần giữ [F] để tích đủ 100% lực (giây)")]
         [SerializeField] private float maxChargeDuration = 1.25f;
@@ -56,6 +57,7 @@ namespace Blocks.Gameplay.Core
         [Header("Phím bấm")]
         [Tooltip("Phím thực hiện kiệu phóng")]
         [SerializeField] private KeyCode boostKey = KeyCode.F;
+#pragma warning restore CS0414
 
         #endregion
 
@@ -988,7 +990,7 @@ namespace Blocks.Gameplay.Core
             }
 
             // 4. Fallback: Quét các component CoopBoostThrowAbility trong Scene
-            var allBoostAbilities = FindObjectsByType<CoopBoostThrowAbility>(FindObjectsSortMode.None);
+            var allBoostAbilities = FindObjectsByType<CoopBoostThrowAbility>();
             foreach (var ability in allBoostAbilities)
             {
                 if (ability != null && ability.gameObject != this.gameObject)
