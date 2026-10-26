@@ -528,7 +528,7 @@ namespace Blocks.Gameplay.Core
 
         private async void OnConfirmJoinClicked()
         {
-            string code = m_JoinCodeInput?.value?.Trim().ToUpper();
+            string code = m_JoinCodeInput?.value?.Trim().Replace(" ", "").Replace("\t", "").Replace("\r", "").Replace("\n", "").ToUpper();
             if (string.IsNullOrWhiteSpace(code))
             {
                 UISoundManager.PlayError();
@@ -565,8 +565,16 @@ namespace Blocks.Gameplay.Core
             catch (LobbyServiceException ex)
             {
                 UISoundManager.PlayError();
-                ShowToast($"Lỗi: {ex.Message}");
-                Debug.LogError($"[Lobby3D] Join error: {ex}");
+                if (ex.Reason == LobbyExceptionReason.LobbyNotFound || ex.ErrorCode == 16010 || (ex.Message != null && ex.Message.ToLower().Contains("not found")))
+                {
+                    ShowToast("Không tìm thấy phòng! Hãy kiểm tra lại mã hoặc phòng đã hết hạn.");
+                    Debug.LogWarning($"[Lobby3D] Tham gia phòng '{code}' thất bại: Phòng không tồn tại hoặc đã hết hạn (404 Not Found).");
+                }
+                else
+                {
+                    ShowToast($"Lỗi vào phòng: {ex.Message}");
+                    Debug.LogWarning($"[Lobby3D] Join lobby error: {ex.Message}");
+                }
             }
             finally
             {
