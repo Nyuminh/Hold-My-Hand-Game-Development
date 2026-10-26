@@ -263,7 +263,7 @@ namespace Blocks.Gameplay.Core
             if (m_PartnerTransform == null)
             {
                 m_IsPartnerNearby = false;
-                if (m_IsHoldingHands.Value)
+                if (IsHoldingHands)
                 {
                     SetHoldingHands(false);
                 }
@@ -291,28 +291,10 @@ namespace Blocks.Gameplay.Core
             ctrlHeld = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
 #endif
 
-            // Đồng bộ trạng thái: nếu đối phương đơn phương buông tay (Ctrl + H)
-            if (m_IsHoldingHands.Value && m_PartnerHandAbility != null && !m_PartnerHandAbility.m_IsHoldingHands.Value)
-            {
-                SetHoldingHands(false);
-                ShowAlert("💨 Đối tác đã buông tay", 2.0f);
-                return;
-            }
-
-            // Đồng bộ trạng thái: nếu đối phương đã kích hoạt nắm tay thành công
-            if (!m_IsHoldingHands.Value && m_PartnerHandAbility != null && m_PartnerHandAbility.m_IsHoldingHands.Value && m_IsReadyToHold.Value)
-            {
-                SetHoldingHands(true);
-                SetLocalReadyState(false);
-                m_CurrentHoldTimer = 0f;
-                m_IsHoldingKeyH = false;
-                return;
-            }
-
             // ==============================================================
             // TRƯỜNG HỢP 1: ĐANG NẮM TAY
             // ==============================================================
-            if (m_IsHoldingHands.Value)
+            if (IsHoldingHands)
             {
                 // BẮT BUỘC BẤM CTRL + H ĐỂ BUÔNG TAY (Đơn phương 1 phía cũng buông được)
                 if (ctrlHeld && hPressedThisFrame)
@@ -393,13 +375,10 @@ namespace Blocks.Gameplay.Core
             // GẮN LIỀN TRỰC TIẾP HAI BÀN TAY BẰNG 2-BONE IK CHUẨN XÁC
             // (Chỉ 1 tay nắm, không kéo dãn xương, triệt tiêu anim chạy trên tay nắm)
             // ==============================================================
-            if (!m_IsHoldingHands.Value || m_PartnerTransform == null) return;
+            if (!IsHoldingHands || m_PartnerTransform == null) return;
 
-            // Để tránh tính toán 2 lần gây xung đột: Nhân vật Ba chịu trách nhiệm tính IK cho cả 2
-            if (!IsDad && m_PartnerHandAbility != null && m_PartnerHandAbility.IsDad)
-            {
-                return;
-            }
+            // Mỗi client chỉ chạy căn chỉnh IK 1 lần thông qua nhân vật của local player
+            if (!IsLocalPlayerCharacter) return;
 
             AlignClaspedHandsDirectly();
         }
@@ -580,7 +559,7 @@ namespace Blocks.Gameplay.Core
         {
             var modifier = new MovementModifier();
 
-            if (!m_IsHoldingHands.Value || m_PartnerTransform == null)
+            if (!IsHoldingHands || m_PartnerTransform == null)
             {
                 return modifier;
             }
@@ -728,25 +707,38 @@ namespace Blocks.Gameplay.Core
             m_IsLocalHoldingHands = isHolding;
             if (IsOwner && IsSpawned)
             {
-                m_IsHoldingHands.Value = isHolding;
+                try
+                {
+                    m_IsHoldingHands.Value = isHolding;
+                }
+                catch (System.Exception) {}
             }
             UpdateAnimatorState(isHolding);
         }
 
         private void SetHoldingHands(bool isHolding)
         {
-            if (m_IsHoldingHands.Value == isHolding && m_IsLocalHoldingHands == isHolding) return;
+            if (m_IsLocalHoldingHands == isHolding && (!IsSpawned || !IsOwner || m_IsHoldingHands.Value == isHolding)) return;
 
             m_IsLocalHoldingHands = isHolding;
 
-            if (!IsSpawned || IsOwner)
+            if (IsOwner && IsSpawned)
             {
-                m_IsHoldingHands.Value = isHolding;
+                try
+                {
+                    m_IsHoldingHands.Value = isHolding;
+                }
+                catch (System.Exception) {}
+            }
+
+            if (IsSpawned)
+            {
+                SyncHandHoldingRpc(isHolding);
             }
 
             if (m_PartnerHandAbility != null)
             {
-                m_PartnerHandAbility.SetHoldingHandsDirect(isHolding);
+                m_PartnerHandAbility.m_IsLocalHoldingHands = isHolding;
             }
 
             UpdateAnimatorState(isHolding);
@@ -762,13 +754,52 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        [Rpc(SendTo.NotMe)]
+        private void SyncHandHoldingRpc(bool isHolding)
+        {
+            m_IsLocalHoldingHands = isHolding;
+            UpdateAnimatorState(isHolding);
+
+            if (m_PartnerHandAbility != null)
+            {
+                m_PartnerHandAbility.SetHoldingHandsDirect(isHolding);
+            }
+            else
+            {
+                FindPartnerIfNeeded();
+                if (m_PartnerHandAbility != null)
+                {
+                    m_PartnerHandAbility.SetHoldingHandsDirect(isHolding);
+                }
+            }
+
+            if (isHolding)
+            {
+                UISoundManager.PlayClick();
+                Debug.Log($"[HoldMyHand] 🤝 Đã nhận tín hiệu nắm tay từ đối tác!");
+            }
+            else
+            {
+                ShowAlert("💨 Đối tác đã buông tay", 2.0f);
+                Debug.Log($"[HoldMyHand] 💨 Đối tác đã buông tay.");
+            }
+        }
+
         private void SetLocalReadyState(bool ready)
         {
-            m_IsReadyToHold.Value = ready;
+            if (IsOwner && IsSpawned)
+            {
+                try
+                {
+                    m_IsReadyToHold.Value = ready;
+                }
+                catch (System.Exception) {}
+            }
         }
 
         private void OnHoldingStateChanged(bool previous, bool current)
         {
+            m_IsLocalHoldingHands = current;
             UpdateAnimatorState(current);
             if (!current)
             {
@@ -801,9 +832,9 @@ namespace Blocks.Gameplay.Core
 
         private void FindPartnerIfNeeded()
         {
-            if (m_PartnerTransform != null) return;
+            if (m_PartnerTransform != null && m_PartnerHandAbility != null && m_PartnerAnimator != null) return;
 
-            // 1. Quét tìm Dummy Companion trước
+            // 1. Quét tìm Dummy Companion trước (chế độ Tutorial)
             var dummy = FindAnyObjectByType<SoloCompanionDummy>();
             if (dummy != null && dummy.gameObject != this.gameObject)
             {
@@ -814,7 +845,23 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            // 2. Quét qua AllPlayers
+            // 2. Quét qua ConnectedClients trong NetworkManager (Multiplayer PlayScene1)
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClientsList != null)
+            {
+                foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
+                {
+                    if (client != null && client.PlayerObject != null && client.PlayerObject.gameObject != this.gameObject)
+                    {
+                        m_PartnerTransform = client.PlayerObject.transform;
+                        m_PartnerHandAbility = client.PlayerObject.GetComponent<CoopHoldHandAbility>();
+                        m_PartnerAnimator = client.PlayerObject.GetComponentInChildren<Animator>();
+                        CachePartnerHandBones();
+                        return;
+                    }
+                }
+            }
+
+            // 3. Quét qua AllPlayers
             foreach (var player in PlayerRoleVisuals.AllPlayers)
             {
                 if (player != null && player.gameObject != this.gameObject)
@@ -827,7 +874,7 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
-            // 3. Fallback
+            // 4. Fallback: Quét các component CoopHoldHandAbility trong Scene
             var allAbilities = FindObjectsByType<CoopHoldHandAbility>(FindObjectsInactive.Exclude);
             foreach (var ability in allAbilities)
             {
@@ -852,7 +899,7 @@ namespace Blocks.Gameplay.Core
 
             // VÒNG TRÒN LOAD TIẾN TRÌNH GIỮ [H] (Circular Radial Loading Ring)
             // Chỉ hiển thị khi đang nhấn giữ [H] để nạp kết nối nắm tay, không dùng ô chữ to
-            if (m_IsHoldingKeyH && m_IsPartnerNearby && !m_IsHoldingHands.Value)
+            if (m_IsHoldingKeyH && m_IsPartnerNearby && !IsHoldingHands)
             {
                 float progress = Mathf.Clamp01(m_CurrentHoldTimer / requiredHoldDuration);
                 DrawCircularLoadRing(progress);

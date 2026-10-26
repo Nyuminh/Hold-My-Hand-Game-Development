@@ -150,9 +150,20 @@ namespace Blocks.Gameplay.Core
         public void SetRole(bool isDad)
         {
             isDadRole = isDad;
-            if (IsServer && IsSpawned)
+            if (IsSpawned)
             {
-                m_IsDadNetworkVar.Value = isDad;
+                bool canWrite = IsOwner || (IsServer && NetworkManager.Singleton != null && !NetworkManager.Singleton.DistributedAuthorityMode);
+                if (canWrite)
+                {
+                    try
+                    {
+                        m_IsDadNetworkVar.Value = isDad;
+                    }
+                    catch (System.Exception)
+                    {
+                        // Bỏ qua ngoại lệ phân quyền Netcode nếu có
+                    }
+                }
             }
         }
 
