@@ -169,10 +169,29 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public bool IsSprinting { get; private set; }
 
+        private readonly NetworkVariable<bool> m_NetworkIsCrouching = new NetworkVariable<bool>(
+            false,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Owner
+        );
+        private bool m_IsCrouching;
+
         /// <summary>
         /// Gets a value indicating whether the character is currently crouching.
+        /// Đồng bộ qua mạng (Netcode) cho cả client sở hữu lẫn các client đối tác.
         /// </summary>
-        public bool IsCrouching { get; private set; }
+        public bool IsCrouching
+        {
+            get
+            {
+                if (IsSpawned && !IsOwner)
+                {
+                    return m_NetworkIsCrouching.Value;
+                }
+                return m_IsCrouching;
+            }
+            private set => m_IsCrouching = value;
+        }
 
         /// <summary>
         /// Gets a value indicating whether the character is currently sitting/resting (alias for IsCrouching).
@@ -247,6 +266,31 @@ namespace Blocks.Gameplay.Core
         #endregion
 
         #region Unity Methods
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            m_NetworkIsCrouching.OnValueChanged += OnNetworkCrouchChanged;
+
+            if (!IsOwner)
+            {
+                ApplyCrouchState(m_NetworkIsCrouching.Value);
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            m_NetworkIsCrouching.OnValueChanged -= OnNetworkCrouchChanged;
+            base.OnNetworkDespawn();
+        }
+
+        private void OnNetworkCrouchChanged(bool previousValue, bool newValue)
+        {
+            if (!IsOwner)
+            {
+                ApplyCrouchState(newValue);
+            }
+        }
 
         protected override void Awake()
         {
@@ -378,19 +422,51 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public void SetCrouchState(bool isCrouching)
         {
-            if (IsCrouching == isCrouching) return;
-            IsCrouching = isCrouching;
-            if (IsCrouching)
+            if (m_IsCrouching == isCrouching) return;
+            m_IsCrouching = isCrouching;
+            if (m_IsCrouching)
             {
                 IsSprinting = false;
             }
 
-            if (m_CharacterController != null && m_CharacterController.enabled)
+            ApplyCrouchState(m_IsCrouching);
+
+            // Đồng bộ trạng thái khom người / ngồi sang mạng Netcode cho đồng đội
+            if (IsSpawned && IsOwner)
             {
-                m_CharacterController.height = IsCrouching ? crouchHeight : m_OriginalHeight;
-                m_CharacterController.center = IsCrouching 
+                try
+                {
+                    m_NetworkIsCrouching.Value = m_IsCrouching;
+                }
+                catch (System.Exception) { }
+
+                SyncCrouchStateRpc(m_IsCrouching);
+            }
+        }
+
+        [Rpc(SendTo.NotMe)]
+        private void SyncCrouchStateRpc(bool isCrouched)
+        {
+            ApplyCrouchState(isCrouched);
+        }
+
+        private void ApplyCrouchState(bool isCrouched)
+        {
+            m_IsCrouching = isCrouched;
+
+            if (m_CharacterController != null)
+            {
+                m_CharacterController.height = isCrouched ? crouchHeight : m_OriginalHeight;
+                m_CharacterController.center = isCrouched 
                     ? new Vector3(m_OriginalCenter.x, crouchCenterY, m_OriginalCenter.z)
                     : m_OriginalCenter;
+            }
+
+            var anim = GetComponentInChildren<Animator>();
+            if (anim != null)
+            {
+                anim.SetBool("IsCrouching", isCrouched);
+                anim.SetBool("IsSitting", isCrouched);
             }
         }
 

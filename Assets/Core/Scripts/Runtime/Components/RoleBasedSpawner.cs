@@ -21,6 +21,8 @@ public class RoleBasedSpawner : MonoBehaviour
     {
         Instance = this;
         s_SpawnedClients.Clear();
+        if (dadPrefab == null) dadPrefab = ResolvePrefab(true);
+        if (childPrefab == null) childPrefab = ResolvePrefab(false);
         Debug.Log($"[RoleBasedSpawner] Awake trên GameObject '{gameObject.name}'. Sẵn sàng quản lý spawn nhân vật.");
     }
 
@@ -139,7 +141,7 @@ public class RoleBasedSpawner : MonoBehaviour
                         dadPrefab = item.Prefab;
                         return dadPrefab;
                     }
-                    if (!shouldSpawnDad && (pName.Contains("child") || pName.Contains("coreplayer")))
+                    if (!shouldSpawnDad && (pName.Contains("child") || pName.Contains("son") || pName.Contains("con")))
                     {
                         childPrefab = item.Prefab;
                         return childPrefab;

@@ -135,14 +135,29 @@ namespace Blocks.Gameplay.Core
         }
 
         private NetworkVariable<bool> m_IsDadNetworkVar = new NetworkVariable<bool>(
-            true,
+            false,
             NetworkVariableReadPermission.Everyone,
-            NetworkVariableWritePermission.Server
+            NetworkVariableWritePermission.Owner
         );
 
         [Header("Vai trò")]
         [Tooltip("Đánh dấu đây có phải là Ba hay không")]
         [SerializeField] private bool isDadRole = true;
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            if (IsOwner)
+            {
+                bool isDad = DetermineIsDad();
+                isDadRole = isDad;
+                try
+                {
+                    m_IsDadNetworkVar.Value = isDad;
+                }
+                catch (System.Exception) { }
+            }
+        }
 
         /// <summary>
         /// Gán vai trò Ba (true) hoặc Con (false) từ Server.
@@ -167,19 +182,49 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        private bool DetermineIsDad()
+        {
+            string objName = gameObject.name.ToLower();
+            if (objName.Contains("child") || objName.Contains("son") || objName.Contains("con")) return false;
+            if (objName.Contains("dad") || objName.Contains("father") || objName.Contains("ba")) return true;
+
+            if (m_CharacterController != null && m_CharacterController.height < 1.45f) return false;
+
+            if (IsLocalPlayerCharacter)
+            {
+                return Lobby3DManager.AmIDad;
+            }
+
+            if (m_RoleVisuals != null)
+            {
+                return m_RoleVisuals.IsDad;
+            }
+
+            return isDadRole;
+        }
+
         public bool IsDad
         {
             get
             {
                 // 1. Kiểm tra dứt khoát theo tên GameObject
                 string objName = gameObject.name.ToLower();
-                if (objName.Contains("child") || objName.Contains("son")) return false;
-                if (objName.Contains("dad")) return true;
+                if (objName.Contains("child") || objName.Contains("son") || objName.Contains("con")) return false;
+                if (objName.Contains("dad") || objName.Contains("father") || objName.Contains("ba")) return true;
 
-                // 2. Kiểm tra PlayerRoleVisuals nếu có
+                // 2. Chiều cao CharacterController của con luôn thấp hơn cha đáng kể (< 1.45m)
+                if (m_CharacterController != null && m_CharacterController.height < 1.45f) return false;
+
+                // 3. Nếu là nhân vật do chính người chơi trên máy này điều khiển -> dùng Lobby3DManager.AmIDad
+                if (IsLocalPlayerCharacter)
+                {
+                    return Lobby3DManager.AmIDad;
+                }
+
+                // 4. Kiểm tra PlayerRoleVisuals nếu có
                 if (m_RoleVisuals != null) return m_RoleVisuals.IsDad;
 
-                // 3. Kiểm tra biến mạng Netcode nếu đã Spawn
+                // 5. Kiểm tra biến mạng Netcode nếu đã Spawn
                 if (IsSpawned) return m_IsDadNetworkVar.Value;
 
                 return isDadRole;
@@ -392,6 +437,14 @@ namespace Blocks.Gameplay.Core
 
         private void ExecuteDadThrow(float ratio, Vector3 horizontalDir, Vector3 camForward)
         {
+            // CHỈ BA (DAD) MỚI CÓ THỂ NÉM CON - BẢO VỆ TUYỆT ĐỐI
+            if (!IsDad)
+            {
+                Debug.LogError("[CoopBoost] ❌ Lỗi: Con tuyệt đối không thể thực hiện ExecuteDadThrow!");
+                CancelCharge();
+                return;
+            }
+
             // Điều khiển NÉM CAO (di chuột ngước lên) hoặc NÉM XA (di chuột ngang/chúi xuống)
             float camPitchY = Mathf.Clamp(camForward.y, -0.35f, 0.65f);
             float pitchFactor = Mathf.InverseLerp(-0.35f, 0.65f, camPitchY); // 0.0 (chúi/ngang) -> 1.0 (ngước lên)
@@ -563,6 +616,12 @@ namespace Blocks.Gameplay.Core
         [Rpc(SendTo.Owner)]
         public void SetPiggybackMountRpc(bool isMounted, ulong dadNetworkObjectId)
         {
+            if (IsDad)
+            {
+                Debug.LogWarning("[CoopBoost] ⛔ Ba không thể ngồi piggyback trên người khác!");
+                return;
+            }
+
             Transform dadTr = null;
             if (NetworkManager.Singleton != null && NetworkManager.Singleton.SpawnManager != null && NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(dadNetworkObjectId, out var netObj))
             {
@@ -626,6 +685,13 @@ namespace Blocks.Gameplay.Core
         [Rpc(SendTo.Owner)]
         public void ReceiveBoostLaunchRpc(Vector3 forwardDirection, float verticalVelocity, float forwardForce)
         {
+            // BẢO VỆ TUYỆT ĐỐI: CHỈ CON MỚI ĐƯỢC NHẬN LỰC PHÓNG BAY - BA TUYỆT ĐỐI KHÔNG BỊ PHÓNG
+            if (IsDad)
+            {
+                Debug.LogWarning("[CoopBoost] ⛔ Chặn nhận lực ném: Ba (Dad) tuyệt đối không thể bị ném!");
+                return;
+            }
+
             ApplyLaunchLocally(forwardDirection, verticalVelocity, forwardForce);
         }
 
@@ -634,6 +700,13 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public void ApplyLaunchLocally(Vector3 forwardDirection, float verticalVelocity, float forwardForce)
         {
+            // BẢO VỆ TUYỆT ĐỐI: CHỈ CON MỚI ĐƯỢC PHÓNG BAY
+            if (IsDad)
+            {
+                Debug.LogWarning("[CoopBoost] ⛔ Ba (Dad) tuyệt đối không thể bị phóng bay!");
+                return;
+            }
+
             if (m_Motor == null) m_Motor = GetComponent<CoreMovement>();
             if (m_CharacterController == null) m_CharacterController = GetComponent<CharacterController>();
 

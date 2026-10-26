@@ -305,12 +305,11 @@ namespace Blocks.Gameplay.Core
                     return;
                 }
 
-                // Nếu đi quá xa (> breakDistance) do dịch chuyển hoặc kẹt thì tuột tay an toàn
-                if (dist > breakDistance)
+                // BẢO VỆ NẮM TAY: Dù cha chạy nhanh hay con rơi vực vẫn giữ chặt tay (chỉ buông khi bấm Ctrl + H)
+                // Chỉ hủy khẩn cấp khi người chơi bị dịch chuyển / respawn sang vị trí cực xa (> 80m)
+                if (dist > 80.0f)
                 {
                     SetHoldingHands(false);
-                    ShowAlert("💔 TUỘT TAY! Khoảng cách quá xa!", 2.5f);
-                    UISoundManager.PlayClick();
                     return;
                 }
 
@@ -475,17 +474,34 @@ namespace Blocks.Gameplay.Core
 
             Vector3 dadSideDir = childOnRight ? dadT.right : -dadT.right;
 
-            // Điểm nắm tay tự nhiên ngang hông của Ba (cao khoảng 0.90m)
-            Vector3 dadHipPoint = dadT.position + Vector3.up * 0.90f + dadSideDir * 0.28f + dadT.forward * 0.05f;
-            Vector3 toChildFromHip = childUpper.position - dadHipPoint;
-            Vector3 contactPoint = dadHipPoint + Vector3.ClampMagnitude(toChildFromHip * 0.45f, 0.45f);
-            contactPoint.y = Mathf.Clamp(contactPoint.y, dadT.position.y + 0.82f, dadT.position.y + 0.98f);
+            // Điểm nắm tay giữa Ba và Con:
+            Vector3 contactPoint;
+            bool isChildHanging = childT.position.y < dadT.position.y - 0.25f;
+
+            if (isChildHanging)
+            {
+                // Khi Con đang rớt vực / lơ lửng: Ba với tay chúc xuống dưới, Con vươn tay lên trên đón tay Ba
+                Vector3 dadReachDown = dadUpper.position + Vector3.down * 0.55f + dadSideDir * 0.15f;
+                Vector3 toChildUpper = childUpper.position - dadReachDown;
+                contactPoint = dadReachDown + Vector3.ClampMagnitude(toChildUpper, 0.45f);
+            }
+            else
+            {
+                // Điểm nắm tay tự nhiên ngang hông của Ba (cao khoảng 0.90m)
+                Vector3 dadHipPoint = dadT.position + Vector3.up * 0.90f + dadSideDir * 0.28f + dadT.forward * 0.05f;
+                Vector3 toChildFromHip = childUpper.position - dadHipPoint;
+                contactPoint = dadHipPoint + Vector3.ClampMagnitude(toChildFromHip * 0.45f, 0.45f);
+                contactPoint.y = Mathf.Clamp(contactPoint.y, dadT.position.y + 0.75f, dadT.position.y + 1.05f);
+            }
 
             // Pole hint hướng cùi chỏ gấp tự nhiên:
-            // Ba: Cùi chỏ gập tự nhiên ra ngoài và hơi lùi về sau
-            Vector3 dadPole = dadUpper.position + dadSideDir * 0.45f - dadT.forward * 0.25f;
-            // Con: Cùi chỏ gập tự nhiên ra ngoài và hơi chúc xuống
-            Vector3 childPole = childUpper.position - dadSideDir * 0.35f - Vector3.up * 0.30f;
+            Vector3 dadPole = isChildHanging 
+                ? (dadUpper.position + dadSideDir * 0.35f - dadT.forward * 0.15f)
+                : (dadUpper.position + dadSideDir * 0.45f - dadT.forward * 0.25f);
+
+            Vector3 childPole = isChildHanging
+                ? (childUpper.position - dadSideDir * 0.30f - childT.forward * 0.15f)
+                : (childUpper.position - dadSideDir * 0.35f - Vector3.up * 0.30f);
 
             // GIẢI THUẬT 2-BONE IK CHUẨN XÁC:
             // Tuyệt đối không kéo dãn cổ tay (mesh không bị dãn), chỉ xoay khớp vai và cùi chỏ
@@ -566,32 +582,84 @@ namespace Blocks.Gameplay.Core
 
             Vector3 toPartner = m_PartnerTransform.position - transform.position;
             Vector3 flatToPartner = Vector3.ProjectOnPlane(toPartner, Vector3.up);
-            float currentDist = flatToPartner.magnitude;
+            float flatDist = flatToPartner.magnitude;
+            float dist3D = toPartner.magnitude;
 
-            if (currentDist > idealDistance)
+            // ==============================================================
+            // VẬT LÝ KÉO DỰA TRÊN CÂN NẶNG & BẢO VỆ CON KHI RƠI VỰC:
+            // Ba: ~85kg (Rất khỏe, giữ chặt con trên bờ, kéo bổng con lên)
+            // Con: ~28kg (Nhẹ, bị giữ lơ lửng khi rơi vực, kéo bay theo Ba)
+            // ==============================================================
+            if (!IsDad)
             {
-                Vector3 pullDir = flatToPartner.normalized;
-                float stretch = currentDist - idealDistance;
+                // CON (28kg): Ba (85kg) kéo Con đi rất khỏe và nhanh
+                float dadSpeed = (m_PartnerHandAbility != null && m_PartnerHandAbility.m_Motor != null)
+                    ? m_PartnerHandAbility.m_Motor.CurrentSpeed
+                    : 4.0f;
 
-                // ==============================================================
-                // VẬT LÝ KÉO DỰA TRÊN CÂN NẶNG:
-                // Ba: ~85kg (Rất khỏe, kéo mạnh)
-                // Con: ~28kg (Nhẹ, bị kéo bay theo Ba; Con kéo Ba thì Ba chỉ đi chậm)
-                // ==============================================================
-                if (!IsDad)
+                bool isDadGrounded = (m_PartnerHandAbility != null && m_PartnerHandAbility.m_Motor != null)
+                    ? m_PartnerHandAbility.m_Motor.IsGrounded
+                    : true;
+
+                // TRƯỜNG HỢP 1: CON BỊ RƠI VỰC / HỤT CHÂN / LƠ LỬNG TRÊN KHÔNG
+                // (Ba đang trên bờ giữ lại, con không bị rơi xuống vực thẳm)
+                if (!m_Motor.IsGrounded && toPartner.y > 0.15f && isDadGrounded)
                 {
-                    // CON (28kg): Ba (85kg) kéo Con đi rất khỏe và nhanh
-                    float dadSpeed = (m_PartnerHandAbility != null && m_PartnerHandAbility.m_Motor != null)
-                        ? m_PartnerHandAbility.m_Motor.CurrentSpeed
-                        : 4.0f;
+                    // Triệt tiêu hoàn toàn trọng lực kéo chìm xuống vực
+                    modifier.OverrideGravity = true;
 
-                    // Con bắt kịp tốc độ của Ba (kể cả khi Ba chạy nước rút Sprint) + lực kéo lò xo
-                    float catchupSpeed = Mathf.Max(dadSpeed, 3.8f) + (stretch * pullSpringStrength);
-                    modifier.ArealVelocity = pullDir * catchupSpeed;
+                    // Hãm rơi tự do: nếu vận tốc đứng đang âm thì kéo về 0
+                    if (m_Motor.VerticalVelocity < 0f)
+                    {
+                        m_Motor.SetVerticalVelocity(Mathf.Lerp(m_Motor.VerticalVelocity, 0f, Time.deltaTime * 24f));
+                    }
+
+                    // Lực nâng bổng lên bờ về phía tay Ba
+                    float upwardLift = Mathf.Clamp(toPartner.y * 7.5f + 2.5f, 3.5f, 11.0f);
+                    m_Motor.SetVerticalVelocity(upwardLift);
+
+                    // Lực kéo ngang đưa con vào mép đất
+                    Vector3 flatPullDir = flatDist > 0.05f ? flatToPartner.normalized : transform.forward;
+                    float horizontalPullSpeed = Mathf.Max(dadSpeed, 4.0f) + (flatDist * 6.5f);
+                    modifier.ArealVelocity = flatPullDir * horizontalPullSpeed;
+
+                    // DÂY BẢO HIỂM VÔ HÌNH: Giới hạn tầm với tối đa của 2 cánh tay (~2.2m)
+                    // Con tuyệt đối không thể rơi sâu hơn tầm với cánh tay Ba
+                    if (dist3D > 2.2f)
+                    {
+                        Vector3 maxHangPos = m_PartnerTransform.position - toPartner.normalized * 2.2f;
+                        if (transform.position.y < maxHangPos.y)
+                        {
+                            m_Motor.SetPosition(new Vector3(transform.position.x, maxHangPos.y, transform.position.z), teleport: false);
+                        }
+                    }
                 }
-                else
+                // TRƯỜNG HỢP 2: DI CHUYỂN BÌNH THƯỜNG TRÊN MẶT ĐẤT
+                else if (flatDist > idealDistance)
                 {
-                    // BA (85kg): Con (28kg) kéo Ba thì Ba chỉ đi chậm (do Ba nặng hơn gấp 3 lần)
+                    Vector3 pullDir = flatToPartner.normalized;
+                    float stretch = flatDist - idealDistance;
+
+                    // Con bắt kịp tốc độ của Ba (kể cả khi Ba chạy nước rút Sprint) + lực kéo lò xo mạnh
+                    float catchupSpeed = Mathf.Max(dadSpeed, 4.2f) + (stretch * 12.0f);
+                    modifier.ArealVelocity = pullDir * catchupSpeed;
+
+                    // Nếu Ba chạy nước rút làm khoảng cách dãn xa hơn 3.2m do độ trễ mạng:
+                    // Tăng thêm tốc độ bắt kịp để Con áp sát Ba ngay lập tức
+                    if (flatDist > 3.2f)
+                    {
+                        modifier.ArealVelocity = pullDir * (catchupSpeed * 1.6f);
+                    }
+                }
+            }
+            else
+            {
+                // BA (85kg): Con (28kg) kéo Ba thì Ba chỉ đi chậm (do Ba nặng hơn gấp 3 lần)
+                if (flatDist > idealDistance)
+                {
+                    Vector3 pullDir = flatToPartner.normalized;
+                    float stretch = flatDist - idealDistance;
+
                     float childSpeed = (m_PartnerHandAbility != null && m_PartnerHandAbility.m_Motor != null)
                         ? m_PartnerHandAbility.m_Motor.CurrentSpeed
                         : 0f;
@@ -633,8 +701,11 @@ namespace Blocks.Gameplay.Core
 
             // Vị trí sườn tự nhiên: cách Ba 0.82m về phía hông và hơi lùi 0.25m
             Vector3 targetFlankPos = transform.position + sideDir * 0.82f - transform.forward * 0.25f;
-            Vector3 toFlank = Vector3.ProjectOnPlane(targetFlankPos - m_PartnerTransform.position, Vector3.up);
-            float dist = toFlank.magnitude;
+            Vector3 toFlank3D = targetFlankPos - m_PartnerTransform.position;
+            float dist3D = toFlank3D.magnitude;
+
+            // Kiểm tra xem Dummy có đang bị rớt vực / lơ lửng dưới chân Ba không
+            bool dummyBelowDad = toFlank3D.y > 0.2f;
 
             float leaderSpeed = m_Motor != null ? m_Motor.CurrentSpeed : 0f;
             bool isLeaderMoving = leaderSpeed > 0.15f;
@@ -642,11 +713,27 @@ namespace Blocks.Gameplay.Core
             bool isLeaderCrouching = m_Motor != null && m_Motor.IsCrouching;
             bool isLeaderGrounded = m_Motor != null && m_Motor.IsGrounded;
 
-            if (dist > 0.05f)
+            if (dist3D > 0.05f)
             {
-                float baseSpeed = IsDad ? Mathf.Max(leaderSpeed, 3.8f) : (leaderSpeed * 0.35f);
-                float dummyPullSpeed = baseSpeed + (dist * pullSpringStrength);
-                dummyCC.Move(toFlank.normalized * (dummyPullSpeed * Time.deltaTime));
+                float baseSpeed = IsDad ? Mathf.Max(leaderSpeed, 4.0f) : (leaderSpeed * 0.35f);
+                float dummyPullSpeed = baseSpeed + (dist3D * 12.0f);
+
+                Vector3 moveDir = toFlank3D.normalized;
+                // Nếu rớt vực hoặc lơ lửng, kéo bổng Dummy lên bờ về lại sườn Ba
+                if (dummyBelowDad)
+                {
+                    moveDir.y = Mathf.Max(moveDir.y, 0.5f);
+                    moveDir.Normalize();
+                }
+
+                dummyCC.Move(moveDir * (dummyPullSpeed * Time.deltaTime));
+
+                // Giới hạn khoảng cách tối đa (~2.2m) không cho Dummy rơi sâu xuống vực
+                if (dist3D > 2.2f)
+                {
+                    Vector3 tetherClamp = transform.position + (m_PartnerTransform.position - transform.position).normalized * 2.2f;
+                    m_PartnerTransform.position = Vector3.Lerp(m_PartnerTransform.position, tetherClamp, Time.deltaTime * 24f);
+                }
 
                 // Đồng thời quay mặt Dummy về hướng Ba đang di chuyển
                 if (leaderSpeed > 0.1f)
@@ -657,11 +744,18 @@ namespace Blocks.Gameplay.Core
 
             // ==============================================================
             // ĐỒNG BỘ ANIMATION SỐNG ĐỘNG CHO BẠN ĐỒNG HÀNH (DUMMY BOT):
-            // Giúp toàn bộ cơ thể (2 chân, tay tự do, thân người) chạy nhảy cùng nhịp với Ba
             // ==============================================================
             if (m_PartnerAnimator != null)
             {
-                if (isLeaderMoving)
+                if (dummyBelowDad)
+                {
+                    // Đang lơ lửng / rơi vực được Ba giữ tay -> Animation FreeFall chân vùng vẫy
+                    m_PartnerAnimator.SetBool("Grounded", false);
+                    m_PartnerAnimator.SetBool("FreeFall", true);
+                    m_PartnerAnimator.SetBool("Jump", false);
+                    m_PartnerAnimator.SetFloat("Speed", 0f);
+                }
+                else if (isLeaderMoving)
                 {
                     // Tốc độ chạy của Con: nếu Ba chạy (sprint), Con chạy hết tốc lực (6.0f); nếu Ba đi bộ, Con đi bộ (3.0f - 3.5f)
                     float targetAnimSpeed = isLeaderSprinting ? Mathf.Max(leaderSpeed, 6.0f) : Mathf.Max(leaderSpeed, 3.2f);
@@ -692,6 +786,7 @@ namespace Blocks.Gameplay.Core
                     m_PartnerAnimator.SetBool("Grounded", isLeaderGrounded);
                     m_PartnerAnimator.SetBool("IsCrouching", isLeaderCrouching);
                     m_PartnerAnimator.SetBool("IsSitting", isLeaderCrouching);
+                    m_PartnerAnimator.SetBool("FreeFall", false);
                 }
             }
         }
