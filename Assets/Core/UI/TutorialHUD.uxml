@@ -37,6 +37,10 @@
                     <engine:Label text="Đổi vai: Ba ↔ Con" class="control-desc highlight-text"/>
                 </engine:VisualElement>
                 <engine:VisualElement class="control-item">
+                    <engine:Label text="Phím B" class="key-badge key-highlight"/>
+                    <engine:Label text="Đến Thuyền Tập Lái" class="control-desc highlight-text"/>
+                </engine:VisualElement>
+                <engine:VisualElement class="control-item">
                     <engine:Label text="ESC" class="key-badge"/>
                     <engine:Label text="Menu tạm dừng / Thoát" class="control-desc"/>
                 </engine:VisualElement>
@@ -44,6 +48,7 @@
 
             <!-- Right Action Buttons -->
             <engine:VisualElement class="tutorial-actions-panel" picking-mode="Position">
+                <engine:Button name="teleport-boat-btn" text="⛵  ĐẾN THUYỀN TẬP LÁI [B]" class="action-btn boat-btn"/>
                 <engine:Button name="switch-role-btn" text="🔄  ĐỔI VAI: BA ↔ CON [T]" class="action-btn switch-btn"/>
                 <engine:Button name="return-lobby-btn" text="🏠  TRỞ VỀ SẢNH" class="action-btn lobby-btn"/>
             </engine:VisualElement>
@@ -53,7 +58,7 @@
         <engine:VisualElement class="bottom-tips-container" picking-mode="Ignore">
             <engine:VisualElement class="tips-box" picking-mode="Position">
                 <engine:Label text="💡 BÀI TẬP: " class="tips-prefix"/>
-                <engine:Label text="1. Tập chạy &amp; nhảy vượt chướng ngại  |  2. Bệ nhún đẩy vọt lên cao  |  3. Đổi qua lại Ba &amp; Con để cảm nhận sự khác biệt!" class="tips-content"/>
+                <engine:Label text="1. Vượt chướng ngại vật  |  2. Bệ nhún bật cao  |  3. Đổi vai Ba &amp; Con [T]  |  4. Luyện tập chèo &amp; bẻ lái thuyền [B]!" class="tips-content"/>
             </engine:VisualElement>
         </engine:VisualElement>
     </engine:VisualElement>
