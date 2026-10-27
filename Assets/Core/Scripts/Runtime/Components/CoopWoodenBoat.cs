@@ -45,9 +45,10 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Ghế ngồi bẻ lái")]
         [SerializeField] private Transform seatNavigator;
 
-        [Header("Thông số Tốc độ & Chèo thuyền (Dad Rowing - Space Spam)")]
+#pragma warning disable 0414
         [Tooltip("Quãng đường thuyền tiến được cho mỗi nhịp nhấn Space (mét)")]
         [SerializeField] private float distancePerStroke = 1.0f;
+#pragma warning restore 0414
 
         [Tooltip("Vận tốc khởi đầu khi nhấn 1 nhịp Space (mét/giây)")]
         [SerializeField] private float minStrokeSpeed = 2.2f;
@@ -66,8 +67,8 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float rowAcceleration = 2.4f;
 #pragma warning restore 0414
 
-        [Tooltip("Lực cản nước làm chậm thuyền khi không chèo (mét/giây^2)")]
-        [SerializeField] private float waterDrag = 2.4f;
+        [Tooltip("Lực cản nước làm giảm tốc độ khi thuyền trôi theo quán tính (mét/giây^2). Giá trị càng nhỏ thuyền trôi quán tính càng xa và lâu.")]
+        [SerializeField] private float waterDrag = 1.6f;
 
 #pragma warning disable 0414
         [Tooltip("Tốc độ lùi tối đa khi chèo lùi (mét/giây)")]
@@ -154,7 +155,6 @@ namespace Blocks.Gameplay.Core
         // Tiến trình nhịp chèo theo phím Space
         private float m_StrokePhase = 1f;              // [0 -> 1]: Tiến trình 1 nhịp chèo (1f = nghỉ)
         private bool m_IsStrokeActive = false;         // true khi đang diễn ra nhịp chèo
-        private float m_StrokeDistanceRemaining = 0f;  // Quãng đường tiến của nhịp chèo hiện tại
 
         // Góc ban đầu của các bộ phận
         private Quaternion m_OarLeftInitialRot = Quaternion.identity;
@@ -628,7 +628,6 @@ namespace Blocks.Gameplay.Core
                 m_DadCC = null;
                 m_DadMovement = null;
                 m_DadAnimator = null;
-                m_StrokeDistanceRemaining = 0f;
                 m_IsStrokeActive = false;
                 m_StrokePhase = 1f;
                 m_IsDadRowing = false;
@@ -748,7 +747,6 @@ namespace Blocks.Gameplay.Core
                 m_IsStrokeActive = false;
                 m_StrokePhase = 1f;
                 m_ChildSteerInput = 0f;
-                m_StrokeDistanceRemaining = 0f;
                 m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, waterDrag * Time.deltaTime * 4f);
                 m_CurrentTillerAngle = Mathf.MoveTowards(m_CurrentTillerAngle, 0f, tillerTurnSpeed * Time.deltaTime);
                 return;
@@ -871,9 +869,10 @@ namespace Blocks.Gameplay.Core
 
         /// <summary>
         /// Kích hoạt một nhịp chèo bằng phím Space:
-        /// - Nhấn Space 1 lần -> Thuyền chèo tiến 1m.
-        /// - Càng spam Space nhanh -> Thuyền tăng tốc càng nhanh (lên tối đa maxRowSpeed).
-        /// - Hoạt ảnh mái chèo chạy theo từng nhịp bấm Space của người chơi.
+        /// - Nhấn Space 1 lần -> Tăng tốc độ tức thì cho thuyền.
+        /// - Càng spam Space nhanh -> Vận tốc thuyền tăng cao (lên tối đa maxRowSpeed).
+        /// - Khi dừng Space -> Thuyền tiếp tục lướt trôi theo quán tính tốc độ hiện tại.
+        /// - Hoạt ảnh mái chèo chạy đúng theo từng nhịp bấm Space của người chơi.
         /// </summary>
         public void TriggerRowStroke()
         {
@@ -881,10 +880,6 @@ namespace Blocks.Gameplay.Core
             m_IsStrokeActive = true;
             m_StrokePhase = 0f;
             m_IsDadRowing = true;
-
-            // Giới hạn quãng đường còn lại của nhịp chèo hiện tại (tối đa ~1.25m)
-            // Ngăn chặn tích lũy hàng chục mét khi spam phím khiến thuyền trôi mãi không dừng
-            m_StrokeDistanceRemaining = Mathf.Min(m_StrokeDistanceRemaining + distancePerStroke, distancePerStroke * 1.25f);
 
             // Tăng tốc độ: mỗi lần nhấn Space tăng thêm vận tốc tức thì
             if (m_CurrentSpeed < minStrokeSpeed)
@@ -934,42 +929,38 @@ namespace Blocks.Gameplay.Core
                 transform.Rotate(Vector3.up, yawDelta, Space.World);
             }
 
-            // 2. TÍNH TOÁN TIẾN THẲNG THEO NHỊP CHÈO SPACE (DAD ROWING)
-            if (m_StrokeDistanceRemaining > 0.001f)
+            // 2. TÍNH TOÁN TIẾN THẲNG THEO NHỊP CHÈO SPACE VÀ TRÔI QUÁN TÍNH (MOMENTUM & INERTIA)
+            if (m_CurrentSpeed > 0.02f)
             {
-                float moveDist = Mathf.Min(m_CurrentSpeed * dt, m_StrokeDistanceRemaining);
+                float moveDist = m_CurrentSpeed * dt;
                 Vector3 desiredMove = forwardDir * moveDist;
 
                 // Quét va chạm chướng ngại vật phía trước (Terrain, Rocks...)
                 if (CheckObstacleCollision(desiredMove, out Vector3 slideMove))
                 {
                     transform.position += slideMove;
-                    float forwardAdvance = Vector3.Dot(slideMove, forwardDir);
-                    if (forwardAdvance > 0f)
-                    {
-                        m_StrokeDistanceRemaining -= forwardAdvance;
-                    }
                 }
                 else
                 {
                     transform.position += desiredMove;
-                    m_StrokeDistanceRemaining -= moveDist;
                 }
 
-                // Cản nước nhẹ khi thuyền đang lướt theo nhịp chèo
-                m_CurrentSpeed = Mathf.Max(0.5f, m_CurrentSpeed - waterDrag * dt);
-                m_IsDadRowing = true;
-            }
-            else
-            {
-                m_StrokeDistanceRemaining = 0f;
-                // Khi không còn lực chèo: cản nước hãm thuyền dừng hẳn nhanh chóng trong ~0.8s
-                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, waterDrag * 3.5f * dt);
+                // Cản nước làm giảm tốc độ:
+                // - Khi đang trong nhịp chèo tích cực (m_IsStrokeActive): cản nước nhẹ để dễ bứt tốc
+                // - Khi dừng bấm Space: thuyền tiếp tục trôi lướt theo quán tính và giảm dần tốc độ tự nhiên
+                float currentDrag = m_IsStrokeActive ? (waterDrag * 0.35f) : waterDrag;
+                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, currentDrag * dt);
+
                 if (m_CurrentSpeed <= 0.05f)
                 {
                     m_CurrentSpeed = 0f;
                     m_IsDadRowing = false;
                 }
+            }
+            else
+            {
+                m_CurrentSpeed = 0f;
+                m_IsDadRowing = false;
             }
         }
 
@@ -1325,7 +1316,7 @@ namespace Blocks.Gameplay.Core
                 ? "• [SPACE] Nhấn để chèo tiến về phía trước (Mỗi nhịp = 1m)"
                 : "• [A / D] Bẻ cần lái (Cần qua PHẢI -> Thuyền rẽ TRÁI, Cần qua TRÁI -> Thuyền rẽ PHẢI)";
             string guide2 = isDad
-                ? "• Càng spam [SPACE] nhanh thuyền chèo càng nhanh! Con phụ trách bẻ cần lái."
+                ? "• Càng spam [SPACE] nhanh thuyền chèo càng nhanh! Thả phím thuyền sẽ trôi theo quán tính."
                 : "• Giữ [A] hoặc [D] để bẻ lái, thả phím để cần tự trả về giữa. Ba phụ trách chèo!";
             string exitGuide = "• Nhấn [E] để XUỐNG THUYỀN";
 
