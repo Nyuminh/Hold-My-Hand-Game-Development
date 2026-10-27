@@ -479,7 +479,7 @@ namespace Blocks.Gameplay.Core
                 Debug.LogWarning($"[CoopWoodenBoat] ⚠️ Quá xa thuyền ({dist:F2}m > {boardInteractionRadius:F1}m)! Vui lòng bước lại gần mạn thuyền hoặc mép cầu tàu để lên thuyền.");
                 return;
             }
-
+                //123
             // 4. Kiểm tra chỗ ngồi theo vai trò
             if (isDad)
             {
