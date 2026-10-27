@@ -179,6 +179,12 @@ namespace Blocks.Gameplay.Core
             float displacementSpeed = flatDelta.magnitude / dt;
             m_LastRootPosition = rootT.position;
 
+            // Nếu người chơi đang bị khóa di chuyển (ngồi thuyền, bế cõng, v.v.), không tính vận tốc do phương tiện kéo đi
+            if (coreMovement != null && !coreMovement.IsMovementEnabled)
+            {
+                displacementSpeed = 0f;
+            }
+
             // 2. Vận tốc từ hệ thống di chuyển người chơi (WASD)
             float motorSpeed = coreMovement != null ? coreMovement.CurrentSpeed : 0f;
 
@@ -195,6 +201,12 @@ namespace Blocks.Gameplay.Core
 
             // 4. Tổng hợp tốc độ di chuyển mục tiêu
             float targetSpeed = Mathf.Max(motorSpeed, displacementSpeed, holdHandSpeed);
+
+            // Khi đang ngồi thuyền / bị vô hiệu hóa di chuyển, triệt tiêu tốc độ chạy bộ chân
+            if (coreMovement != null && !coreMovement.IsMovementEnabled)
+            {
+                targetSpeed = 0f;
+            }
 
             // Khi đang nắm tay: nếu người bạn đang chạy sprint hoặc đang di chuyển nhanh -> kích hoạt sải bước chạy tương ứng
             if (m_HoldHandAbility != null && m_HoldHandAbility.IsHoldingHands)
@@ -253,7 +265,12 @@ namespace Blocks.Gameplay.Core
             // 7. Trạng thái khom người / ngồi
             bool isCrouched = (coreMovement != null && coreMovement.IsCrouching) || isPartnerCrouching;
             Animator.SetBool(m_AnimIDIsCrouching, isCrouched);
-            Animator.SetBool(m_AnimIDIsSitting, isCrouched);
+
+            // Chỉ ghi đè IsSitting khi người chơi đang tự do di chuyển; nếu đang ngồi thuyền (IsMovementEnabled == false) thì giữ nguyên
+            if (coreMovement == null || coreMovement.IsMovementEnabled)
+            {
+                Animator.SetBool(m_AnimIDIsSitting, isCrouched);
+            }
         }
 
         public void TurnInPlaceStart()

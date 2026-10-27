@@ -136,6 +136,23 @@
     scale: 0.98;
 }
 
+.boat-btn {
+    background-color: rgba(20, 160, 140, 0.28);
+    border-color: rgba(50, 210, 180, 0.55);
+    color: rgb(150, 245, 225);
+}
+
+.boat-btn:hover {
+    background-color: rgba(20, 160, 140, 0.5);
+    border-color: rgb(90, 240, 210);
+    color: rgb(255, 255, 255);
+    scale: 1.02;
+}
+
+.boat-btn:active {
+    scale: 0.98;
+}
+
 .lobby-btn {
     background-color: rgba(220, 50, 50, 0.22);
     border-color: rgba(255, 80, 80, 0.4);

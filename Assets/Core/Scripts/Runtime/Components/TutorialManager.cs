@@ -31,6 +31,7 @@ namespace Blocks.Gameplay.Core
         private Label m_RoleBadgeLabel;
         private Button m_SwitchRoleButton;
         private Button m_ReturnLobbyButton;
+        private Button m_TeleportBoatButton;
 
         private bool m_IsSwitching = false;
         private RoleBasedSpawner m_Spawner;
@@ -59,10 +60,18 @@ namespace Blocks.Gameplay.Core
             {
                 ToggleRole();
             }
+            if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame)
+            {
+                TeleportToBoat();
+            }
 #else
             if (Input.GetKeyDown(KeyCode.T))
             {
                 ToggleRole();
+            }
+            if (Input.GetKeyDown(KeyCode.B))
+            {
+                TeleportToBoat();
             }
 #endif
         }
@@ -82,12 +91,16 @@ namespace Blocks.Gameplay.Core
             m_RoleBadgeLabel = root.Q<Label>("role-badge-label");
             m_SwitchRoleButton = root.Q<Button>("switch-role-btn");
             m_ReturnLobbyButton = root.Q<Button>("return-lobby-btn");
+            m_TeleportBoatButton = root.Q<Button>("teleport-boat-btn");
 
             if (m_SwitchRoleButton != null)
                 m_SwitchRoleButton.clicked += ToggleRole;
 
             if (m_ReturnLobbyButton != null)
                 m_ReturnLobbyButton.clicked += ReturnToLobby;
+
+            if (m_TeleportBoatButton != null)
+                m_TeleportBoatButton.clicked += TeleportToBoat;
 
             UpdateRoleBadge();
             UISoundManager.BindButtons(root);
@@ -356,6 +369,45 @@ namespace Blocks.Gameplay.Core
             }
 
             SceneManager.LoadScene("Lobby");
+        }
+
+        /// <summary>
+        /// Dịch chuyển người chơi và bạn đồng hành đến khu vực Thuyền tập lái.
+        /// </summary>
+        public void TeleportToBoat()
+        {
+            var boat = GameObject.Find("Coop_Wooden_Boat");
+            if (boat == null) return;
+
+            UISoundManager.PlayClick();
+
+            Vector3 dockPos = new Vector3(2.4f, 4.0f, 116.5f);
+            var localPlayer = NetworkManager.Singleton?.LocalClient?.PlayerObject?.gameObject;
+            if (localPlayer == null)
+            {
+                var cam = FindAnyObjectByType<CoreCameraController>();
+                if (cam != null) localPlayer = cam.gameObject;
+            }
+
+            if (localPlayer != null)
+            {
+                var cc = localPlayer.GetComponent<CharacterController>();
+                if (cc != null) cc.enabled = false;
+                localPlayer.transform.position = dockPos;
+                localPlayer.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+                if (cc != null) cc.enabled = true;
+            }
+
+            if (m_CompanionInstance != null)
+            {
+                var dummyCC = m_CompanionInstance.GetComponent<CharacterController>();
+                if (dummyCC != null) dummyCC.enabled = false;
+                m_CompanionInstance.transform.position = dockPos + Vector3.forward * 1.5f;
+                m_CompanionInstance.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+                if (dummyCC != null) dummyCC.enabled = true;
+            }
+
+            Debug.Log("[TutorialManager] ⛵ Đã dịch chuyển đến khu vực Thuyền tập lái!");
         }
     }
 }
