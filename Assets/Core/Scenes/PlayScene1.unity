@@ -110756,9 +110756,12 @@ MonoBehaviour:
   oarRight: {fileID: 1062974516}
   seatRower: {fileID: 1062974515}
   seatNavigator: {fileID: 1062974514}
-  maxRowSpeed: 4.5
+  distancePerStroke: 1
+  minStrokeSpeed: 2.2
+  speedBoostPerSpam: 1.2
+  maxRowSpeed: 7.5
   rowAcceleration: 2.4
-  waterDrag: 1.2
+  waterDrag: 1.6
   reverseSpeed: 1.5
   strokeFrequency: 2.8
   oarStrokeAngle: 22
