@@ -110,8 +110,10 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Biên độ sóng nhấp nhô (mét)")]
         [SerializeField] private float bobbingAmplitude = 0.025f;
 
+#pragma warning disable 0414
         [Tooltip("Biên độ lắc lư nhẹ theo sóng (độ)")]
         [SerializeField] private float gentleRollAmplitude = 1.0f;
+#pragma warning restore 0414
 
         [Header("Tương tác & Lên thuyền (Interaction)")]
         [Tooltip("Bán kính có thể nhấn [E] lên thuyền (mét)")]
@@ -155,6 +157,7 @@ namespace Blocks.Gameplay.Core
         // Tiến trình nhịp chèo theo phím Space
         private float m_StrokePhase = 1f;              // [0 -> 1]: Tiến trình 1 nhịp chèo (1f = nghỉ)
         private bool m_IsStrokeActive = false;         // true khi đang diễn ra nhịp chèo
+        private bool m_IsGroundedOnLand = false;       // true khi thuyền bị mắc cạn trên bờ đất (không ở dưới nước)
 
         // Góc ban đầu của các bộ phận
         private Quaternion m_OarLeftInitialRot = Quaternion.identity;
@@ -177,6 +180,8 @@ namespace Blocks.Gameplay.Core
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<float> m_NetRowCycleTime = new NetworkVariable<float>(
             0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<bool> m_NetIsGrounded = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<NetworkObjectReference> m_NetDadPlayer = new NetworkVariable<NetworkObjectReference>(
             default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<NetworkObjectReference> m_NetChildPlayer = new NetworkVariable<NetworkObjectReference>(
@@ -194,6 +199,7 @@ namespace Blocks.Gameplay.Core
         public float CurrentSpeed => m_CurrentSpeed;
         public float CurrentTillerAngle => m_CurrentTillerAngle;
         public bool IsRowing => m_IsDadRowing;
+        public bool IsGroundedOnLand => m_IsGroundedOnLand;
 
         #endregion
 
@@ -224,6 +230,7 @@ namespace Blocks.Gameplay.Core
                 m_NetTiller.Value = 0f;
                 m_NetIsRowing.Value = false;
                 m_NetRowCycleTime.Value = 0f;
+                m_NetIsGrounded.Value = false;
                 m_NetDadPlayer.Value = default;
                 m_NetChildPlayer.Value = default;
             }
@@ -286,6 +293,7 @@ namespace Blocks.Gameplay.Core
                     m_NetTiller.Value = m_CurrentTillerAngle;
                     m_NetIsRowing.Value = m_IsDadRowing;
                     m_NetRowCycleTime.Value = m_StrokePhase;
+                    m_NetIsGrounded.Value = m_IsGroundedOnLand;
                 }
             }
             else
@@ -707,6 +715,7 @@ namespace Blocks.Gameplay.Core
             }
 
             m_IsDadRowing = m_NetIsRowing.Value;
+            m_IsGroundedOnLand = m_NetIsGrounded.Value;
         }
 
         private void OnNetDadPlayerChanged(NetworkObjectReference oldRef, NetworkObjectReference newRef)
@@ -806,18 +815,25 @@ namespace Blocks.Gameplay.Core
                 // Ba CHỈ chèo thuyền bằng phím Space
                 if (spacePressed)
                 {
-                    // Client prediction visual tức thì cho người chèo
-                    m_IsStrokeActive = true;
-                    m_StrokePhase = 0f;
-                    m_IsDadRowing = true;
-
-                    if (IsSpawned && !IsServer)
+                    if (m_IsGroundedOnLand)
                     {
-                        SendRowStrokeServerRpc();
+                        Debug.LogWarning("[CoopWoodenBoat] ⚠️ Thuyền đang mắc cạn trên bờ đất! Không thể chèo tiếp dưới cạn.");
                     }
                     else
                     {
-                        TriggerRowStroke();
+                        // Client prediction visual tức thì cho người chèo
+                        m_IsStrokeActive = true;
+                        m_StrokePhase = 0f;
+                        m_IsDadRowing = true;
+
+                        if (IsSpawned && !IsServer)
+                        {
+                            SendRowStrokeServerRpc();
+                        }
+                        else
+                        {
+                            TriggerRowStroke();
+                        }
                     }
                 }
 
@@ -850,17 +866,24 @@ namespace Blocks.Gameplay.Core
                 {
                     if (spacePressed)
                     {
-                        m_IsStrokeActive = true;
-                        m_StrokePhase = 0f;
-                        m_IsDadRowing = true;
-
-                        if (IsSpawned && !IsServer)
+                        if (m_IsGroundedOnLand)
                         {
-                            SendRowStrokeServerRpc();
+                            Debug.LogWarning("[CoopWoodenBoat] ⚠️ Thuyền đang mắc cạn trên bờ đất! Không thể chèo tiếp dưới cạn.");
                         }
                         else
                         {
-                            TriggerRowStroke();
+                            m_IsStrokeActive = true;
+                            m_StrokePhase = 0f;
+                            m_IsDadRowing = true;
+
+                            if (IsSpawned && !IsServer)
+                            {
+                                SendRowStrokeServerRpc();
+                            }
+                            else
+                            {
+                                TriggerRowStroke();
+                            }
                         }
                     }
                 }
@@ -872,10 +895,17 @@ namespace Blocks.Gameplay.Core
         /// - Nhấn Space 1 lần -> Tăng tốc độ tức thì cho thuyền.
         /// - Càng spam Space nhanh -> Vận tốc thuyền tăng cao (lên tối đa maxRowSpeed).
         /// - Khi dừng Space -> Thuyền tiếp tục lướt trôi theo quán tính tốc độ hiện tại.
-        /// - Hoạt ảnh mái chèo chạy đúng theo từng nhịp bấm Space của người chơi.
+        /// - Nếu thuyền đã mắc cạn trên bờ đất -> Không thể di chuyển được nữa!
         /// </summary>
         public void TriggerRowStroke()
         {
+            // Kiểm tra trạng thái mắc cạn trên đất liền:
+            if (m_IsGroundedOnLand)
+            {
+                Debug.LogWarning("[CoopWoodenBoat] ⚠️ Thuyền đã lên bờ đất (mắc cạn)! Thuyền chỉ di chuyển được dưới nước, không thể chèo trên cạn.");
+                return;
+            }
+
             // Kích hoạt nhịp chèo mới tức thì
             m_IsStrokeActive = true;
             m_StrokePhase = 0f;
@@ -900,6 +930,86 @@ namespace Blocks.Gameplay.Core
         }
 
         /// <summary>
+        /// Đo cao độ mặt đất / đáy sông tại tọa độ bất kỳ (kết hợp Raycast và Terrain).
+        /// </summary>
+        public float GetGroundHeight(Vector3 worldPos)
+        {
+            Vector3 rayOrigin = new Vector3(worldPos.x, waterSurfaceY + 15f, worldPos.z);
+            RaycastHit[] hits = Physics.RaycastAll(rayOrigin, Vector3.down, 35f, ~0, QueryTriggerInteraction.Ignore);
+            
+            float highestGroundY = float.MinValue;
+            bool hitFound = false;
+
+            for (int i = 0; i < hits.Length; i++)
+            {
+                var col = hits[i].collider;
+                if (col == null || col.isTrigger) continue;
+                if (col == m_BoatCollider || col.gameObject == gameObject || col.transform.IsChildOf(transform)) continue;
+
+                if (hits[i].point.y > highestGroundY)
+                {
+                    highestGroundY = hits[i].point.y;
+                    hitFound = true;
+                }
+            }
+
+            if (hitFound)
+            {
+                return highestGroundY;
+            }
+
+            var terrain = Terrain.activeTerrain;
+            if (terrain != null)
+            {
+                return terrain.SampleHeight(worldPos) + terrain.transform.position.y;
+            }
+
+            return 0f;
+        }
+
+        /// <summary>
+        /// Ước tính pháp tuyến dốc bờ sông (Shore Normal) tại điểm kiểm tra.
+        /// </summary>
+        private Vector3 GetShoreGradientNormal(Vector3 pos)
+        {
+            float step = 1.0f;
+            float hL = GetGroundHeight(pos - Vector3.right * step);
+            float hR = GetGroundHeight(pos + Vector3.right * step);
+            float hB = GetGroundHeight(pos - Vector3.forward * step);
+            float hF = GetGroundHeight(pos + Vector3.forward * step);
+
+            // Vector trỏ từ bờ cao xuống nước sâu
+            Vector3 normal = new Vector3(hL - hR, 2.0f, hB - hF).normalized;
+            return normal;
+        }
+
+        /// <summary>
+        /// Cập nhật trạng thái mắc cạn của thuyền trên bờ đất.
+        /// Thuyền bị mắc cạn khi thân thuyền nằm trên mặt đất khô (cao độ đất >= mặt nước - 0.04m).
+        /// </summary>
+        private void UpdateGroundedStatus()
+        {
+            float groundY = GetGroundHeight(transform.position);
+            
+            bool wasGrounded = m_IsGroundedOnLand;
+            m_IsGroundedOnLand = groundY >= (waterSurfaceY - 0.04f);
+
+            if (m_IsGroundedOnLand)
+            {
+                // Triệt tiêu vận tốc ngay khi thuyền đã lên hẳn bờ đất
+                m_CurrentSpeed = 0f;
+                m_IsDadRowing = false;
+                m_IsStrokeActive = false;
+                m_StrokePhase = 1f;
+
+                if (!wasGrounded)
+                {
+                    Debug.LogWarning($"[CoopWoodenBoat] ⚠️ Thuyền đã lên bờ đất tại {transform.position} (Cao độ đất: {groundY:F2}m >= Mặt nước: {waterSurfaceY:F2}m) -> MẮC CẠN! Không thể di chuyển tiếp.");
+                }
+            }
+        }
+
+        /// <summary>
         /// Mô phỏng di chuyển thẳng của thuyền và góc bẻ lái ngược hướng.
         /// </summary>
         private void SimulateBoatPhysics()
@@ -907,16 +1017,18 @@ namespace Blocks.Gameplay.Core
             float dt = Time.deltaTime;
             Vector3 forwardDir = GetBoatWorldForward();
 
+            // 0. CẬP NHẬT TRẠNG THÁI MẮC CẠN
+            UpdateGroundedStatus();
+
             // 1. TÍNH TOÁN BẺ LÁI (CHILD STEERING)
-            // Cần lái bẻ sang Phải (+Angle) -> Yaw âm (Rẽ TRÁI trong không gian 3D Unity).
-            // Cần lái bẻ sang Trái (-Angle) -> Yaw dương (Rẽ PHẢI trong không gian 3D Unity).
             if (!IsSpawned || IsServer)
             {
                 float targetTillerAngle = m_ChildSteerInput * maxTillerAngle;
                 m_CurrentTillerAngle = Mathf.MoveTowards(m_CurrentTillerAngle, targetTillerAngle, tillerTurnSpeed * dt);
             }
 
-            if (Mathf.Abs(m_CurrentTillerAngle) > 0.1f)
+            // Nếu không bị mắc cạn trên đất và có góc cần lái -> Quay thuyền
+            if (!m_IsGroundedOnLand && Mathf.Abs(m_CurrentTillerAngle) > 0.1f)
             {
                 float tillerRatio = m_CurrentTillerAngle / maxTillerAngle;
                 float turnDirection = invertTillerSteering ? -tillerRatio : tillerRatio;
@@ -929,25 +1041,24 @@ namespace Blocks.Gameplay.Core
                 transform.Rotate(Vector3.up, yawDelta, Space.World);
             }
 
-            // 2. TÍNH TOÁN TIẾN THẲNG THEO NHỊP CHÈO SPACE VÀ TRÔI QUÁN TÍNH (MOMENTUM & INERTIA)
-            if (m_CurrentSpeed > 0.02f)
+            // 2. TÍNH TOÁN TIẾN THẲNG THEO NHỊP CHÈO SPACE VÀ TRÔI QUÁN TÍNH
+            // THUYỀN CHỈ DI CHUYỂN ĐƯỢC KHI Ở DƯỚI MẶT NƯỚC (KHÔNG BỊ MẮC CẠN TRÊN ĐẤT)
+            if (!m_IsGroundedOnLand && m_CurrentSpeed > 0.02f)
             {
                 float moveDist = m_CurrentSpeed * dt;
                 Vector3 desiredMove = forwardDir * moveDist;
 
-                // Quét va chạm chướng ngại vật phía trước (Terrain, Rocks...)
-                if (CheckObstacleCollision(desiredMove, out Vector3 slideMove))
+                // Quét va chạm chướng ngại vật & mép bờ sông để ngăn phi thuyền lên đất liền
+                if (CheckObstacleAndShoreCollision(desiredMove, out Vector3 safeMove))
                 {
-                    transform.position += slideMove;
+                    transform.position += safeMove;
                 }
                 else
                 {
                     transform.position += desiredMove;
                 }
 
-                // Cản nước làm giảm tốc độ:
-                // - Khi đang trong nhịp chèo tích cực (m_IsStrokeActive): cản nước nhẹ để dễ bứt tốc
-                // - Khi dừng bấm Space: thuyền tiếp tục trôi lướt theo quán tính và giảm dần tốc độ tự nhiên
+                // Cản nước làm giảm tốc độ
                 float currentDrag = m_IsStrokeActive ? (waterDrag * 0.35f) : waterDrag;
                 m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, currentDrag * dt);
 
@@ -965,23 +1076,71 @@ namespace Blocks.Gameplay.Core
         }
 
         /// <summary>
-        /// Quét vật cản để chống thuyền xuyên thủng bờ đá hoặc leo lên núi.
+        /// Quét vật cản và mép bờ sông để:
+        /// 1. Ngăn thuyền leo lên mặt đất khô (chỉ cho thuyền di chuyển trong lòng sông).
+        /// 2. Ngăn thuyền xuyên thủng bờ đá, cọc cầu tàu, vật cản cứng.
         /// </summary>
-        private bool CheckObstacleCollision(Vector3 moveDelta, out Vector3 safeMove)
+        private bool CheckObstacleAndShoreCollision(Vector3 moveDelta, out Vector3 safeMove)
         {
             safeMove = moveDelta;
+            Vector3 forwardDir = GetBoatWorldForward();
+            Vector3 rightDir = GetBoatWorldRight();
+
+            // 1. KIỂM TRA MẶT ĐẤT / BỜ SÔNG PHÍA TRƯỚC (SHORELINE BOUNDARY)
+            Vector3 nextPos = transform.position + moveDelta;
+            Vector3 nextBow = nextPos + forwardDir * 2.1f;
+            Vector3 nextLeft = nextPos - rightDir * 0.75f;
+            Vector3 nextRight = nextPos + rightDir * 0.75f;
+
+            float bowGroundY = GetGroundHeight(nextBow);
+            float centerGroundY = GetGroundHeight(nextPos);
+            float leftGroundY = GetGroundHeight(nextLeft);
+            float rightGroundY = GetGroundHeight(nextRight);
+
+            // Ngưỡng bờ đất: Nếu cao độ đất >= (waterSurfaceY - 0.08m) -> Đó là mép bờ cạn / đất liền
+            float maxGroundAhead = Mathf.Max(bowGroundY, Mathf.Max(centerGroundY, Mathf.Max(leftGroundY, rightGroundY)));
+            float currentCenterGround = GetGroundHeight(transform.position);
+
+            // Nếu vị trí dự kiến tiếp theo sẽ đưa mũi hoặc thân thuyền leo lên bờ đất
+            if (maxGroundAhead >= (waterSurfaceY - 0.08f))
+            {
+                // Nếu đang hướng về phía đất cao hơn hiện tại
+                if (maxGroundAhead > currentCenterGround + 0.02f)
+                {
+                    // Lấy hướng tiếp tuyến chạy dọc mép bờ sông (để thuyền có thể trượt ven bờ nếu đi chéo)
+                    Vector3 shoreNormal = GetShoreGradientNormal(nextBow);
+                    Vector3 slideVector = Vector3.ProjectOnPlane(moveDelta, shoreNormal);
+                    slideVector.y = 0f;
+
+                    // Kiểm tra xem di chuyển theo hướng trượt ven bờ có bị leo lên đất nữa không
+                    Vector3 slideBow = transform.position + slideVector + forwardDir * 2.1f;
+                    if (GetGroundHeight(slideBow) < (waterSurfaceY - 0.08f))
+                    {
+                        safeMove = slideVector * 0.5f;
+                        m_CurrentSpeed *= 0.5f;
+                    }
+                    else
+                    {
+                        // Hướng thẳng vào bờ đất: Chặn đứng hoàn toàn! Thuyền dừng ngay mép nước
+                        safeMove = Vector3.zero;
+                        m_CurrentSpeed = 0f;
+                    }
+
+                    return true;
+                }
+            }
+
+            // 2. KIỂM TRA VẬT CẢN VẬT LÝ CỨNG (ROCKS, DOCK PILLARS, BARRIERS)
             float checkDist = moveDelta.magnitude + 0.4f;
             Vector3 checkOrigin = transform.position + Vector3.up * 0.3f;
 
             if (Physics.SphereCast(checkOrigin, 0.7f, moveDelta.normalized, out var hit, checkDist))
             {
-                // Nếu va vào Terrain hoặc Rock cứng
-                if (!hit.collider.isTrigger && hit.collider != m_BoatCollider)
+                if (!hit.collider.isTrigger && hit.collider != m_BoatCollider && !hit.collider.transform.IsChildOf(transform))
                 {
-                    // Trượt dọc theo mặt phẳng tiếp tuyến của vật cản
                     safeMove = Vector3.ProjectOnPlane(moveDelta, hit.normal);
                     safeMove.y = 0f;
-                    m_CurrentSpeed *= 0.6f; // Giảm tốc khi cọ quẹt bờ
+                    m_CurrentSpeed *= 0.5f;
                     return true;
                 }
             }
@@ -990,17 +1149,32 @@ namespace Blocks.Gameplay.Core
         }
 
         /// <summary>
-        /// Tạo hiệu ứng bập bênh mặt nước sống động.
+        /// Tạo hiệu ứng bập bênh mặt nước sống động khi ở dưới nước, hoặc nằm vững trên mặt đất khi mắc cạn.
         /// </summary>
         private void UpdateBuoyancyBobbing()
         {
-            float waveY = Mathf.Sin(Time.time * bobbingFrequency) * bobbingAmplitude;
-            float rollAngle = Mathf.Sin(Time.time * (bobbingFrequency * 0.8f)) * gentleRollAmplitude;
+            float groundY = GetGroundHeight(transform.position);
 
-            // Giữ thuyền luôn nổi thăng bằng ở cao độ mặt nước
-            float targetY = waterSurfaceY + restingHeightOffset + waveY;
-            Vector3 curPos = transform.position;
-            transform.position = new Vector3(curPos.x, targetY, curPos.z);
+            if (m_IsGroundedOnLand)
+            {
+                // Thuyền nằm cố định vững vàng trên mặt đất khô ráo
+                float targetY = groundY + restingHeightOffset;
+                Vector3 curPos = transform.position;
+                transform.position = new Vector3(curPos.x, targetY, curPos.z);
+            }
+            else
+            {
+                // Thuyền nổi bập bênh theo sóng nước
+                float waveY = Mathf.Sin(Time.time * bobbingFrequency) * bobbingAmplitude;
+                float targetY = waterSurfaceY + restingHeightOffset + waveY;
+
+                // Đảm bảo không bị cắm đáy xuyên thủng lòng sông ở vùng nước nông
+                float minGroundY = groundY + restingHeightOffset;
+                targetY = Mathf.Max(targetY, minGroundY);
+
+                Vector3 curPos = transform.position;
+                transform.position = new Vector3(curPos.x, targetY, curPos.z);
+            }
         }
 
         /// <summary>
@@ -1324,12 +1498,26 @@ namespace Blocks.Gameplay.Core
             GUI.Label(new Rect(hudX + 16, hudY + 62, hudW - 32, 20), guide2, infoStyle);
             GUI.Label(new Rect(hudX + 16, hudY + 84, hudW - 32, 20), exitGuide, infoStyle);
 
-            string rudderDirectionText = Mathf.Abs(m_CurrentTillerAngle) < 1.0f 
-                ? "Cần lái: GIỮA (Thẳng)"
-                : (m_CurrentTillerAngle > 0 ? $"Cần lái: PHẢI (+{m_CurrentTillerAngle:F0}°) -> Rẽ TRÁI ⬅" : $"Cần lái: TRÁI ({m_CurrentTillerAngle:F0}°) -> Rẽ PHẢI ➡");
+            if (m_IsGroundedOnLand)
+            {
+                GUIStyle warningStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 13,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                warningStyle.normal.textColor = new Color(1f, 0.4f, 0.35f);
+                GUI.Label(new Rect(hudX + 16, hudY + 108, hudW - 32, 20), "⚠️ THUYỀN ĐÃ MẮC CẠN TRÊN BỜ! (Không thể di chuyển - Nhấn [E] xuống thuyền)", warningStyle);
+            }
+            else
+            {
+                string rudderDirectionText = Mathf.Abs(m_CurrentTillerAngle) < 1.0f 
+                    ? "Cần lái: GIỮA (Thẳng)"
+                    : (m_CurrentTillerAngle > 0 ? $"Cần lái: PHẢI (+{m_CurrentTillerAngle:F0}°) -> Rẽ TRÁI ⬅" : $"Cần lái: TRÁI ({m_CurrentTillerAngle:F0}°) -> Rẽ PHẢI ➡");
 
-            string statusText = $"Tốc độ: {m_CurrentSpeed:F1} m/s | {rudderDirectionText}";
-            GUI.Label(new Rect(hudX + 16, hudY + 108, hudW - 32, 20), statusText, statusStyle);
+                string statusText = $"Tốc độ: {m_CurrentSpeed:F1} m/s | {rudderDirectionText}";
+                GUI.Label(new Rect(hudX + 16, hudY + 108, hudW - 32, 20), statusText, statusStyle);
+            }
         }
 
         #endregion
