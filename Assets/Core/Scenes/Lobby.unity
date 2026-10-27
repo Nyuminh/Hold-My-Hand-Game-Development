@@ -380,7 +380,7 @@ MonoBehaviour:
   lobbyUI: {fileID: 745554533}
   player1Preview: {fileID: 2025194673}
   player2Preview: {fileID: 2069772366}
-  gameSceneName: PlayScene1
+  gameSceneName: PlayScene3
   pollInterval: 15
 --- !u!4 &376393077
 Transform:
