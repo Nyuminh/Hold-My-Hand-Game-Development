@@ -32,6 +32,9 @@ MonoBehaviour:
     m_path: Assets/Core/Scenes/Lobby.unity
     m_guid: 6e907ae890a838149afca46eb660d536
   - m_enabled: 1
+    m_path: Assets/Core/Scenes/PlayScene3.unity
+    m_guid: c82b5034da313134d8f370303320f633
+  - m_enabled: 1
     m_path: Assets/Core/Scenes/PlayScene1.unity
     m_guid: e51f9a6c5c03e4afd816dfab25b341e2
   m_HasScriptingDefines: 0
