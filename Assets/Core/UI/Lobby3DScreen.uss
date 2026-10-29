@@ -52,6 +52,17 @@
     -unity-text-align: middle-center;
 }
 
+.speaking-indicator {
+    position: absolute;
+    right: -8px;
+    top: -7px;
+    color: rgb(115, 255, 155);
+    font-size: 22px;
+    -unity-font-style: bold;
+}
+
+#remote-player-label { color: rgb(255, 255, 255); font-size: 14px; }
+
 #player-name-label {
     font-size: 15px;
     color: rgb(255, 255, 255);
@@ -156,6 +167,20 @@
     align-items: flex-end;
     padding: 24px 32px;
 }
+
+.chat-panel {
+    width: 360px;
+    max-height: 270px;
+    background-color: rgba(10, 12, 18, 0.94);
+    padding: 12px 14px;
+    margin-right: 12px;
+}
+
+.chat-scroll { height: 165px; flex-shrink: 1; }
+.chat-message { color: rgb(235, 235, 240); font-size: 12px; margin-bottom: 5px; white-space: normal; }
+.chat-input-row { flex-direction: row; align-items: center; margin-top: 8px; }
+.chat-input { flex-grow: 1; height: 34px; color: rgb(255, 255, 255); }
+.chat-send-button { width: 62px; height: 34px; margin-left: 6px; background-color: rgb(230, 170, 40); color: rgb(20, 15, 5); }
 
 /* ── Session List Panel (Bottom Left) ───────────────────────── */
 #session-list-panel {
@@ -431,6 +456,57 @@
 
 .in-room-actions-row {
     flex-direction: row;
+}
+
+.voice-control-row {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.voice-mic-button, .voice-settings-button {
+    height: 36px;
+    border-width: 0;
+    border-radius: 0;
+    color: rgb(255, 255, 255);
+    background-color: rgba(255, 255, 255, 0.12);
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.voice-mic-button { width: 140px; margin-right: 8px; }
+.voice-settings-button { width: 122px; }
+.voice-muted { background-color: rgba(215, 55, 55, 0.45); }
+.voice-unmuted { background-color: rgba(45, 165, 75, 0.62); }
+.voice-speaking { background-color: rgb(50, 220, 100); color: rgb(10, 30, 12); }
+
+.voice-settings-panel {
+    width: 270px;
+    margin-top: 8px;
+    padding: 12px;
+    background-color: rgba(10, 12, 18, 0.96);
+    border-width: 1px;
+    border-color: rgba(245, 195, 60, 0.35);
+}
+
+#voice-ptt-button, #voice-auto-button {
+    flex-grow: 1;
+    height: 32px;
+    margin-right: 4px;
+    font-size: 11px;
+    color: rgb(255, 255, 255);
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+#voice-ptt-button.voice-mode-selected, #voice-auto-button.voice-mode-selected {
+    background-color: rgba(245, 195, 60, 0.7);
+    color: rgb(20, 15, 5);
+}
+
+#voice-threshold-slider, #voice-volume-slider {
+    margin-top: 10px;
+    color: rgb(255, 255, 255);
+    font-size: 11px;
 }
 
 #swap-role-button {

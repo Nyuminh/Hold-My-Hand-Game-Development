@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System;
 using Unity.Services.Core;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
@@ -37,7 +38,10 @@ namespace Blocks.Gameplay.Core
 
         [Header("Polling")]
         [Tooltip("Khoảng cách giữa các lần poll lobby state (giây)")]
-        [SerializeField] private float pollInterval = 30f; // increased to reduce lobby request rate
+        [SerializeField] private float pollInterval = 3f;
+
+        [Header("Voice Backend")]
+        [SerializeField] private string voiceServerUrl = "wss://hold-my-hand-backend.vercel.app/voice";
 
         // ─── UI Elements ────────────────────────────────────────
         // Top
@@ -47,6 +51,10 @@ namespace Blocks.Gameplay.Core
         private Label m_RoomCodeLabel;
         private Label m_RoomStatusLabel;
         private Button m_CopyCodeButton;
+        private VisualElement m_RemoteProfileCard;
+        private Label m_RemotePlayerLabel;
+        private Label m_LocalSpeakingIndicator;
+        private Label m_RemoteSpeakingIndicator;
 
         // Bottom right — main
         private VisualElement m_MainButtonsPanel;
@@ -74,6 +82,13 @@ namespace Blocks.Gameplay.Core
         private Button m_PlayButton;
         private Button m_SwapRoleButton;
         private Button m_LeaveRoomButton;
+        private Button m_VoiceMicButton;
+        private Button m_VoiceSettingsButton;
+        private VisualElement m_VoiceSettingsPanel;
+        private Button m_VoicePttButton;
+        private Button m_VoiceAutoButton;
+        private Slider m_VoiceThresholdSlider;
+        private Slider m_VoiceVolumeSlider;
 
         // Bottom left — session list
         private VisualElement m_SessionListPanel;
@@ -82,6 +97,28 @@ namespace Blocks.Gameplay.Core
         private Label m_NoSessionsLabel;
         private Button m_RefreshSessionsButton;
         private Button m_CloseSessionsButton;
+
+        private VisualElement m_ChatPanel;
+        private ScrollView m_ChatScroll;
+        private TextField m_ChatInput;
+        private Button m_ChatSendButton;
+        private readonly HashSet<string> m_SeenChatMessages = new HashSet<string>();
+        private readonly List<ChatMessage> m_OwnChatMessages = new List<ChatMessage>();
+        private bool m_ChatSending;
+
+        [Serializable]
+        private class ChatMessage
+        {
+            public string id;
+            public string sender;
+            public string content;
+        }
+
+        [Serializable]
+        private class ChatFeed
+        {
+            public ChatMessage[] messages;
+        }
 
         // Center toast
         private Label m_ToastLabel;
@@ -214,6 +251,8 @@ namespace Blocks.Gameplay.Core
 
                     UpdateLobbyUI(MapToFakeResponse(lobby));
                     ShowLobbyButtons();
+                    ReceiveChatMessages(lobby);
+                    StartVoiceForCurrentLobby();
                     StartPolling();
                     ShowToast($"Đã trở lại phòng: {m_CurrentLobbyCode}");
                 }
@@ -235,6 +274,7 @@ namespace Blocks.Gameplay.Core
         private void OnDisable()
         {
             StopPolling();
+            if (VoiceChatManager.Instance != null) VoiceChatManager.Instance.SuppressPushToTalk = false;
         }
 
         private void OnDestroy()
@@ -262,6 +302,10 @@ namespace Blocks.Gameplay.Core
             m_RoomCodeLabel = root.Q<Label>("room-code-label");
             m_RoomStatusLabel = root.Q<Label>("room-status-label");
             m_CopyCodeButton = root.Q<Button>("copy-code-button");
+            m_RemoteProfileCard = root.Q<VisualElement>("remote-profile-card");
+            m_RemotePlayerLabel = root.Q<Label>("remote-player-label");
+            m_LocalSpeakingIndicator = root.Q<Label>("local-speaking-indicator");
+            m_RemoteSpeakingIndicator = root.Q<Label>("remote-speaking-indicator");
 
             // Main buttons
             m_MainButtonsPanel = root.Q<VisualElement>("main-buttons-panel");
@@ -280,6 +324,13 @@ namespace Blocks.Gameplay.Core
             m_PlayButton = root.Q<Button>("play-button");
             m_SwapRoleButton = root.Q<Button>("swap-role-button");
             m_LeaveRoomButton = root.Q<Button>("leave-room-button");
+            m_VoiceMicButton = root.Q<Button>("voice-mic-button");
+            m_VoiceSettingsButton = root.Q<Button>("voice-settings-button");
+            m_VoiceSettingsPanel = root.Q<VisualElement>("voice-settings-panel");
+            m_VoicePttButton = root.Q<Button>("voice-ptt-button");
+            m_VoiceAutoButton = root.Q<Button>("voice-auto-button");
+            m_VoiceThresholdSlider = root.Q<Slider>("voice-threshold-slider");
+            m_VoiceVolumeSlider = root.Q<Slider>("voice-volume-slider");
 
             // Session list
             m_SessionListPanel = root.Q<VisualElement>("session-list-panel");
@@ -288,6 +339,10 @@ namespace Blocks.Gameplay.Core
             m_NoSessionsLabel = root.Q<Label>("no-sessions-label");
             m_RefreshSessionsButton = root.Q<Button>("refresh-sessions-button");
             m_CloseSessionsButton = root.Q<Button>("close-sessions-button");
+            m_ChatPanel = root.Q<VisualElement>("chat-panel");
+            m_ChatScroll = root.Q<ScrollView>("chat-scroll");
+            m_ChatInput = root.Q<TextField>("chat-input");
+            m_ChatSendButton = root.Q<Button>("chat-send-button");
 
             // Toast
             m_ToastLabel = root.Q<Label>("toast-label");
@@ -311,8 +366,16 @@ namespace Blocks.Gameplay.Core
             if (m_PlayButton != null) m_PlayButton.clicked += OnPlayClicked;
             if (m_SwapRoleButton != null) m_SwapRoleButton.clicked += OnSwapRoleClicked;
             if (m_LeaveRoomButton != null) m_LeaveRoomButton.clicked += OnLeaveRoomClicked;
+            if (m_VoiceMicButton != null) m_VoiceMicButton.clicked += OnVoiceMicClicked;
+            if (m_VoiceSettingsButton != null) m_VoiceSettingsButton.clicked += OnVoiceSettingsClicked;
+            if (m_VoicePttButton != null) m_VoicePttButton.clicked += () => SetVoiceMode(true);
+            if (m_VoiceAutoButton != null) m_VoiceAutoButton.clicked += () => SetVoiceMode(false);
+            if (m_VoiceThresholdSlider != null) m_VoiceThresholdSlider.RegisterValueChangedCallback(evt => VoiceChatManager.EnsureInstance().VoiceThreshold = evt.newValue);
+            if (m_VoiceVolumeSlider != null) m_VoiceVolumeSlider.RegisterValueChangedCallback(evt => VoiceChatManager.EnsureInstance().PlaybackVolume = evt.newValue);
             if (m_RefreshSessionsButton != null) m_RefreshSessionsButton.clicked += OnRefreshSessionsClicked;
             if (m_CloseSessionsButton != null) m_CloseSessionsButton.clicked += OnCloseSessionsClicked;
+            if (m_ChatSendButton != null) m_ChatSendButton.clicked += OnChatSendClicked;
+            if (m_ChatInput != null) m_ChatInput.RegisterCallback<KeyDownEvent>(OnChatKeyDown);
             if (m_TutorialButton != null) m_TutorialButton.clicked += OnTutorialButtonClicked;
             if (m_SelectDadButton != null) m_SelectDadButton.clicked += () => SelectTutorialRole(true);
             if (m_SelectChildButton != null) m_SelectChildButton.clicked += () => SelectTutorialRole(false);
@@ -383,6 +446,9 @@ namespace Blocks.Gameplay.Core
 
         private void ShowMainButtons()
         {
+            if (m_ChatPanel != null) m_ChatPanel.style.display = DisplayStyle.None;
+            if (m_RemoteProfileCard != null) m_RemoteProfileCard.style.display = DisplayStyle.None;
+            if (m_VoiceSettingsPanel != null) m_VoiceSettingsPanel.style.display = DisplayStyle.None;
             if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.Flex;
             if (m_LobbyButtonsPanel != null) m_LobbyButtonsPanel.style.display = DisplayStyle.None;
             if (m_JoinCodePanel != null) m_JoinCodePanel.style.display = DisplayStyle.None;
@@ -392,6 +458,16 @@ namespace Blocks.Gameplay.Core
 
         private void ShowLobbyButtons()
         {
+            if (m_ChatPanel != null) m_ChatPanel.style.display = DisplayStyle.Flex;
+            if (m_ChatScroll != null) m_ChatScroll.Clear();
+            m_SeenChatMessages.Clear();
+            m_OwnChatMessages.Clear();
+            if (m_SessionListPanel != null) m_SessionListPanel.style.display = DisplayStyle.None;
+            if (m_BottomLeftSpacer != null) m_BottomLeftSpacer.style.display = DisplayStyle.Flex;
+            var voice = VoiceChatManager.EnsureInstance();
+            if (m_VoiceThresholdSlider != null) m_VoiceThresholdSlider.value = voice.VoiceThreshold;
+            if (m_VoiceVolumeSlider != null) m_VoiceVolumeSlider.value = voice.PlaybackVolume;
+            RefreshVoiceUI();
             if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.None;
             if (m_LobbyButtonsPanel != null) m_LobbyButtonsPanel.style.display = DisplayStyle.Flex;
             if (m_JoinCodePanel != null) m_JoinCodePanel.style.display = DisplayStyle.None;
@@ -498,6 +574,8 @@ namespace Blocks.Gameplay.Core
                 Debug.Log($"[Lobby3D] Created Unity lobby: {lobby.LobbyCode}");
                 UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
+                ReceiveChatMessages(lobby);
+                StartVoiceForCurrentLobby();
                 StartPolling();
                 UISoundManager.PlaySuccess();
                 ShowToast("Phòng đã được tạo!");
@@ -558,6 +636,8 @@ namespace Blocks.Gameplay.Core
                 HideJoinCodePanel();
                 UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
+                ReceiveChatMessages(lobby);
+                StartVoiceForCurrentLobby();
                 StartPolling();
                 UISoundManager.PlaySuccess();
                 ShowToast("Đã vào phòng!");
@@ -658,6 +738,7 @@ namespace Blocks.Gameplay.Core
                 Debug.Log($"[Lobby3D] Left Unity lobby.");
                 
                 LobbySessionContext.Clear();
+                VoiceChatManager.Instance?.LeaveLobby();
                 m_CurrentLobbyId = null;
                 m_CurrentLobbyCode = null;
 
@@ -771,6 +852,133 @@ namespace Blocks.Gameplay.Core
         // ────────────────────────────────────────────────────────
         #region Polling
 
+        private void OnVoiceMicClicked()
+        {
+            var voice = VoiceChatManager.EnsureInstance();
+            voice.SetMuted(!voice.IsMuted);
+            if (voice.IsMuted && Microphone.devices.Length == 0) ShowToast("Không tìm thấy micro.");
+            RefreshVoiceUI();
+        }
+
+        private void OnVoiceSettingsClicked()
+        {
+            if (m_VoiceSettingsPanel == null) return;
+            m_VoiceSettingsPanel.style.display = m_VoiceSettingsPanel.style.display.value == DisplayStyle.Flex
+                ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        private void SetVoiceMode(bool pushToTalk)
+        {
+            VoiceChatManager.EnsureInstance().PushToTalk = pushToTalk;
+            RefreshVoiceUI();
+        }
+
+        private void Update()
+        {
+            var voice = VoiceChatManager.Instance;
+            var focused = m_ChatInput?.focusController?.focusedElement as VisualElement;
+            if (voice != null) voice.SuppressPushToTalk = focused != null && m_ChatInput.Contains(focused);
+            RefreshVoiceUI();
+        }
+
+        private void RefreshVoiceUI()
+        {
+            var voice = VoiceChatManager.Instance;
+            if (voice == null) return;
+            bool speaking = voice.IsLocalSpeaking;
+            bool blink = Mathf.Sin(Time.unscaledTime * 14f) > -0.2f;
+            if (m_VoiceMicButton != null)
+            {
+                m_VoiceMicButton.text = voice.IsMuted ? "MIC: TẮT" : voice.IsConnected ? speaking ? "MIC: ĐANG NÓI" : "MIC: BẬT" : "MIC: ĐANG KẾT NỐI";
+                m_VoiceMicButton.EnableInClassList("voice-muted", voice.IsMuted || !voice.IsConnected);
+                m_VoiceMicButton.EnableInClassList("voice-unmuted", !voice.IsMuted && voice.IsConnected && !speaking);
+                m_VoiceMicButton.EnableInClassList("voice-speaking", !voice.IsMuted && speaking && blink);
+            }
+            if (m_LocalSpeakingIndicator != null) m_LocalSpeakingIndicator.style.display = speaking && blink ? DisplayStyle.Flex : DisplayStyle.None;
+            if (m_RemoteSpeakingIndicator != null) m_RemoteSpeakingIndicator.style.display = voice.IsRemoteSpeaking && blink ? DisplayStyle.Flex : DisplayStyle.None;
+            if (m_VoicePttButton != null) m_VoicePttButton.EnableInClassList("voice-mode-selected", voice.PushToTalk);
+            if (m_VoiceAutoButton != null) m_VoiceAutoButton.EnableInClassList("voice-mode-selected", !voice.PushToTalk);
+        }
+
+        private async void StartVoiceForCurrentLobby()
+        {
+            try
+            {
+                var voice = VoiceChatManager.EnsureInstance();
+                voice.ServerUrl = voiceServerUrl;
+                await voice.JoinLobbyAsync(m_CurrentLobbyId, m_CurrentLobbyCode);
+            }
+            catch (Exception ex) { Debug.LogWarning($"[Lobby3D] Voice connection unavailable: {ex.Message}"); }
+        }
+
+        private void OnChatKeyDown(KeyDownEvent evt)
+        {
+            if (evt.keyCode != KeyCode.Return && evt.keyCode != KeyCode.KeypadEnter) return;
+            evt.StopPropagation();
+            OnChatSendClicked();
+        }
+
+        private async void OnChatSendClicked()
+        {
+            if (m_ChatSending || string.IsNullOrEmpty(m_CurrentLobbyId) || m_ChatInput == null) return;
+            var content = m_ChatInput.value?.Trim();
+            if (string.IsNullOrEmpty(content)) return;
+            var sender = !string.IsNullOrEmpty(ApiClient.DisplayName) ? ApiClient.DisplayName : ApiClient.Username;
+            var message = new ChatMessage { id = Guid.NewGuid().ToString("N"), sender = sender ?? "Player", content = content };
+            m_OwnChatMessages.Add(message);
+            while (m_OwnChatMessages.Count > 5) m_OwnChatMessages.RemoveAt(0);
+            m_ChatSending = true;
+            if (m_ChatSendButton != null) m_ChatSendButton.SetEnabled(false);
+            try
+            {
+                var options = new UpdatePlayerOptions {
+                    Data = new Dictionary<string, PlayerDataObject> {
+                        { "lobbyChat", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, JsonUtility.ToJson(new ChatFeed { messages = m_OwnChatMessages.ToArray() })) }
+                    }
+                };
+                await LobbyService.Instance.UpdatePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId, options);
+                m_ChatInput.value = "";
+                AddChatMessage(message);
+            }
+            catch (Exception ex)
+            {
+                m_OwnChatMessages.Remove(message);
+                ShowToast($"Không gửi được tin nhắn: {ex.Message}");
+            }
+            finally
+            {
+                m_ChatSending = false;
+                if (m_ChatSendButton != null) m_ChatSendButton.SetEnabled(true);
+                m_ChatInput.Focus();
+            }
+        }
+
+        private void ReceiveChatMessages(Lobby lobby)
+        {
+            if (lobby?.Players == null) return;
+            foreach (var player in lobby.Players)
+            {
+                if (player.Data == null || !player.Data.TryGetValue("lobbyChat", out var data) || string.IsNullOrEmpty(data.Value)) continue;
+                try
+                {
+                    var feed = JsonUtility.FromJson<ChatFeed>(data.Value);
+                    if (feed?.messages == null) continue;
+                    foreach (var message in feed.messages) AddChatMessage(message);
+                }
+                catch (Exception ex) { Debug.LogWarning($"[Lobby3D] Invalid chat message: {ex.Message}"); }
+            }
+        }
+
+        private void AddChatMessage(ChatMessage message)
+        {
+            if (message == null || string.IsNullOrEmpty(message.id) || !m_SeenChatMessages.Add(message.id) || m_ChatScroll == null) return;
+            var label = new Label($"{message.sender}: {message.content}");
+            label.AddToClassList("chat-message");
+            m_ChatScroll.Add(label);
+            while (m_ChatScroll.contentContainer.childCount > 60) m_ChatScroll.contentContainer.RemoveAt(0);
+            m_ChatScroll.schedule.Execute(() => m_ChatScroll.scrollOffset = new Vector2(0, m_ChatScroll.contentContainer.layout.height)).ExecuteLater(0);
+        }
+
         private void StartPolling()
         {
             StopPolling();
@@ -792,7 +1000,7 @@ namespace Blocks.Gameplay.Core
         {
             while (!ct.IsCancellationRequested && !string.IsNullOrEmpty(m_CurrentLobbyId))
             {
-                try { await Task.Delay((int)(pollInterval * 1000), ct); }
+                try { await Task.Delay((int)(Mathf.Clamp(pollInterval, 1f, 3f) * 1000), ct); }
                 catch (TaskCanceledException) { break; }
                 if (ct.IsCancellationRequested) break;
 
@@ -800,6 +1008,7 @@ namespace Blocks.Gameplay.Core
                 {
                     var lobby = await LobbyService.Instance.GetLobbyAsync(m_CurrentLobbyId);
                     UpdateLobbyUI(MapToFakeResponse(lobby));
+                    ReceiveChatMessages(lobby);
 
                     if (lobby.Data.ContainsKey("status") && lobby.Data["status"].Value == "InGame" && !m_IsHost)
                     {
@@ -875,6 +1084,13 @@ namespace Blocks.Gameplay.Core
 
             // Status
             bool hasPlayer2 = !string.IsNullOrEmpty(lobby.player2Id);
+            if (m_RemoteProfileCard != null) m_RemoteProfileCard.style.display = hasPlayer2 ? DisplayStyle.Flex : DisplayStyle.None;
+            if (hasPlayer2 && m_RemotePlayerLabel != null)
+            {
+                string self = AuthenticationService.Instance.IsSignedIn ? AuthenticationService.Instance.PlayerId : null;
+                string remoteId = lobby.player1Id == self ? lobby.player2Id : lobby.player1Id;
+                m_RemotePlayerLabel.text = "Người chơi " + (string.IsNullOrEmpty(remoteId) ? "2" : remoteId.Substring(0, Mathf.Min(6, remoteId.Length)));
+            }
             if (m_RoomStatusLabel != null)
             {
                 if (hasPlayer2)

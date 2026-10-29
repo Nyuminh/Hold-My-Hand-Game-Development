@@ -97,3 +97,20 @@ public class CloseLobbyResponse
 
 public static async Task<CloseLobbyResponse> CloseLobbyAsync(string lobbyCode, CloseLobbyRequest req);
 ```
+
+---
+
+## 5. Voice relay for Unity Lobby (`VOICE-001`–`VOICE-005`)
+
+- Deployed endpoint: `wss://hold-my-hand-backend.vercel.app/voice`. Vercel routes it to a dedicated WebSocket Function. Local development can use `ws://127.0.0.1:5181/voice` after starting the backend.
+- Unity Lobby remains the source of room membership. The client sends the **first WebSocket text frame** after connecting:
+
+  ```json
+  {"type":"auth","lobbyId":"<Unity lobby ID>","lobbyCode":"ABC123","playerId":"<Unity Authentication PlayerId>","token":"<Unity Authentication AccessToken>"}
+  ```
+
+- The backend verifies the token's RS256 signature, expiry, issuer and `project_id` against Unity JWKS, then calls Unity Lobby `GET /v1/{lobbyId}` using that token. It checks that the verified `sub` equals `playerId`, that this player is in the lobby, and that the lobby's code matches. The backend's `UNITY_PROJECT_ID` must match the Unity project (default `7b831d30-2f9b-4ac8-93d5-15760c6be5b9`). Do not log or place the token in the URL.
+- On success the server sends `{"type":"ready","playerId":"...","lobbyCode":"..."}`. The client sends audio only after this frame. Unauthorized connections close with WebSocket code `1008`.
+- Each following binary frame is 644 bytes: 4-byte unsigned sequence number in little-endian order followed by 320 signed 16-bit little-endian PCM samples, mono at 16 kHz (20 ms). The server forwards each frame to the other authenticated player in the same Unity Lobby ID, never back to its sender. No audio is persisted.
+- The client reconnects after a disconnect and re-authenticates with its current Unity token. Leaving the lobby closes the socket and stops the microphone. The WebSocket stays attached to `VoiceChatManager` across lobby-to-game scene changes.
+- The current relay stores room sockets in Function memory. Vercel may place two clients on different instances, so production two-client delivery requires shared room fan-out (for example Redis pub/sub) and must be verified on the deployed endpoint. A successful WebSocket handshake alone does not establish that audio will reach the peer.

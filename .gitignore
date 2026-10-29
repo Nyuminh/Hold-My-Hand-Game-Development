@@ -124,3 +124,4 @@ tools/
 orchestrator.bat
 __pycache__/
 *.pyc
+WORK_STATUS.md
