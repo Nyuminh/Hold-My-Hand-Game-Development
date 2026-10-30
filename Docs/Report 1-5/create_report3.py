@@ -337,9 +337,10 @@ def create_document():
     r.bold = True
     r.font.size = Pt(11)
     r2 = p.add_run(
-        " [System Context \u2013 Unity Client \u2194 Backend REST API \u2194 MongoDB/Redis | "
-        "Unity Client \u2194 Vercel Voice WebSocket | Web Portal \u2194 Backend REST API | "
-        "Admin Dashboard \u2194 Backend Admin Endpoints]"
+        " Figure 3.1 depicts the System Context Diagram (Data Flow Diagram Level 0) for Hold My Hand "
+        "following the Yourdon & DeMarco notation. The central system process (0: Hold My Hand Information System) "
+        "exchanges structured input and output data flows with four primary external entities: "
+        "Guest, Authenticated Player, Moderator, and Administrator."
     )
     r2.font.size = Pt(11)
     r2.italic = True
@@ -391,9 +392,9 @@ def create_document():
         ("UC-AUTH", "UC01-Register, UC02-Login, UC03-Logout"),
         ("UC-LOBBY", "UC04-Create Lobby, UC05-Join Lobby, UC06-Swap Role (Dad/Child), UC07-Ready Up, UC08-Leave Lobby"),
         ("UC-GAME", "UC09-Start Game Session, UC10-Co-op Puzzle Interaction, UC11-Combat & Boss Encounter, UC12-Voice Chat (PTT/Auto)"),
-        ("UC-MOD", "UC13-View Active Lobbies, UC14-Force Close Lobby, UC15-Adjust Character Stats"),
-        ("UC-ADMIN", "UC16-Manage User Accounts, UC17-Ban/Unban User, UC18-View Audit Log"),
-        ("UC-WEB", "UC19-View Leaderboard, UC20-View Achievement Dashboard"),
+        ("UC-MOD", "UC13-Monitor Active Lobbies, UC14-Force Close Lobby, UC15-Adjust Dynamic Stats, UC16-Manage Game Scenes & Stages, UC17-Manage In-Game Items & Props"),
+        ("UC-ADMIN", "UC18-Manage User Accounts, UC19-Ban/Unban User, UC20-View Audit Log, UC21-Configure Server & Version Rules"),
+        ("UC-WEB", "UC22-View Global Leaderboard, UC23-View Profile & Match History"),
     ]
     for group_id, items in uc_groups:
         p = doc.add_paragraph(style='List Bullet')
@@ -434,6 +435,16 @@ def create_document():
          "1. Moderator selects active lobby.\n2. POST /api/mod/lobby/:code/close with reason.\n3. Backend marks lobby CLOSED.\n4. Both players notified.",
          "Lobby closed, players disconnected.",
          "Lobby already closed \u2192 409"),
+        ("UC16", "Manage Game Scenes", "Moderator",
+         "Moderator authenticated (RBAC MOD/ADMIN)",
+         "1. Moderator opens Scene & Stage management.\n2. Modifies puzzle trigger states & scene availability.\n3. Saves and broadcasts update via WebSocket.",
+         "Game scenes & stages updated in real time.",
+         "Invalid Scene ID \u2192 404"),
+        ("UC17", "Manage Items & Props", "Moderator",
+         "Moderator authenticated (RBAC MOD/ADMIN)",
+         "1. Moderator opens Props & Toys item catalog.\n2. Adjusts interactable properties & spawn rates.\n3. Publishes configuration to Redis cache.",
+         "Item properties and toy props synchronized.",
+         "Schema mismatch \u2192 400"),
     ]
     for uc in uc_data:
         row = table.add_row()
@@ -456,6 +467,16 @@ def create_document():
     # 3.1.1
     add_heading4(doc, "3.1.1 Screens Flow")
     add_diagram(doc, "r3_fig3_screen_flow.png", "Figure 3.3: Hold My Hand Screens Navigation Flow (Game Client & Web Portal)", 6.2)
+
+    # 3.1.2 Activity Diagram
+    add_heading4(doc, "3.1.2 Co-op Matchmaking & Gameplay Activity Diagram (Swimlanes)")
+    add_diagram(doc, "r3_fig5_activity_diagram.png", "Figure 3.5: Hold My Hand UML Activity Diagram for Co-op Matchmaking & Gameplay Lifecycle", 6.2)
+    doc.add_paragraph(
+        "Figure 3.5 illustrates the end-to-end co-op gameplay workflow across four distinct swimlanes: "
+        "Player 1 (Host/Dad), Player 2 (Client/Child), Unity Game Client (Netcode & Physics), and Backend Server & Match Store. "
+        "Parallel execution paths (pre-loading 3D assets and establishing the WebSocket voice relay channel) are "
+        "synchronized using UML fork and join bars before entering the asymmetric co-op gameplay loop."
+    )
 
     screen_flows = [
         "Launch \u2192 Splash Screen \u2192 Main Menu",

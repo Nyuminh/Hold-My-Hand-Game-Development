@@ -693,6 +693,15 @@ def build_document():
         r.font.bold = True
         p.add_run(detail)
 
+    # ── 3.5 Lobby & Game Session State Machine Diagram ──────────────────
+    add_heading(doc, "3.5 Lobby & Game Session State Machine Diagram (STATE-001)", 3)
+    add_diagram(doc, "r4_fig10_state_machine.png", "Figure 4.10: UML State Machine Diagram for Lobby & Game Session Lifecycle", 6.2)
+    doc.add_paragraph(
+        "Figure 4.10 specifies the finite state automaton governing the entire lifecycle of a multiplayer co-op match in Hold My Hand. "
+        "Transitions between states (WAITING_FOR_PEER, PEER_CONNECTED, READY_TO_START, LOADING_STAGE, IN_SESSION composite state, "
+        "VICTORY_SUMMARY, DEFEAT_SUMMARY, and TERMINATED_CLOSED) are guarded by deterministic event triggers and RBAC permissions."
+    )
+
     # ─── Final paragraph ─────────────────────────────────────────────────────
     doc.add_paragraph()
     doc.add_paragraph()
