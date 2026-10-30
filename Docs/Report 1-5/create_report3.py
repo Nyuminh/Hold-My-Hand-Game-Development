@@ -468,15 +468,6 @@ def create_document():
     add_heading4(doc, "3.1.1 Screens Flow")
     add_diagram(doc, "r3_fig3_screen_flow.png", "Figure 3.3: Hold My Hand Screens Navigation Flow (Game Client & Web Portal)", 6.2)
 
-    # 3.1.2 Activity Diagram
-    add_heading4(doc, "3.1.2 Co-op Matchmaking & Gameplay Activity Diagram (Swimlanes)")
-    add_diagram(doc, "r3_fig5_activity_diagram.png", "Figure 3.5: Hold My Hand UML Activity Diagram for Co-op Matchmaking & Gameplay Lifecycle", 6.2)
-    doc.add_paragraph(
-        "Figure 3.5 illustrates the end-to-end co-op gameplay workflow across four distinct swimlanes: "
-        "Player 1 (Host/Dad), Player 2 (Client/Child), Unity Game Client (Netcode & Physics), and Backend Server & Match Store. "
-        "Parallel execution paths (pre-loading 3D assets and establishing the WebSocket voice relay channel) are "
-        "synchronized using UML fork and join bars before entering the asymmetric co-op gameplay loop."
-    )
 
     screen_flows = [
         "Launch \u2192 Splash Screen \u2192 Main Menu",
