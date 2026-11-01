@@ -79,6 +79,9 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float crankProgress = 0f;
         [SerializeField] private float currentRotationAngle = 0f;
 
+        public bool IsPinRemoved => isPinRemoved;
+        public bool IsCompleted => isCompleted;
+
         #endregion
 
         #region Private Fields
