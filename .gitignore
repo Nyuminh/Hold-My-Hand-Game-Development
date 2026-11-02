@@ -125,3 +125,10 @@ orchestrator.bat
 __pycache__/
 *.pyc
 WORK_STATUS.md
+
+
+# Document generation scripts & Python tooling (Keep Git clean for Docs & Unity)
+*.py
+Docs/**/*.py
+Docs/*.py
+*.ps1
