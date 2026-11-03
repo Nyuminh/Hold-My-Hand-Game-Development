@@ -1,0 +1,125 @@
+@startuml r3_fig2_usecase_diagram_with_inheritance
+' =============================================================================
+' Alternative Variant: UML 2.5 Use Case Diagram with Actor Inheritance
+' (User as Dad & User as Child inherit from Player)
+' Ready for Draw.io (Arrange -> Insert -> Advanced -> PlantUML)
+' =============================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Segoe UI", Arial, sans-serif
+skinparam defaultFontSize 11
+skinparam roundCorner 0
+skinparam shadowing false
+skinparam monochrome true
+
+skinparam actor {
+    BackgroundColor #FFFFFF
+    BorderColor #0F172A
+    BorderThickness 1.5
+    FontColor #0F172A
+    FontStyle bold
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #0F172A
+    BorderThickness 1.2
+    FontColor #0F172A
+}
+
+skinparam arrow {
+    Color #0F172A
+    Thickness 1.1
+    FontColor #334155
+    FontSize 10
+}
+
+' --- Actors Hierarchy ---
+actor "Guest" as Guest
+actor "Player\n(Authenticated)" as Player
+actor "User as a Dad\n(Host Role)" as Dad
+actor "User as a Child\n(Client Role)" as Child
+actor "Moderator" as Mod
+actor "Administrator" as Admin
+
+' Actor Generalization (Inheritance)
+Dad -up-|> Player
+Child -up-|> Player
+Admin -up-|> Mod
+
+rectangle "System Boundary: Hold My Hand (FA26SE047)" {
+    ' Guest
+    usecase "Register\nAccount" as UC_Reg
+    usecase "Login\n(JWT Auth)" as UC_Login
+    usecase "Reset Password\nvia OTP" as UC_PwdReset
+
+    ' Player Common
+    usecase "Create Lobby\n(6-Char Code)" as UC_CreateLobby
+    usecase "Join Lobby\nby Code" as UC_JoinLobby
+    usecase "Swap Role\n(Dad <-> Child)" as UC_SwapRole
+    usecase "Play Co-op\nMatch" as UC_Play
+    usecase "View Profile &\nMatch History" as UC_Profile
+    usecase "View Global\nLeaderboard" as UC_Leaderboard
+
+    ' Shared Co-op Gameplay
+    usecase "Control Character\n& Sync Netcode" as UC_Control
+    usecase "Solve Co-op Puzzle\n(Hold Hand / Sync)" as UC_Puzzle
+    usecase "Combat Toy Boss\nEncounter" as UC_Boss
+    usecase "Real-Time Voice\nChat (PTT & DSP)" as UC_Voice
+
+    ' Specialized Asymmetric Dad Mechanics
+    usecase "Boost Throw\nChild" as UC_BoostThrow
+    usecase "Heavy Shield\nBlock & Parry" as UC_ShieldBlock
+    usecase "Simulate Host\nPhysics & Boss AI" as UC_HostPhysics
+
+    ' Specialized Asymmetric Child Mechanics
+    usecase "Crawl Ventilation\nShaft" as UC_CrawlVent
+    usecase "Slingshot Weak-point\nSnipe" as UC_Slingshot
+
+    ' Staff
+    usecase "Monitor Active\nLobbies" as UC_Monitor
+    usecase "Force Close Lobby\n(MOD-001)" as UC_ForceClose
+    usecase "Adjust Dynamic\nCharacter Stats" as UC_Stats
+    usecase "Manage User\nAccounts (Ban/Unban)" as UC_ManageUsers
+    usecase "View System\nAudit Logs" as UC_Audit
+    usecase "Configure Server\n& Version Rules" as UC_Rules
+}
+
+' Guest Links
+Guest --> UC_Reg
+Guest --> UC_Login
+Guest --> UC_PwdReset
+
+' Player Links
+Player --> UC_CreateLobby
+Player --> UC_JoinLobby
+Player --> UC_Play
+Player --> UC_Profile
+Player --> UC_Leaderboard
+
+' Specialized Dad Links
+Dad --> UC_BoostThrow
+Dad --> UC_ShieldBlock
+Dad --> UC_HostPhysics
+
+' Specialized Child Links
+Child --> UC_CrawlVent
+Child --> UC_Slingshot
+
+' Relationships
+UC_SwapRole .right.> UC_JoinLobby : <<extend>>
+UC_Play ..> UC_Control : <<include>>
+UC_Play ..> UC_Puzzle : <<include>>
+UC_Boss .left.> UC_Play : <<extend>>
+UC_Voice .left.> UC_Play : <<extend>>
+
+' Staff Links
+Mod --> UC_Monitor
+Mod --> UC_Stats
+Admin --> UC_ManageUsers
+Admin --> UC_Audit
+Admin --> UC_Rules
+UC_ForceClose .right.> UC_Monitor : <<extend>>
+
+@enduml
+
