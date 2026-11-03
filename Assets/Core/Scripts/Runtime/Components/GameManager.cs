@@ -145,6 +145,9 @@ namespace Blocks.Gameplay.Core
 
             NetworkManager.Singleton.OnClientConnectedCallback += ClientConnected;
             NetworkManager.Singleton.OnClientDisconnectCallback += ClientDisconnected;
+            // A network scene transition preserves the connection; no new connect callback is raised.
+            if (NetworkManager.Singleton.IsListening && NetworkManager.Singleton.IsClient)
+                ClientConnected(NetworkManager.Singleton.LocalClientId);
         }
 
         #endregion

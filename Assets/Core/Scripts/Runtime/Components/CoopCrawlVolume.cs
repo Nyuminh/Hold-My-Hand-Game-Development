@@ -51,6 +51,14 @@ namespace Blocks.Gameplay.Core
 
         private void Update()
         {
+            // Death/teleport can disable the controller without sending OnTriggerExit.
+            var departed = new List<CharacterController>();
+            foreach (var entry in m_OriginalHeights)
+            {
+                if (entry.Key == null) continue;
+                if (!entry.Key.enabled || !m_Collider.bounds.Intersects(entry.Key.bounds)) departed.Add(entry.Key);
+            }
+            foreach (var controller in departed) HandleCharacterExit(controller);
             if (m_WarningTimer > 0f)
             {
                 m_WarningTimer -= Time.deltaTime;
@@ -89,7 +97,7 @@ namespace Blocks.Gameplay.Core
             if (visuals != null && visuals.IsDad)
             {
                 var motor = other.GetComponentInParent<CoreMovement>();
-                if (motor != null)
+                if (motor != null && motor.IsOwner)
                 {
                     Vector3 pushDir = (motor.transform.position - transform.position);
                     pushDir.y = 0f;
@@ -116,11 +124,12 @@ namespace Blocks.Gameplay.Core
 
             if (controller == null) return;
 
-            bool isDad = visuals != null ? visuals.IsDad : (other.name.ToLower().Contains("dad") || other.transform.root.name.ToLower().Contains("dad"));
+            var boost = controller.GetComponent<CoopBoostThrowAbility>();
+            bool isDad = boost != null ? boost.IsDad : visuals != null ? visuals.IsDad : (other.name.ToLower().Contains("dad") || other.transform.root.name.ToLower().Contains("dad"));
 
             if (isDad)
             {
-                if (motor != null)
+                if (motor != null && motor.IsOwner)
                 {
                     Vector3 pushDir = -motor.transform.forward;
                     motor.ApplyExternalForce(pushDir * dadPushbackForce, ForceMode.Impulse);
@@ -208,6 +217,20 @@ namespace Blocks.Gameplay.Core
             if (root.transform.childCount > 0) return root.transform.GetChild(0);
 
             return root.transform;
+        }
+
+        private void OnDisable()
+        {
+            foreach (var entry in m_OriginalHeights)
+                if (entry.Key != null)
+                {
+                    entry.Key.height = entry.Value;
+                    if (m_OriginalCenters.TryGetValue(entry.Key, out var center)) entry.Key.center = center;
+                }
+            foreach (var entry in m_OriginalModelScales)
+                if (entry.Key != null) entry.Key.localScale = entry.Value;
+            m_OriginalHeights.Clear(); m_OriginalCenters.Clear(); m_OriginalModelScales.Clear(); m_ActiveCrawlers.Clear();
+            m_ChildIsCrawling = false;
         }
 
         #endregion

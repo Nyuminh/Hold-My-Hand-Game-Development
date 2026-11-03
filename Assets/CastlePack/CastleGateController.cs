@@ -4,7 +4,7 @@ using UnityEngine;
 /// Controller for Front Gate (Portcullis) and Rear Gate (Double Doors) of Castle_Fortress_v2.
 /// Works with Animator Controller driven by baked animations from Castle_Fortress_v2.blend.
 /// </summary>
-public class CastleGateController : MonoBehaviour
+public class CastleGateController : MonoBehaviour, Blocks.Gameplay.Core.ILevelOneGateDriver
 {
     [Header("Animator")]
     [SerializeField] private Animator animator;
@@ -21,6 +21,35 @@ public class CastleGateController : MonoBehaviour
     [SerializeField] private Transform rearGatePosition;
 
     private Transform playerTransform;
+    private bool climaxControlled;
+    private Transform[] climaxGates;
+    private Vector3[] closedGatePositions;
+
+    public void BeginClimaxControl()
+    {
+        if (climaxControlled) return;
+        climaxControlled = true;
+        if (animator != null) animator.enabled = false;
+        var gates = new System.Collections.Generic.List<Transform>();
+        foreach (var child in GetComponentsInChildren<Transform>(true))
+            if (child.name == "Front_Harrow_Portcullis" || child.name == "Back_Harrow_Portcullis") gates.Add(child);
+        climaxGates = gates.ToArray();
+        closedGatePositions = new Vector3[climaxGates.Length];
+        for (int i = 0; i < climaxGates.Length; i++)
+        {
+            closedGatePositions[i] = climaxGates[i].position;
+            // Climax supplies explicit solid blockers with a narrow child drain beside them.
+            foreach (var col in climaxGates[i].GetComponentsInChildren<Collider>()) col.enabled = false;
+        }
+    }
+
+    public void SetClimaxLift(float metres)
+    {
+        BeginClimaxControl();
+        for (int i = 0; i < climaxGates.Length; i++)
+            climaxGates[i].position = closedGatePositions[i] + Vector3.up * Mathf.Max(0f, metres);
+        frontGateOpen = metres > 2f;
+    }
 
     public bool IsFrontGateOpen => frontGateOpen;
     public bool IsRearGateOpen => rearGateOpen;
@@ -45,6 +74,7 @@ public class CastleGateController : MonoBehaviour
 
     private void Start()
     {
+        if (climaxControlled) return;
         // Apply initial state
         UpdateAnimator();
 
@@ -58,6 +88,7 @@ public class CastleGateController : MonoBehaviour
 
     private void Update()
     {
+        if (climaxControlled) return;
         // Lazy find player if not yet found
         if (playerTransform == null)
         {
