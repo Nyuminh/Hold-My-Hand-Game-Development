@@ -116,6 +116,7 @@ hold_my_hand_erd.html
 .agents/
 AGENTS.md
 AI_Agents/
+.cursor/
 AI_Tasks/
 AI_Reports/
 Blender/
