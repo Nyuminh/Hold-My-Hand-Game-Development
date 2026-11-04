@@ -7,11 +7,20 @@
             <engine:VisualElement class="player-profile-card" picking-mode="Position">
                 <engine:VisualElement class="avatar-icon-badge">
                     <engine:Label text="👤" class="avatar-icon-label"/>
+                    <engine:Label name="local-speaking-indicator" text="♪" class="speaking-indicator" style="display: none;"/>
                 </engine:VisualElement>
                 <engine:VisualElement>
                     <engine:Label name="player-name-label" text="Xin chào, Player!"/>
                     <engine:Label name="player-role-label" text="Vai trò: ---"/>
                 </engine:VisualElement>
+            </engine:VisualElement>
+
+            <engine:VisualElement name="remote-profile-card" class="player-profile-card" picking-mode="Position" style="display: none;">
+                <engine:VisualElement class="avatar-icon-badge">
+                    <engine:Label text="👤" class="avatar-icon-label"/>
+                    <engine:Label name="remote-speaking-indicator" text="♪" class="speaking-indicator" style="display: none;"/>
+                </engine:VisualElement>
+                <engine:Label name="remote-player-label" text="Người chơi 2"/>
             </engine:VisualElement>
 
             <!-- Room Info Card (Top-Right) -->
@@ -32,6 +41,14 @@
 
         <!-- Bottom Controls Bar -->
         <engine:VisualElement class="bottom-controls-bar" picking-mode="Ignore">
+            <engine:VisualElement name="chat-panel" class="chat-panel" picking-mode="Position" style="display: none;">
+                <engine:Label text="TRÒ CHUYỆN TRONG PHÒNG" class="session-title-label"/>
+                <engine:ScrollView name="chat-scroll" class="chat-scroll"/>
+                <engine:VisualElement class="chat-input-row">
+                    <engine:TextField name="chat-input" class="chat-input" max-length="240"/>
+                    <engine:Button name="chat-send-button" text="GỬI" class="chat-send-button"/>
+                </engine:VisualElement>
+            </engine:VisualElement>
             <!-- Session List Panel (Bottom-Left) -->
             <engine:VisualElement name="session-list-panel" picking-mode="Position" style="display: none;">
                 <engine:Label text="DANH SÁCH PHÒNG" class="session-title-label"/>
@@ -95,6 +112,19 @@
                     <engine:VisualElement class="in-room-actions-row">
                         <engine:Button name="swap-role-button" text="🔄 ĐỔI VAI"/>
                         <engine:Button name="leave-room-button" text="✕ RỜI PHÒNG"/>
+                    </engine:VisualElement>
+                    <engine:VisualElement class="voice-control-row">
+                        <engine:Button name="voice-mic-button" text="MIC: TẮT" class="voice-mic-button voice-muted"/>
+                        <engine:Button name="voice-settings-button" text="CÀI ĐẶT MIC" class="voice-settings-button"/>
+                    </engine:VisualElement>
+                    <engine:VisualElement name="voice-settings-panel" class="voice-settings-panel" style="display: none;">
+                        <engine:Label text="CHẾ ĐỘ NÓI" class="dialog-heading-label"/>
+                        <engine:VisualElement class="voice-control-row">
+                            <engine:Button name="voice-ptt-button" text="Giữ V để nói"/>
+                            <engine:Button name="voice-auto-button" text="Tự động"/>
+                        </engine:VisualElement>
+                        <engine:Slider name="voice-threshold-slider" label="Ngưỡng giọng" low-value="0.005" high-value="0.2" value="0.025"/>
+                        <engine:Slider name="voice-volume-slider" label="Âm lượng nghe" low-value="0" high-value="1" value="1"/>
                     </engine:VisualElement>
                 </engine:VisualElement>
             </engine:VisualElement>

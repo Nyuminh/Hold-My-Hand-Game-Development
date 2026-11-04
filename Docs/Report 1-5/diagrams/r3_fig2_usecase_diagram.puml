@@ -1,0 +1,128 @@
+@startuml r3_fig2_usecase_diagram
+' =============================================================================
+' Complete UML 2.5 Use Case Diagram - Hold My Hand (FA26SE047)
+' Academic Monochrome Style | Ready for Draw.io (Arrange -> Insert -> Advanced -> PlantUML)
+' =============================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Segoe UI", Arial, sans-serif
+skinparam defaultFontSize 11
+skinparam roundCorner 0
+skinparam shadowing false
+skinparam monochrome true
+
+skinparam actor {
+    BackgroundColor #FFFFFF
+    BorderColor #0F172A
+    BorderThickness 1.5
+    FontColor #0F172A
+    FontStyle bold
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #0F172A
+    BorderThickness 1.2
+    FontColor #0F172A
+}
+
+skinparam arrow {
+    Color #0F172A
+    Thickness 1.1
+    FontColor #334155
+    FontSize 10
+}
+
+' --- Actors ---
+actor "Guest" as Guest
+actor "Player" as Player
+actor "Moderator" as Mod
+actor "Administrator" as Admin
+
+' --- System Boundary ---
+rectangle "System Boundary: Hold My Hand (FA26SE047)" {
+    ' Left Column: Guest Use Cases
+    usecase "Register\nAccount" as UC_Reg
+    usecase "Login\n(JWT Auth)" as UC_Login
+    usecase "Reset Password\nvia Email OTP" as UC_PwdReset
+
+    ' Left Column: Player Core & Lobby
+    usecase "Create Lobby\n(6-Char Code)" as UC_CreateLobby
+    usecase "Join Lobby\nby Code" as UC_JoinLobby
+    usecase "Swap Role\n(Dad <-> Child)" as UC_SwapRole
+    usecase "Play Co-op\nMatch" as UC_Play
+    usecase "Select Chapter &\nStage Difficulty" as UC_SelectStage
+    usecase "View Profile &\nMatch History" as UC_Profile
+    usecase "View Global\nLeaderboard" as UC_Leaderboard
+
+    ' Center Column: In-Game Co-op Mechanics (Includes & Extends)
+    usecase "Control Character\n& Sync Netcode" as UC_Control
+    usecase "Solve Co-op Puzzle\n(Hold Hand / Sync)" as UC_Puzzle
+    usecase "Boost Throw & Shield\nParry (Dad Role)" as UC_DadAct
+    usecase "Crawl Vent & Slingshot\nSnipe (Child Role)" as UC_ChildAct
+    usecase "Combat Toy Boss\nEncounter" as UC_Boss
+    usecase "Real-Time Voice\nChat (PTT & DSP)" as UC_Voice
+    usecase "Reconnection & State\nRe-sync (30s Window)" as UC_Resync
+
+    ' Right Column: Moderator Operations
+    usecase "Monitor Active\nLobbies" as UC_Monitor
+    usecase "Force Close Lobby\n(MOD-001)" as UC_ForceClose
+    usecase "Kick Disruptive\nPlayer" as UC_KickPlayer
+    usecase "Adjust Dynamic\nCharacter Stats" as UC_Stats
+    usecase "Manage Game\nScenes & Stages" as UC_Scenes
+    usecase "Manage In-Game\nItems & Props" as UC_Props
+    usecase "Broadcast System\nAnnouncement" as UC_Broadcast
+
+    ' Right Column: Administrator Controls
+    usecase "Manage User\nAccounts" as UC_ManageUsers
+    usecase "Ban / Unban\nPlayers" as UC_BanPlayer
+    usecase "Assign Staff\nRBAC Roles" as UC_RBAC
+    usecase "View System\nAudit Logs" as UC_Audit
+    usecase "Configure Server\n& Version Rules" as UC_Rules
+    usecase "Backup & Restore\nDatabase" as UC_Backup
+}
+
+' --- Direct Actor Links (Guest) ---
+Guest --> UC_Reg
+Guest --> UC_Login
+Guest --> UC_PwdReset
+
+' --- Direct Actor Links (Player) ---
+Player --> UC_CreateLobby
+Player --> UC_JoinLobby
+Player --> UC_Play
+Player --> UC_SelectStage
+Player --> UC_Profile
+Player --> UC_Leaderboard
+
+' --- Lobby Relationships ---
+UC_SwapRole .right.> UC_JoinLobby : <<extend>>
+
+' --- Co-op Match Relationships ---
+UC_Play ..> UC_Control : <<include>>
+UC_Play ..> UC_Puzzle : <<include>>
+UC_Play ..> UC_DadAct : <<include>>
+UC_Play ..> UC_ChildAct : <<include>>
+UC_Boss .left.> UC_Play : <<extend>>
+UC_Voice .left.> UC_Play : <<extend>>
+UC_Resync .left.> UC_Play : <<extend>>
+
+' --- Moderator Direct Links & Extends ---
+Mod --> UC_Monitor
+Mod --> UC_Stats
+Mod --> UC_Scenes
+Mod --> UC_Props
+Mod --> UC_Broadcast
+UC_ForceClose .right.> UC_Monitor : <<extend>>
+UC_KickPlayer .right.> UC_Monitor : <<extend>>
+
+' --- Administrator Direct Links & Extends ---
+Admin --> UC_ManageUsers
+Admin --> UC_Audit
+Admin --> UC_Rules
+Admin --> UC_Backup
+UC_BanPlayer .right.> UC_ManageUsers : <<extend>>
+UC_RBAC .right.> UC_ManageUsers : <<extend>>
+
+@enduml
+

@@ -51,6 +51,7 @@ namespace Blocks.Gameplay.Core
         public bool IsOpen => m_IsOpen;
         private bool m_IsQuitting = false;
         private bool m_HandlersRegistered = false;
+        private NetworkManager m_RegisteredNetwork;
 
         private CoreMovement m_LocalMovement;
 
@@ -137,6 +138,8 @@ namespace Blocks.Gameplay.Core
                 Instance = null;
             }
         }
+
+        private void OnApplicationQuit() => m_IsQuitting = true;
 
         private void SetupUI()
         {
@@ -303,6 +306,8 @@ namespace Blocks.Gameplay.Core
             CloseMenu();
         }
 
+        public void ReturnToLobby() => OnBackToLobbyClicked();
+
         private void OnBackToLobbyClicked()
         {
             if (m_IsQuitting) return;
@@ -333,7 +338,10 @@ namespace Blocks.Gameplay.Core
             if (m_HandlersRegistered || NetworkManager.Singleton == null) return;
 
             // Đăng ký disconnect callback
-            NetworkManager.Singleton.OnClientDisconnectCallback += OnNetworkClientDisconnected;
+            m_RegisteredNetwork = NetworkManager.Singleton;
+            // OnEnable can run before messaging is ready; repeated registration must stay idempotent.
+            m_RegisteredNetwork.OnClientDisconnectCallback -= OnNetworkClientDisconnected;
+            m_RegisteredNetwork.OnClientDisconnectCallback += OnNetworkClientDisconnected;
 
             // Đăng ký custom messaging nếu có CustomMessagingManager
             var msgMgr = NetworkManager.Singleton.CustomMessagingManager;
@@ -348,11 +356,9 @@ namespace Blocks.Gameplay.Core
 
         private void UnregisterNetworkHandlers()
         {
-            if (!m_HandlersRegistered || NetworkManager.Singleton == null) return;
-
-            NetworkManager.Singleton.OnClientDisconnectCallback -= OnNetworkClientDisconnected;
-
-            var msgMgr = NetworkManager.Singleton.CustomMessagingManager;
+            if (m_RegisteredNetwork == null) { m_HandlersRegistered = false; return; }
+            m_RegisteredNetwork.OnClientDisconnectCallback -= OnNetworkClientDisconnected;
+            var msgMgr = m_RegisteredNetwork.CustomMessagingManager;
             if (msgMgr != null)
             {
                 msgMgr.UnregisterNamedMessageHandler(MsgReturnToLobby);
@@ -360,6 +366,7 @@ namespace Blocks.Gameplay.Core
             }
 
             m_HandlersRegistered = false;
+            m_RegisteredNetwork = null;
         }
 
         /// <summary>
@@ -393,6 +400,7 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         private void OnNetworkClientDisconnected(ulong clientId)
         {
+            if (this == null || !isActiveAndEnabled || !Application.isPlaying) return;
             if (m_IsQuitting) return;
 
             // Nếu người bị ngắt là bản thân, hoặc người ngắt là Host (ServerClientId)

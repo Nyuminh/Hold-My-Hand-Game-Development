@@ -1,9 +1,11 @@
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using TMPro;
 using UnityEngine.SceneManagement;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System;
 using Unity.Services.Core;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
@@ -21,8 +23,8 @@ namespace Blocks.Gameplay.Core
     public class Lobby3DManager : MonoBehaviour
     {
         [Header("UI")]
-        [Tooltip("UIDocument chứa Lobby3DScreen.uxml")]
-        [SerializeField] private UIDocument lobbyUI;
+        [Tooltip("Canvas uGUI phủ lên Lobby 3D")]
+        [SerializeField] private Canvas lobbyCanvas;
 
         [Header("3D Preview")]
         [Tooltip("GameObject nhân vật Player 1 (mình) — luôn hiện")]
@@ -37,25 +39,32 @@ namespace Blocks.Gameplay.Core
 
         [Header("Polling")]
         [Tooltip("Khoảng cách giữa các lần poll lobby state (giây)")]
-        [SerializeField] private float pollInterval = 30f; // increased to reduce lobby request rate
+        [SerializeField] private float pollInterval = 3f;
+
+        [Header("Voice Backend")]
+        [SerializeField] private string voiceServerUrl = "wss://hold-my-hand-backend.vercel.app/voice";
 
         // ─── UI Elements ────────────────────────────────────────
         // Top
-        private Label m_PlayerNameLabel;
-        private Label m_PlayerRoleLabel;
-        private VisualElement m_RoomInfoPanel;
-        private Label m_RoomCodeLabel;
-        private Label m_RoomStatusLabel;
+        private TextMeshProUGUI m_PlayerNameLabel;
+        private TextMeshProUGUI m_PlayerRoleLabel;
+        private GameObject m_RoomInfoPanel;
+        private TextMeshProUGUI m_RoomCodeLabel;
+        private TextMeshProUGUI m_RoomStatusLabel;
         private Button m_CopyCodeButton;
+        private GameObject m_RemoteProfileCard;
+        private TextMeshProUGUI m_RemotePlayerLabel;
+        private TextMeshProUGUI m_LocalSpeakingIndicator;
+        private TextMeshProUGUI m_RemoteSpeakingIndicator;
 
         // Bottom right — main
-        private VisualElement m_MainButtonsPanel;
+        private GameObject m_MainButtonsPanel;
         private Button m_CreateRoomButton;
         private Button m_JoinRoomButton;
         private Button m_BrowseSessionsButton;
 
         // Bottom right — tutorial
-        private VisualElement m_TutorialDialogPanel;
+        private GameObject m_TutorialDialogPanel;
         private Button m_TutorialButton;
         private Button m_SelectDadButton;
         private Button m_SelectChildButton;
@@ -64,27 +73,57 @@ namespace Blocks.Gameplay.Core
         private bool m_TutorialRoleIsDad = true;
 
         // Bottom right — join code
-        private VisualElement m_JoinCodePanel;
-        private TextField m_JoinCodeInput;
+        private GameObject m_JoinCodePanel;
+        private TMP_InputField m_JoinCodeInput;
         private Button m_ConfirmJoinButton;
         private Button m_CancelJoinButton;
 
         // Bottom right — in-lobby
-        private VisualElement m_LobbyButtonsPanel;
+        private GameObject m_LobbyButtonsPanel;
         private Button m_PlayButton;
         private Button m_SwapRoleButton;
         private Button m_LeaveRoomButton;
+        private Button m_VoiceMicButton;
+        private Button m_VoiceSettingsButton;
+        private GameObject m_VoiceSettingsPanel;
+        private Button m_VoicePttButton;
+        private Button m_VoiceAutoButton;
+        private Slider m_VoiceThresholdSlider;
+        private Slider m_VoiceVolumeSlider;
 
         // Bottom left — session list
-        private VisualElement m_SessionListPanel;
-        private VisualElement m_BottomLeftSpacer;
-        private ScrollView m_SessionScroll;
-        private Label m_NoSessionsLabel;
+        private GameObject m_SessionListPanel;
+        private GameObject m_BottomLeftSpacer;
+        private ScrollRect m_SessionScroll;
+        private TextMeshProUGUI m_NoSessionsLabel;
         private Button m_RefreshSessionsButton;
         private Button m_CloseSessionsButton;
 
+        private GameObject m_ChatPanel;
+        private ScrollRect m_ChatScroll;
+        private TMP_InputField m_ChatInput;
+        private Button m_ChatSendButton;
+        private readonly HashSet<string> m_SeenChatMessages = new HashSet<string>();
+        private readonly List<ChatMessage> m_OwnChatMessages = new List<ChatMessage>();
+        private bool m_ChatSending;
+
+        [Serializable]
+        private class ChatMessage
+        {
+            public string id;
+            public string sender;
+            public string content;
+        }
+
+        [Serializable]
+        private class ChatFeed
+        {
+            public ChatMessage[] messages;
+        }
+
         // Center toast
-        private Label m_ToastLabel;
+        private TextMeshProUGUI m_ToastLabel;
+        private GameObject m_ToastPanel;
 
         // ─── State ──────────────────────────────────────────────
         private string m_CurrentLobbyCode;
@@ -97,9 +136,9 @@ namespace Blocks.Gameplay.Core
 
         private void OnEnable()
         {
-            if (lobbyUI == null)
+            if (lobbyCanvas == null)
             {
-                Debug.LogError("[Lobby3DManager] lobbyUI is not assigned.", this);
+                Debug.LogError("[Lobby3DManager] lobbyCanvas is not assigned.", this);
                 return;
             }
 
@@ -214,6 +253,8 @@ namespace Blocks.Gameplay.Core
 
                     UpdateLobbyUI(MapToFakeResponse(lobby));
                     ShowLobbyButtons();
+                    ReceiveChatMessages(lobby);
+                    StartVoiceForCurrentLobby();
                     StartPolling();
                     ShowToast($"Đã trở lại phòng: {m_CurrentLobbyCode}");
                 }
@@ -235,6 +276,7 @@ namespace Blocks.Gameplay.Core
         private void OnDisable()
         {
             StopPolling();
+            if (VoiceChatManager.Instance != null) VoiceChatManager.Instance.SuppressPushToTalk = false;
         }
 
         private void OnDestroy()
@@ -247,83 +289,104 @@ namespace Blocks.Gameplay.Core
         // ────────────────────────────────────────────────────────
         #region UI Setup
 
+        private T FindUI<T>(string name) where T : Component
+        {
+            foreach (var item in lobbyCanvas.GetComponentsInChildren<T>(true))
+                if (item.gameObject.name == name) return item;
+            Debug.LogError($"[Lobby3DManager] Missing UI component: {name}", this);
+            return null;
+        }
+
+        private GameObject FindPanel(string name)
+        {
+            foreach (var item in lobbyCanvas.GetComponentsInChildren<Transform>(true))
+                if (item.name == name) return item.gameObject;
+            Debug.LogError($"[Lobby3DManager] Missing UI panel: {name}", this);
+            return null;
+        }
+
         private void SetupUI()
         {
-            var root = lobbyUI.rootVisualElement;
-
-            // QUAN TRỌNG: UIDocument tự tạo 1 lớp root vô hình phủ full màn hình.
-            // Phải set Ignore để click xuyên qua vùng trống, chỉ các child có Position mới nhận click.
-            root.pickingMode = PickingMode.Ignore;
-
-            // Top
-            m_PlayerNameLabel = root.Q<Label>("player-name-label");
-            m_PlayerRoleLabel = root.Q<Label>("player-role-label");
-            m_RoomInfoPanel = root.Q<VisualElement>("room-info-panel");
-            m_RoomCodeLabel = root.Q<Label>("room-code-label");
-            m_RoomStatusLabel = root.Q<Label>("room-status-label");
-            m_CopyCodeButton = root.Q<Button>("copy-code-button");
-
-            // Main buttons
-            m_MainButtonsPanel = root.Q<VisualElement>("main-buttons-panel");
-            m_CreateRoomButton = root.Q<Button>("create-room-button");
-            m_JoinRoomButton = root.Q<Button>("join-room-button");
-            m_BrowseSessionsButton = root.Q<Button>("browse-sessions-button");
-
-            // Join code panel
-            m_JoinCodePanel = root.Q<VisualElement>("join-code-panel");
-            m_JoinCodeInput = root.Q<TextField>("join-code-input");
-            m_ConfirmJoinButton = root.Q<Button>("confirm-join-button");
-            m_CancelJoinButton = root.Q<Button>("cancel-join-button");
-
-            // Lobby buttons
-            m_LobbyButtonsPanel = root.Q<VisualElement>("lobby-buttons-panel");
-            m_PlayButton = root.Q<Button>("play-button");
-            m_SwapRoleButton = root.Q<Button>("swap-role-button");
-            m_LeaveRoomButton = root.Q<Button>("leave-room-button");
-
-            // Session list
-            m_SessionListPanel = root.Q<VisualElement>("session-list-panel");
-            m_BottomLeftSpacer = root.Q<VisualElement>("bottom-left-spacer");
-            m_SessionScroll = root.Q<ScrollView>("session-scroll");
-            m_NoSessionsLabel = root.Q<Label>("no-sessions-label");
-            m_RefreshSessionsButton = root.Q<Button>("refresh-sessions-button");
-            m_CloseSessionsButton = root.Q<Button>("close-sessions-button");
-
-            // Toast
-            m_ToastLabel = root.Q<Label>("toast-label");
+            m_PlayerNameLabel = FindUI<TextMeshProUGUI>("player-name-label");
+            m_PlayerRoleLabel = FindUI<TextMeshProUGUI>("player-role-label");
+            m_RoomInfoPanel = FindPanel("room-info-panel");
+            m_RoomCodeLabel = FindUI<TextMeshProUGUI>("room-code-label");
+            m_RoomStatusLabel = FindUI<TextMeshProUGUI>("room-status-label");
+            m_CopyCodeButton = FindUI<Button>("copy-code-button");
+            m_RemoteProfileCard = FindPanel("remote-profile-card");
+            m_RemotePlayerLabel = FindUI<TextMeshProUGUI>("remote-player-label");
+            m_LocalSpeakingIndicator = FindUI<TextMeshProUGUI>("local-speaking-indicator");
+            m_RemoteSpeakingIndicator = FindUI<TextMeshProUGUI>("remote-speaking-indicator");
+            m_MainButtonsPanel = FindPanel("main-buttons-panel");
+            m_CreateRoomButton = FindUI<Button>("create-room-button");
+            m_JoinRoomButton = FindUI<Button>("join-room-button");
+            m_BrowseSessionsButton = FindUI<Button>("browse-sessions-button");
+            m_JoinCodePanel = FindPanel("join-code-panel");
+            m_JoinCodeInput = FindUI<TMP_InputField>("join-code-input");
+            m_ConfirmJoinButton = FindUI<Button>("confirm-join-button");
+            m_CancelJoinButton = FindUI<Button>("cancel-join-button");
+            m_LobbyButtonsPanel = FindPanel("lobby-buttons-panel");
+            m_PlayButton = FindUI<Button>("play-button");
+            m_SwapRoleButton = FindUI<Button>("swap-role-button");
+            m_LeaveRoomButton = FindUI<Button>("leave-room-button");
+            m_VoiceMicButton = FindUI<Button>("voice-mic-button");
+            m_VoiceSettingsButton = FindUI<Button>("voice-settings-button");
+            m_VoiceSettingsPanel = FindPanel("voice-settings-panel");
+            m_VoicePttButton = FindUI<Button>("voice-ptt-button");
+            m_VoiceAutoButton = FindUI<Button>("voice-auto-button");
+            m_VoiceThresholdSlider = FindUI<Slider>("voice-threshold-slider");
+            m_VoiceVolumeSlider = FindUI<Slider>("voice-volume-slider");
+            m_SessionListPanel = FindPanel("session-list-panel");
+            m_BottomLeftSpacer = FindPanel("bottom-left-spacer");
+            m_SessionScroll = FindUI<ScrollRect>("session-scroll");
+            m_NoSessionsLabel = FindUI<TextMeshProUGUI>("no-sessions-label");
+            m_RefreshSessionsButton = FindUI<Button>("refresh-sessions-button");
+            m_CloseSessionsButton = FindUI<Button>("close-sessions-button");
+            m_ChatPanel = FindPanel("chat-panel");
+            m_ChatScroll = FindUI<ScrollRect>("chat-scroll");
+            m_ChatInput = FindUI<TMP_InputField>("chat-input");
+            m_ChatSendButton = FindUI<Button>("chat-send-button");
+            m_ToastLabel = FindUI<TextMeshProUGUI>("toast-label");
+            m_ToastPanel = FindPanel("toast-panel");
             if (m_ToastLabel != null) m_ToastLabel.text = "";
+            m_TutorialDialogPanel = FindPanel("tutorial-dialog-panel");
+            m_TutorialButton = FindUI<Button>("tutorial-button");
+            m_SelectDadButton = FindUI<Button>("select-dad-button");
+            m_SelectChildButton = FindUI<Button>("select-child-button");
+            m_ConfirmTutorialButton = FindUI<Button>("confirm-tutorial-button");
+            m_CancelTutorialButton = FindUI<Button>("cancel-tutorial-button");
 
-            // Tutorial
-            m_TutorialDialogPanel = root.Q<VisualElement>("tutorial-dialog-panel");
-            m_TutorialButton = root.Q<Button>("tutorial-button");
-            m_SelectDadButton = root.Q<Button>("select-dad-button");
-            m_SelectChildButton = root.Q<Button>("select-child-button");
-            m_ConfirmTutorialButton = root.Q<Button>("confirm-tutorial-button");
-            m_CancelTutorialButton = root.Q<Button>("cancel-tutorial-button");
-
-            // Event bindings
-            if (m_CreateRoomButton != null) m_CreateRoomButton.clicked += OnCreateRoomClicked;
-            if (m_JoinRoomButton != null) m_JoinRoomButton.clicked += OnJoinRoomClicked;
-            if (m_BrowseSessionsButton != null) m_BrowseSessionsButton.clicked += OnBrowseSessionsClicked;
-            if (m_ConfirmJoinButton != null) m_ConfirmJoinButton.clicked += OnConfirmJoinClicked;
-            if (m_CancelJoinButton != null) m_CancelJoinButton.clicked += OnCancelJoinClicked;
-            if (m_CopyCodeButton != null) m_CopyCodeButton.clicked += OnCopyCodeClicked;
-            if (m_PlayButton != null) m_PlayButton.clicked += OnPlayClicked;
-            if (m_SwapRoleButton != null) m_SwapRoleButton.clicked += OnSwapRoleClicked;
-            if (m_LeaveRoomButton != null) m_LeaveRoomButton.clicked += OnLeaveRoomClicked;
-            if (m_RefreshSessionsButton != null) m_RefreshSessionsButton.clicked += OnRefreshSessionsClicked;
-            if (m_CloseSessionsButton != null) m_CloseSessionsButton.clicked += OnCloseSessionsClicked;
-            if (m_TutorialButton != null) m_TutorialButton.clicked += OnTutorialButtonClicked;
-            if (m_SelectDadButton != null) m_SelectDadButton.clicked += () => SelectTutorialRole(true);
-            if (m_SelectChildButton != null) m_SelectChildButton.clicked += () => SelectTutorialRole(false);
-            if (m_ConfirmTutorialButton != null) m_ConfirmTutorialButton.clicked += OnConfirmTutorialClicked;
-            if (m_CancelTutorialButton != null) m_CancelTutorialButton.clicked += OnCancelTutorialClicked;
-
-            // Initial state: show main buttons, hide lobby buttons
+            if (m_JoinCodeInput != null)
+            {
+                m_JoinCodeInput.characterLimit = 6;
+                m_JoinCodeInput.contentType = TMP_InputField.ContentType.Alphanumeric;
+            }
+            if (m_ChatInput != null) m_ChatInput.characterLimit = 240;
+            if (m_CreateRoomButton != null) m_CreateRoomButton.onClick.AddListener(OnCreateRoomClicked);
+            if (m_JoinRoomButton != null) m_JoinRoomButton.onClick.AddListener(OnJoinRoomClicked);
+            if (m_BrowseSessionsButton != null) m_BrowseSessionsButton.onClick.AddListener(OnBrowseSessionsClicked);
+            if (m_ConfirmJoinButton != null) m_ConfirmJoinButton.onClick.AddListener(OnConfirmJoinClicked);
+            if (m_CancelJoinButton != null) m_CancelJoinButton.onClick.AddListener(OnCancelJoinClicked);
+            if (m_CopyCodeButton != null) m_CopyCodeButton.onClick.AddListener(OnCopyCodeClicked);
+            if (m_PlayButton != null) m_PlayButton.onClick.AddListener(OnPlayClicked);
+            if (m_SwapRoleButton != null) m_SwapRoleButton.onClick.AddListener(OnSwapRoleClicked);
+            if (m_LeaveRoomButton != null) m_LeaveRoomButton.onClick.AddListener(OnLeaveRoomClicked);
+            if (m_VoiceMicButton != null) m_VoiceMicButton.onClick.AddListener(OnVoiceMicClicked);
+            if (m_VoiceSettingsButton != null) m_VoiceSettingsButton.onClick.AddListener(OnVoiceSettingsClicked);
+            if (m_VoicePttButton != null) m_VoicePttButton.onClick.AddListener(() => SetVoiceMode(true));
+            if (m_VoiceAutoButton != null) m_VoiceAutoButton.onClick.AddListener(() => SetVoiceMode(false));
+            if (m_VoiceThresholdSlider != null) m_VoiceThresholdSlider.onValueChanged.AddListener(value => VoiceChatManager.EnsureInstance().VoiceThreshold = value);
+            if (m_VoiceVolumeSlider != null) m_VoiceVolumeSlider.onValueChanged.AddListener(value => VoiceChatManager.EnsureInstance().PlaybackVolume = value);
+            if (m_RefreshSessionsButton != null) m_RefreshSessionsButton.onClick.AddListener(OnRefreshSessionsClicked);
+            if (m_CloseSessionsButton != null) m_CloseSessionsButton.onClick.AddListener(OnCloseSessionsClicked);
+            if (m_ChatSendButton != null) m_ChatSendButton.onClick.AddListener(OnChatSendClicked);
+            if (m_ChatInput != null) m_ChatInput.onSubmit.AddListener(_ => OnChatSendClicked());
+            if (m_TutorialButton != null) m_TutorialButton.onClick.AddListener(OnTutorialButtonClicked);
+            if (m_SelectDadButton != null) m_SelectDadButton.onClick.AddListener(() => SelectTutorialRole(true));
+            if (m_SelectChildButton != null) m_SelectChildButton.onClick.AddListener(() => SelectTutorialRole(false));
+            if (m_ConfirmTutorialButton != null) m_ConfirmTutorialButton.onClick.AddListener(OnConfirmTutorialClicked);
+            if (m_CancelTutorialButton != null) m_CancelTutorialButton.onClick.AddListener(OnCancelTutorialClicked);
             ShowMainButtons();
-
-            // Tự động gán âm thanh Hover / Click cho tất cả buttons trong Lobby
-            UISoundManager.BindButtons(root);
         }
 
         private void SetupPreview()
@@ -351,11 +414,7 @@ namespace Blocks.Gameplay.Core
                 preview.AddComponent<LobbyPreviewAnimator>();
             }
 
-            // Đảm bảo các mô hình 3D mannequin trong Lobby không bao giờ hiển thị HUD cá nhân
-            if (preview.TryGetComponent<UIDocument>(out var uiDoc))
-            {
-                uiDoc.enabled = false;
-            }
+            // Đảm bảo các mô hình 3D mannequin trong Lobby không hiển thị HUD cá nhân.
             if (preview.TryGetComponent<CoreHUD>(out var hud))
             {
                 hud.enabled = false;
@@ -383,30 +442,43 @@ namespace Blocks.Gameplay.Core
 
         private void ShowMainButtons()
         {
-            if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.Flex;
-            if (m_LobbyButtonsPanel != null) m_LobbyButtonsPanel.style.display = DisplayStyle.None;
-            if (m_JoinCodePanel != null) m_JoinCodePanel.style.display = DisplayStyle.None;
-            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.style.display = DisplayStyle.None;
-            if (m_RoomInfoPanel != null) m_RoomInfoPanel.style.display = DisplayStyle.None;
+            if (m_ChatPanel != null) m_ChatPanel.SetActive(false);
+            if (m_RemoteProfileCard != null) m_RemoteProfileCard.SetActive(false);
+            if (m_VoiceSettingsPanel != null) m_VoiceSettingsPanel.SetActive(false);
+            if (m_MainButtonsPanel != null) m_MainButtonsPanel.SetActive(true);
+            if (m_LobbyButtonsPanel != null) m_LobbyButtonsPanel.SetActive(false);
+            if (m_JoinCodePanel != null) m_JoinCodePanel.SetActive(false);
+            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.SetActive(false);
+            if (m_RoomInfoPanel != null) m_RoomInfoPanel.SetActive(false);
         }
 
         private void ShowLobbyButtons()
         {
-            if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.None;
-            if (m_LobbyButtonsPanel != null) m_LobbyButtonsPanel.style.display = DisplayStyle.Flex;
-            if (m_JoinCodePanel != null) m_JoinCodePanel.style.display = DisplayStyle.None;
-            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.style.display = DisplayStyle.None;
-            if (m_RoomInfoPanel != null) m_RoomInfoPanel.style.display = DisplayStyle.Flex;
+            if (m_ChatPanel != null) m_ChatPanel.SetActive(true);
+            if (m_ChatScroll != null) ClearScroll(m_ChatScroll);
+            m_SeenChatMessages.Clear();
+            m_OwnChatMessages.Clear();
+            if (m_SessionListPanel != null) m_SessionListPanel.SetActive(false);
+            if (m_BottomLeftSpacer != null) m_BottomLeftSpacer.SetActive(true);
+            var voice = VoiceChatManager.EnsureInstance();
+            if (m_VoiceThresholdSlider != null) m_VoiceThresholdSlider.value = voice.VoiceThreshold;
+            if (m_VoiceVolumeSlider != null) m_VoiceVolumeSlider.value = voice.PlaybackVolume;
+            RefreshVoiceUI();
+            if (m_MainButtonsPanel != null) m_MainButtonsPanel.SetActive(false);
+            if (m_LobbyButtonsPanel != null) m_LobbyButtonsPanel.SetActive(true);
+            if (m_JoinCodePanel != null) m_JoinCodePanel.SetActive(false);
+            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.SetActive(false);
+            if (m_RoomInfoPanel != null) m_RoomInfoPanel.SetActive(true);
         }
 
         private void ShowJoinCodePanel()
         {
-            if (m_JoinCodePanel != null) m_JoinCodePanel.style.display = DisplayStyle.Flex;
+            if (m_JoinCodePanel != null) m_JoinCodePanel.SetActive(true);
         }
 
         private void HideJoinCodePanel()
         {
-            if (m_JoinCodePanel != null) m_JoinCodePanel.style.display = DisplayStyle.None;
+            if (m_JoinCodePanel != null) m_JoinCodePanel.SetActive(false);
         }
 
         #endregion
@@ -417,8 +489,8 @@ namespace Blocks.Gameplay.Core
         private void OnTutorialButtonClicked()
         {
             UISoundManager.PlayClick();
-            if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.None;
-            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.style.display = DisplayStyle.Flex;
+            if (m_MainButtonsPanel != null) m_MainButtonsPanel.SetActive(false);
+            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.SetActive(true);
             SelectTutorialRole(m_TutorialRoleIsDad);
         }
 
@@ -430,14 +502,14 @@ namespace Blocks.Gameplay.Core
 
             if (m_SelectDadButton != null)
             {
-                if (isDad) m_SelectDadButton.AddToClassList("role-card-active");
-                else m_SelectDadButton.RemoveFromClassList("role-card-active");
+                if (isDad) SetSelected(m_SelectDadButton, true);
+                else SetSelected(m_SelectDadButton, false);
             }
 
             if (m_SelectChildButton != null)
             {
-                if (!isDad) m_SelectChildButton.AddToClassList("role-card-active");
-                else m_SelectChildButton.RemoveFromClassList("role-card-active");
+                if (!isDad) SetSelected(m_SelectChildButton, true);
+                else SetSelected(m_SelectChildButton, false);
             }
 
             // Cập nhật mô hình preview 3D tương ứng trong Lobby
@@ -448,8 +520,8 @@ namespace Blocks.Gameplay.Core
         private void OnCancelTutorialClicked()
         {
             UISoundManager.PlayCancel();
-            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.style.display = DisplayStyle.None;
-            if (m_MainButtonsPanel != null) m_MainButtonsPanel.style.display = DisplayStyle.Flex;
+            if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.SetActive(false);
+            if (m_MainButtonsPanel != null) m_MainButtonsPanel.SetActive(true);
             SetupPreview();
         }
 
@@ -458,7 +530,7 @@ namespace Blocks.Gameplay.Core
             UISoundManager.PlayConfirm();
             AmIDad = m_TutorialRoleIsDad;
             StopPolling();
-            ShowToast("🎮 Đang nạp chỉ số và vào chế độ Tập Luyện...");
+            ShowToast("Đang nạp chỉ số và vào chế độ Tập Luyện...");
             
             // Tải chỉ số từ backend trước khi vào Scene Tutorial
             await CharacterStatsService.EnsureLoadedAsync();
@@ -474,7 +546,7 @@ namespace Blocks.Gameplay.Core
 
         private async void OnCreateRoomClicked()
         {
-            if (m_CreateRoomButton != null) m_CreateRoomButton.SetEnabled(false);
+            if (m_CreateRoomButton != null) m_CreateRoomButton.interactable = false;
             ShowToast("Đang tạo phòng...");
 
             try
@@ -498,6 +570,8 @@ namespace Blocks.Gameplay.Core
                 Debug.Log($"[Lobby3D] Created Unity lobby: {lobby.LobbyCode}");
                 UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
+                ReceiveChatMessages(lobby);
+                StartVoiceForCurrentLobby();
                 StartPolling();
                 UISoundManager.PlaySuccess();
                 ShowToast("Phòng đã được tạo!");
@@ -510,14 +584,14 @@ namespace Blocks.Gameplay.Core
             }
             finally
             {
-                if (m_CreateRoomButton != null) m_CreateRoomButton.SetEnabled(true);
+                if (m_CreateRoomButton != null) m_CreateRoomButton.interactable = true;
             }
         }
 
         private void OnJoinRoomClicked()
         {
             ShowJoinCodePanel();
-            if (m_JoinCodeInput != null) m_JoinCodeInput.value = "";
+            if (m_JoinCodeInput != null) m_JoinCodeInput.text = "";
         }
 
         private void OnCancelJoinClicked()
@@ -528,7 +602,7 @@ namespace Blocks.Gameplay.Core
 
         private async void OnConfirmJoinClicked()
         {
-            string code = m_JoinCodeInput?.value?.Trim().Replace(" ", "").Replace("\t", "").Replace("\r", "").Replace("\n", "").ToUpper();
+            string code = m_JoinCodeInput?.text?.Trim().Replace(" ", "").Replace("\t", "").Replace("\r", "").Replace("\n", "").ToUpper();
             if (string.IsNullOrWhiteSpace(code))
             {
                 UISoundManager.PlayError();
@@ -536,7 +610,7 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            if (m_ConfirmJoinButton != null) m_ConfirmJoinButton.SetEnabled(false);
+            if (m_ConfirmJoinButton != null) m_ConfirmJoinButton.interactable = false;
             ShowToast("Đang tham gia...");
 
             try
@@ -558,6 +632,8 @@ namespace Blocks.Gameplay.Core
                 HideJoinCodePanel();
                 UpdateLobbyUI(MapToFakeResponse(lobby));
                 ShowLobbyButtons();
+                ReceiveChatMessages(lobby);
+                StartVoiceForCurrentLobby();
                 StartPolling();
                 UISoundManager.PlaySuccess();
                 ShowToast("Đã vào phòng!");
@@ -578,7 +654,7 @@ namespace Blocks.Gameplay.Core
             }
             finally
             {
-                if (m_ConfirmJoinButton != null) m_ConfirmJoinButton.SetEnabled(true);
+                if (m_ConfirmJoinButton != null) m_ConfirmJoinButton.interactable = true;
             }
         }
 
@@ -595,7 +671,7 @@ namespace Blocks.Gameplay.Core
         private async void OnSwapRoleClicked()
         {
             if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
-            if (m_SwapRoleButton != null) m_SwapRoleButton.SetEnabled(false);
+            if (m_SwapRoleButton != null) m_SwapRoleButton.interactable = false;
 
             try
             {
@@ -642,7 +718,7 @@ namespace Blocks.Gameplay.Core
             }
             finally
             {
-                if (m_SwapRoleButton != null) m_SwapRoleButton.SetEnabled(true);
+                if (m_SwapRoleButton != null) m_SwapRoleButton.interactable = true;
             }
         }
 
@@ -650,7 +726,7 @@ namespace Blocks.Gameplay.Core
         {
             if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
             StopPolling();
-            if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(false);
+            if (m_LeaveRoomButton != null) m_LeaveRoomButton.interactable = false;
 
             try
             {
@@ -658,6 +734,7 @@ namespace Blocks.Gameplay.Core
                 Debug.Log($"[Lobby3D] Left Unity lobby.");
                 
                 LobbySessionContext.Clear();
+                VoiceChatManager.Instance?.LeaveLobby();
                 m_CurrentLobbyId = null;
                 m_CurrentLobbyCode = null;
 
@@ -675,8 +752,8 @@ namespace Blocks.Gameplay.Core
             }
             finally
             {
-                if (m_CreateRoomButton != null) m_CreateRoomButton.SetEnabled(true);
-                if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(true);
+                if (m_CreateRoomButton != null) m_CreateRoomButton.interactable = true;
+                if (m_LeaveRoomButton != null) m_LeaveRoomButton.interactable = true;
             }
         }
 
@@ -686,9 +763,9 @@ namespace Blocks.Gameplay.Core
         {
             if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
             UISoundManager.PlayConfirm();
-            if (m_PlayButton != null) m_PlayButton.SetEnabled(false);
-            if (m_SwapRoleButton != null) m_SwapRoleButton.SetEnabled(false);
-            if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(false);
+            if (m_PlayButton != null) m_PlayButton.interactable = false;
+            if (m_SwapRoleButton != null) m_SwapRoleButton.interactable = false;
+            if (m_LeaveRoomButton != null) m_LeaveRoomButton.interactable = false;
             ShowToast("Đang chuẩn bị vào game...");
 
             try
@@ -706,7 +783,7 @@ namespace Blocks.Gameplay.Core
                 await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, options);
                 StopPolling();
 
-                ShowToast("🎮 Đang nạp chỉ số và Load Game Scene...");
+                ShowToast("Đang nạp chỉ số và Load Game Scene...");
 
                 // Đảm bảo chỉ số nhân vật đã được nạp từ Backend trước khi load scene
                 await CharacterStatsService.EnsureLoadedAsync();
@@ -723,29 +800,29 @@ namespace Blocks.Gameplay.Core
             {
                 ShowToast("Bắt đầu game thất bại!");
                 Debug.LogError($"[Lobby3D] Play error: {ex}");
-                if (m_PlayButton != null) m_PlayButton.SetEnabled(true);
-                if (m_SwapRoleButton != null) m_SwapRoleButton.SetEnabled(true);
-                if (m_LeaveRoomButton != null) m_LeaveRoomButton.SetEnabled(true);
+                if (m_PlayButton != null) m_PlayButton.interactable = true;
+                if (m_SwapRoleButton != null) m_SwapRoleButton.interactable = true;
+                if (m_LeaveRoomButton != null) m_LeaveRoomButton.interactable = true;
             }
         }
 
         // ─── Session Browser ────────────────────────────────────
         private void OnBrowseSessionsClicked()
         {
-            if (m_SessionListPanel != null) m_SessionListPanel.style.display = DisplayStyle.Flex;
-            if (m_BottomLeftSpacer != null) m_BottomLeftSpacer.style.display = DisplayStyle.None;
+            if (m_SessionListPanel != null) m_SessionListPanel.SetActive(true);
+            if (m_BottomLeftSpacer != null) m_BottomLeftSpacer.SetActive(false);
             OnRefreshSessionsClicked();
         }
 
         private void OnCloseSessionsClicked()
         {
-            if (m_SessionListPanel != null) m_SessionListPanel.style.display = DisplayStyle.None;
-            if (m_BottomLeftSpacer != null) m_BottomLeftSpacer.style.display = DisplayStyle.Flex;
+            if (m_SessionListPanel != null) m_SessionListPanel.SetActive(false);
+            if (m_BottomLeftSpacer != null) m_BottomLeftSpacer.SetActive(true);
         }
 
         private void OnRefreshSessionsClicked()
         {
-            if (m_RefreshSessionsButton != null) m_RefreshSessionsButton.SetEnabled(false);
+            if (m_RefreshSessionsButton != null) m_RefreshSessionsButton.interactable = false;
             ShowToast("Đang tải danh sách phòng...");
 
             try
@@ -762,7 +839,7 @@ namespace Blocks.Gameplay.Core
             }
             finally
             {
-                if (m_RefreshSessionsButton != null) m_RefreshSessionsButton.SetEnabled(true);
+                if (m_RefreshSessionsButton != null) m_RefreshSessionsButton.interactable = true;
             }
         }
 
@@ -770,6 +847,158 @@ namespace Blocks.Gameplay.Core
 
         // ────────────────────────────────────────────────────────
         #region Polling
+
+        private void OnVoiceMicClicked()
+        {
+            var voice = VoiceChatManager.EnsureInstance();
+            voice.SetMuted(!voice.IsMuted);
+            if (voice.IsMuted && Microphone.devices.Length == 0) ShowToast("Không tìm thấy micro.");
+            RefreshVoiceUI();
+        }
+
+        private void OnVoiceSettingsClicked()
+        {
+            if (m_VoiceSettingsPanel == null) return;
+            m_VoiceSettingsPanel.SetActive(!m_VoiceSettingsPanel.activeSelf);
+        }
+
+        private void SetVoiceMode(bool pushToTalk)
+        {
+            VoiceChatManager.EnsureInstance().PushToTalk = pushToTalk;
+            RefreshVoiceUI();
+        }
+
+        private void Update()
+        {
+            var voice = VoiceChatManager.Instance;
+            var focused = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
+            if (voice != null) voice.SuppressPushToTalk = focused != null && m_ChatInput != null && (focused == m_ChatInput.gameObject || focused.transform.IsChildOf(m_ChatInput.transform));
+            RefreshVoiceUI();
+        }
+
+        private void RefreshVoiceUI()
+        {
+            var voice = VoiceChatManager.Instance;
+            if (voice == null) return;
+            bool speaking = voice.IsLocalSpeaking;
+            bool blink = Mathf.Sin(Time.unscaledTime * 14f) > -0.2f;
+            if (m_VoiceMicButton != null)
+            {
+                SetButtonText(m_VoiceMicButton, voice.IsMuted ? "MIC: TẮT" : voice.IsConnected ? speaking ? "MIC: ĐANG NÓI" : "MIC: BẬT" : "MIC: ĐANG KẾT NỐI");
+            }
+            if (m_LocalSpeakingIndicator != null) m_LocalSpeakingIndicator.gameObject.SetActive(speaking && blink);
+            if (m_RemoteSpeakingIndicator != null) m_RemoteSpeakingIndicator.gameObject.SetActive(voice.IsRemoteSpeaking && blink);
+            if (m_VoicePttButton != null)
+            SetSelected(m_VoicePttButton, voice.PushToTalk);
+            if (m_VoiceAutoButton != null)
+            SetSelected(m_VoiceAutoButton, !voice.PushToTalk);
+        }
+
+        private async void StartVoiceForCurrentLobby()
+        {
+            try
+            {
+                var voice = VoiceChatManager.EnsureInstance();
+                voice.ServerUrl = voiceServerUrl;
+                await voice.JoinLobbyAsync(m_CurrentLobbyId, m_CurrentLobbyCode);
+            }
+            catch (Exception ex) { Debug.LogWarning($"[Lobby3D] Voice connection unavailable: {ex.Message}"); }
+        }
+
+        private async void OnChatSendClicked()
+        {
+            if (m_ChatSending || string.IsNullOrEmpty(m_CurrentLobbyId) || m_ChatInput == null) return;
+            var content = m_ChatInput.text?.Trim();
+            if (string.IsNullOrEmpty(content)) return;
+            var sender = !string.IsNullOrEmpty(ApiClient.DisplayName) ? ApiClient.DisplayName : ApiClient.Username;
+            var message = new ChatMessage { id = Guid.NewGuid().ToString("N"), sender = sender ?? "Player", content = content };
+            m_OwnChatMessages.Add(message);
+            while (m_OwnChatMessages.Count > 5) m_OwnChatMessages.RemoveAt(0);
+            m_ChatSending = true;
+            if (m_ChatSendButton != null) m_ChatSendButton.interactable = false;
+            try
+            {
+                var options = new UpdatePlayerOptions {
+                    Data = new Dictionary<string, PlayerDataObject> {
+                        { "lobbyChat", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, JsonUtility.ToJson(new ChatFeed { messages = m_OwnChatMessages.ToArray() })) }
+                    }
+                };
+                await LobbyService.Instance.UpdatePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId, options);
+                m_ChatInput.text = "";
+                AddChatMessage(message);
+            }
+            catch (Exception ex)
+            {
+                m_OwnChatMessages.Remove(message);
+                ShowToast($"Không gửi được tin nhắn: {ex.Message}");
+            }
+            finally
+            {
+                m_ChatSending = false;
+                if (m_ChatSendButton != null) m_ChatSendButton.interactable = true;
+                m_ChatInput.ActivateInputField();
+            }
+        }
+
+        private void ReceiveChatMessages(Lobby lobby)
+        {
+            if (lobby?.Players == null) return;
+            foreach (var player in lobby.Players)
+            {
+                if (player.Data == null || !player.Data.TryGetValue("lobbyChat", out var data) || string.IsNullOrEmpty(data.Value)) continue;
+                try
+                {
+                    var feed = JsonUtility.FromJson<ChatFeed>(data.Value);
+                    if (feed?.messages == null) continue;
+                    foreach (var message in feed.messages) AddChatMessage(message);
+                }
+                catch (Exception ex) { Debug.LogWarning($"[Lobby3D] Invalid chat message: {ex.Message}"); }
+            }
+        }
+
+        private void AddChatMessage(ChatMessage message)
+        {
+            if (message == null || string.IsNullOrEmpty(message.id) || !m_SeenChatMessages.Add(message.id) || m_ChatScroll?.content == null) return;
+            var row = new GameObject("ChatMessage", typeof(RectTransform), typeof(TextMeshProUGUI));
+            row.transform.SetParent(m_ChatScroll.content, false);
+            var label = row.GetComponent<TextMeshProUGUI>();
+            label.text = $"{message.sender}: {message.content}";
+            label.fontSize = 12;
+            label.color = new Color(0.92f, 0.92f, 0.94f);
+            label.textWrappingMode = TextWrappingModes.Normal;
+            row.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            while (m_ChatScroll.content.childCount > 60)
+                Destroy(m_ChatScroll.content.GetChild(0).gameObject);
+            Canvas.ForceUpdateCanvases();
+            m_ChatScroll.verticalNormalizedPosition = 0;
+        }
+
+        private static void ClearScroll(ScrollRect scroll)
+        {
+            if (scroll?.content == null) return;
+            foreach (Transform child in scroll.content) Destroy(child.gameObject);
+        }
+        private static void SetSelected(Button button, bool selected)
+        {
+            if (button == null) return;
+            if (button.targetGraphic != null)
+                button.targetGraphic.color = selected ? new Color(0.9f, 0.66f, 0.16f) : new Color(0.16f, 0.17f, 0.21f, 0.94f);
+            SetButtonTextColor(button, selected ? new Color(0.08f, 0.06f, 0.02f) : Color.white);
+        }
+        private static void SetButtonText(Button button, string text)
+        {
+            var label = button?.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label != null) label.text = text;
+        }
+        private static void SetButtonColor(Button button, Color color)
+        {
+            if (button?.targetGraphic != null) button.targetGraphic.color = color;
+        }
+        private static void SetButtonTextColor(Button button, Color color)
+        {
+            var label = button?.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label != null) label.color = color;
+        }
 
         private void StartPolling()
         {
@@ -792,7 +1021,7 @@ namespace Blocks.Gameplay.Core
         {
             while (!ct.IsCancellationRequested && !string.IsNullOrEmpty(m_CurrentLobbyId))
             {
-                try { await Task.Delay((int)(pollInterval * 1000), ct); }
+                try { await Task.Delay((int)(Mathf.Clamp(pollInterval, 1f, 3f) * 1000), ct); }
                 catch (TaskCanceledException) { break; }
                 if (ct.IsCancellationRequested) break;
 
@@ -800,12 +1029,13 @@ namespace Blocks.Gameplay.Core
                 {
                     var lobby = await LobbyService.Instance.GetLobbyAsync(m_CurrentLobbyId);
                     UpdateLobbyUI(MapToFakeResponse(lobby));
+                    ReceiveChatMessages(lobby);
 
                     if (lobby.Data.ContainsKey("status") && lobby.Data["status"].Value == "InGame" && !m_IsHost)
                     {
                         StopPolling();
                         LobbySessionContext.StopHeartbeat(); // Dừng keep-alive trước khi vào game scene
-                        ShowToast("🎮 Đang Load Game Scene...");
+                        ShowToast("Đang Load Game Scene...");
 
                         string dadId = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : "";
                         if (string.IsNullOrEmpty(dadId)) dadId = lobby.HostId;
@@ -875,17 +1105,24 @@ namespace Blocks.Gameplay.Core
 
             // Status
             bool hasPlayer2 = !string.IsNullOrEmpty(lobby.player2Id);
+            if (m_RemoteProfileCard != null) m_RemoteProfileCard.SetActive(hasPlayer2);
+            if (hasPlayer2 && m_RemotePlayerLabel != null)
+            {
+                string self = AuthenticationService.Instance.IsSignedIn ? AuthenticationService.Instance.PlayerId : null;
+                string remoteId = lobby.player1Id == self ? lobby.player2Id : lobby.player1Id;
+                m_RemotePlayerLabel.text = "Người chơi " + (string.IsNullOrEmpty(remoteId) ? "2" : remoteId.Substring(0, Mathf.Min(6, remoteId.Length)));
+            }
             if (m_RoomStatusLabel != null)
             {
                 if (hasPlayer2)
                 {
-                    m_RoomStatusLabel.text = "✅ Sẵn sàng!";
-                    m_RoomStatusLabel.style.color = new StyleColor(new Color(0.3f, 1f, 0.5f));
+                    m_RoomStatusLabel.text = "Sẵn sàng!";
+                    m_RoomStatusLabel.color = new Color(0.3f, 1f, 0.5f);
                 }
                 else
                 {
                     m_RoomStatusLabel.text = "Đang chờ người chơi thứ 2... (1/2)";
-                    m_RoomStatusLabel.style.color = new StyleColor(new Color(1f, 0.8f, 0.4f));
+                    m_RoomStatusLabel.color = new Color(1f, 0.8f, 0.4f);
                 }
             }
 
@@ -896,9 +1133,9 @@ namespace Blocks.Gameplay.Core
                 if (!string.IsNullOrEmpty(myId))
                 {
                     if (myId == lobby.dadUserId)
-                        m_PlayerRoleLabel.text = "Vai trò: 🧔 Ba";
+                        m_PlayerRoleLabel.text = "Vai trò: Ba";
                     else if (myId == lobby.childUserId)
-                        m_PlayerRoleLabel.text = "Vai trò: 👶 Con";
+                        m_PlayerRoleLabel.text = "Vai trò: Con";
                     else
                         m_PlayerRoleLabel.text = "Vai trò: ---";
                 }
@@ -926,22 +1163,22 @@ namespace Blocks.Gameplay.Core
             bool canPlay = hasPlayer2 && lobby.status == "Waiting";
             if (m_PlayButton != null)
             {
-                m_PlayButton.SetEnabled(canPlay);
+                m_PlayButton.interactable = canPlay;
                 if (canPlay)
                 {
-                    m_PlayButton.style.backgroundColor = new StyleColor(new Color(0.90f, 0.66f, 0.16f)); // Vàng hoàng kim
-                    m_PlayButton.style.color = new StyleColor(new Color(0.08f, 0.06f, 0.02f)); // Chữ tối màu
+                    SetButtonColor(m_PlayButton, new Color(0.90f, 0.66f, 0.16f)); // Vàng hoàng kim
+                    SetButtonTextColor(m_PlayButton, new Color(0.08f, 0.06f, 0.02f)); // Chữ tối màu
                 }
                 else
                 {
-                    m_PlayButton.style.backgroundColor = new StyleColor(new Color(1f, 1f, 1f, 0.1f));
-                    m_PlayButton.style.color = new StyleColor(new Color(1f, 1f, 1f, 0.3f));
+                    SetButtonColor(m_PlayButton, new Color(1f, 1f, 1f, 0.1f));
+                    SetButtonTextColor(m_PlayButton, new Color(1f, 1f, 1f, 0.3f));
                 }
             }
 
             // Swap: Chỉ Host mới được phép Swap (vì chỉ Host mới có quyền update Unity Lobby)
             if (m_SwapRoleButton != null)
-                m_SwapRoleButton.SetEnabled(m_IsHost);
+                m_SwapRoleButton.interactable = m_IsHost;
         }
 
         private void ShowToast(string message)
@@ -949,7 +1186,7 @@ namespace Blocks.Gameplay.Core
             if (m_ToastLabel != null)
             {
                 m_ToastLabel.text = message;
-                m_ToastLabel.style.display = string.IsNullOrEmpty(message) ? DisplayStyle.None : DisplayStyle.Flex;
+                if (m_ToastPanel != null) m_ToastPanel.SetActive(!string.IsNullOrEmpty(message));
             }
         }
 

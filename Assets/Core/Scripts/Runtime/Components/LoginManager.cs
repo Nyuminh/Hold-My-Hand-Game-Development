@@ -1,85 +1,54 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
 
 namespace Blocks.Gameplay.Core
 {
-    /// <summary>
-    /// Xử lý UI đăng nhập. Gọi backend API POST /api/auth/login.
-    /// Sau khi login thành công → load LobbyScene.
-    /// </summary>
+    /// <summary>Login form backed by POST /api/auth/login.</summary>
     public class LoginManager : MonoBehaviour
     {
         [Header("UI")]
-        [Tooltip("UIDocument chứa LoginScreen.uxml")]
-        [SerializeField] private UIDocument loginUI;
-
+        [SerializeField] private GameObject loginForm;
+        [SerializeField] private GameObject loggedInState;
+        [SerializeField] private TMP_InputField usernameField;
+        [SerializeField] private TMP_InputField passwordField;
+        [SerializeField] private Button loginButton;
+        [SerializeField] private Button playButton;
+        [SerializeField] private Button logoutButton;
+        [SerializeField] private TextMeshProUGUI welcomeLabel;
+        [SerializeField] private TextMeshProUGUI statusLabel;
+        [SerializeField] private TextMeshProUGUI versionLabel;
         [Header("Scene")]
-        [Tooltip("Tên scene lobby sẽ load sau khi đăng nhập thành công")]
-        [SerializeField] private string lobbySceneName = "LobbyScene3D";
-
-        // UI Elements - Login Form
-        private VisualElement m_LoginForm;
-        private TextField m_UsernameField;
-        private TextField m_PasswordField;
-        private Button m_LoginButton;
-
-        // UI Elements - Logged In State
-        private VisualElement m_LoggedInState;
-        private Label m_WelcomeLabel;
-        private Button m_PlayButton;
-        private Button m_LogoutButton;
-
-        private Label m_StatusLabel;
+        [SerializeField] private string lobbySceneName = "Lobby";
 
         private void OnEnable()
         {
-            if (loginUI == null)
+            if (loginButton == null || usernameField == null || passwordField == null)
             {
-                Debug.LogError("[LoginManager] loginUI is not assigned.", this);
+                Debug.LogError("[LoginManager] Login UI references are missing.", this);
                 return;
             }
-
-            var root = loginUI.rootVisualElement;
-            
-            m_LoginForm = root.Q<VisualElement>("login-form");
-            m_UsernameField = root.Q<TextField>("username-input");
-            m_PasswordField = root.Q<TextField>("password-input");
-            m_LoginButton = root.Q<Button>("login-button");
-            
-            m_LoggedInState = root.Q<VisualElement>("logged-in-state");
-            m_WelcomeLabel = root.Q<Label>("welcome-label");
-            m_PlayButton = root.Q<Button>("play-button");
-            m_LogoutButton = root.Q<Button>("logout-button");
-            
-            m_StatusLabel = root.Q<Label>("status-label");
-
-            if (m_LoginButton != null) m_LoginButton.clicked += OnLoginClicked;
-            if (m_PlayButton != null) m_PlayButton.clicked += OnPlayClicked;
-            if (m_LogoutButton != null) m_LogoutButton.clicked += OnLogoutClicked;
+            passwordField.contentType = TMP_InputField.ContentType.Password;
+            if (versionLabel != null) versionLabel.text = "v1.0 — Hold My Hand";
+            loginButton.onClick.AddListener(OnLoginClicked);
+            if (playButton != null) playButton.onClick.AddListener(OnPlayClicked);
+            if (logoutButton != null) logoutButton.onClick.AddListener(OnLogoutClicked);
             ApiClient.OnSessionExpired += OnSessionExpired;
-
-            // Tự động gán âm thanh Hover / Click cho tất cả buttons
-            UISoundManager.BindButtons(root);
-
-            // Tự động load token từ PlayerPrefs
             if (ApiClient.LoadSession())
             {
                 ShowLoggedInState();
                 SetStatus("");
                 _ = CharacterStatsService.FetchCharacterStatsAsync();
             }
-            else
-            {
-                ShowLoginForm();
-            }
+            else ShowLoginForm();
         }
 
         private void OnDisable()
         {
-            if (m_LoginButton != null) m_LoginButton.clicked -= OnLoginClicked;
-            if (m_PlayButton != null) m_PlayButton.clicked -= OnPlayClicked;
-            if (m_LogoutButton != null) m_LogoutButton.clicked -= OnLogoutClicked;
+            if (loginButton != null) loginButton.onClick.RemoveListener(OnLoginClicked);
+            if (playButton != null) playButton.onClick.RemoveListener(OnPlayClicked);
+            if (logoutButton != null) logoutButton.onClick.RemoveListener(OnLogoutClicked);
             ApiClient.OnSessionExpired -= OnSessionExpired;
         }
 
@@ -88,33 +57,39 @@ namespace Blocks.Gameplay.Core
             ShowLoginForm();
             SetStatus("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
         }
-
         private void ShowLoginForm()
         {
-            if (m_LoginForm != null) m_LoginForm.style.display = DisplayStyle.Flex;
-            if (m_LoggedInState != null) m_LoggedInState.style.display = DisplayStyle.None;
+            if (loginForm != null) loginForm.SetActive(true);
+            if (loggedInState != null) loggedInState.SetActive(false);
+            if (loginButton != null) loginButton.interactable = true;
         }
-
         private void ShowLoggedInState()
         {
-            if (m_LoginForm != null) m_LoginForm.style.display = DisplayStyle.None;
-            if (m_LoggedInState != null) m_LoggedInState.style.display = DisplayStyle.Flex;
-            
-            if (m_WelcomeLabel != null)
+            if (loginForm != null) loginForm.SetActive(false);
+            if (loggedInState != null) loggedInState.SetActive(true);
+            if (welcomeLabel != null)
             {
                 string name = !string.IsNullOrEmpty(ApiClient.DisplayName) ? ApiClient.DisplayName : ApiClient.Username;
-                m_WelcomeLabel.text = $"Xin chào, {name}!";
+                welcomeLabel.text = $"Xin chào, {name}!";
             }
         }
-
         private async void OnPlayClicked()
         {
             UISoundManager.PlayConfirm();
             SetStatus("Đang tải dữ liệu và vào Lobby...");
-            await CharacterStatsService.EnsureLoadedAsync();
-            SceneManager.LoadScene(lobbySceneName);
+            if (playButton != null) playButton.interactable = false;
+            try
+            {
+                await CharacterStatsService.EnsureLoadedAsync();
+                SceneManager.LoadScene(lobbySceneName);
+            }
+            catch (System.Exception ex)
+            {
+                SetStatus("Không thể tải dữ liệu nhân vật.");
+                if (playButton != null) playButton.interactable = true;
+                Debug.LogError($"[LoginManager] {ex}");
+            }
         }
-
         private void OnLogoutClicked()
         {
             UISoundManager.PlayCancel();
@@ -122,71 +97,54 @@ namespace Blocks.Gameplay.Core
             ShowLoginForm();
             SetStatus("Đã đăng xuất.");
         }
-
         private async void OnLoginClicked()
         {
-            string username = m_UsernameField?.value?.Trim();
-            string password = m_PasswordField?.value;
-
+            string username = usernameField.text?.Trim();
+            string password = passwordField.text;
             if (string.IsNullOrWhiteSpace(username))
             {
                 UISoundManager.PlayError();
                 SetStatus("Vui lòng nhập username!");
                 return;
             }
-
             if (string.IsNullOrWhiteSpace(password))
             {
                 UISoundManager.PlayError();
                 SetStatus("Vui lòng nhập password!");
                 return;
             }
-
-            m_LoginButton.SetEnabled(false);
+            loginButton.interactable = false;
             SetStatus("Đang đăng nhập...");
-
             try
             {
-                var result = await ApiClient.LoginAsync(username, password);
-
-                string displayText = !string.IsNullOrEmpty(result.displayName)
-                    ? result.displayName
-                    : result.username;
-
+                await ApiClient.LoginAsync(username, password);
                 UISoundManager.PlaySuccess();
                 SetStatus("");
-
-                // Chuyển sang UI Play thay vì load scene ngay
                 ShowLoggedInState();
                 _ = CharacterStatsService.FetchCharacterStatsAsync();
             }
             catch (ApiException apiEx)
             {
                 UISoundManager.PlayError();
-                // Hiển thị lỗi thân thiện hơn dựa trên status code
-                string errorMsg = apiEx.StatusCode switch
+                SetStatus(apiEx.StatusCode switch
                 {
                     401 => "Sai username hoặc password!",
                     403 => "Tài khoản đã bị khóa.",
                     _ => $"Lỗi: {apiEx.Message}"
-                };
-                SetStatus(errorMsg);
-                m_LoginButton.SetEnabled(true);
+                });
                 Debug.LogError($"[LoginManager] API error: {apiEx}");
             }
             catch (System.Exception ex)
             {
                 UISoundManager.PlayError();
-                SetStatus($"Không thể kết nối server!");
-                m_LoginButton.SetEnabled(true);
+                SetStatus("Không thể kết nối server!");
                 Debug.LogError($"[LoginManager] {ex}");
             }
+            finally { if (loginButton != null) loginButton.interactable = true; }
         }
-
         private void SetStatus(string message)
         {
-            if (m_StatusLabel != null)
-                m_StatusLabel.text = message;
+            if (statusLabel != null) statusLabel.text = message;
         }
     }
 }
