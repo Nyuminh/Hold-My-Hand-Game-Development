@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -7,28 +7,23 @@ using UnityEngine.InputSystem;
 namespace Blocks.Gameplay.Core
 {
     /// <summary>
-    /// Cơ Chế Co-op "Cầu Rút Cổ Khu Vịnh" (Cove Drawbridge) — chốt chặn giữa Khu Vịnh và Khu Mỏ:
+    /// CƠ CHẾ CO-OP "CẦU ĐẤT LẬT CỬA VỊNH" (Cove Bascule Bridge) — bật cầu nối Khu Vịnh với Khu Mỏ.
     ///
-    /// CỐT TRUYỆN:
-    /// Bến cảng cổ trong vịnh đã bị bỏ hoang hàng trăm năm. Cầu rút bằng đá nối sang mỏ quặng đã bị
-    /// "Chốt Khóa Sắt" ghim chết, còn "Dây Xích Giữ Cầu" bị kẹt nứt treo lủng lẳng chắn ngang lối đi.
-    /// Hai cha con phải khôi phục cầu rút để lên đường vào Khu Mỏ:
+    /// BỐ CỢC (đã đo bằng raycast trên scene thật):
+    ///   - Bến gỗ (Trestle_Deck_0) kết thúc ở X = -18.4, mặt sàn Y ≈ 13.47
+    ///   - Bệ đá tháp (Cove_Bridge_Tower_East) bắt đầu ở X = -12.2, mặt sàn Y ≈ 13.91
+    ///   - Khe hở giữa hai bên: 6.2 m, sàn chênh nhau 0.44 m
     ///
-    /// PHA 1 — 👶 CON (chui lọt khe hẹp dưới mái che):
-    ///   Dưới mái che gỗ của cơ quang tời có một khe hẹp chỉ vừa con bò vào.
-    ///   Con chui vào khe, bấm [E] nhổ "Chốt Khóa Sắt" (Cove_Drawbridge_ReleasePin) ra.
-    ///   Khi chốt vừa nhổ: dây xích giữ cầu rơi xuống vực, cơ quang tời được giải phóng.
+    /// CƠ CHẾ (3 bước, 2 người):
+    ///   PHA 1 — 👶 CON chui khe hẹp (tunnel cao 0.78 m, rộng 0.85 m — chỉ Con lọt):
+    ///     Con chui vào khe hẹp ở mặt Tây bệ đá, nhổ "CHỐT CHIẾN" (Cove_Drawbridge_ReleasePin).
+    ///     Chốt vừa nhổ -> khóa đá trên lồng đối trọng được giải phóng.
     ///
-    /// PHA 2 — 🧔 BA (quay tời nặng):
-    ///   Ba đứng cạnh trụ tời, giữ [E / SPACE] dùng sức quay trống tời (Cove_Drawbridge_WinchDrum).
-    ///   Đối trọng mất trọng lượng -> cầu rút từ 37° hạ dần xuống phẳng (-30°) để hai cha con đi qua.
+    ///   PHA 2 — 🧔 CHA quay tời (Cove_Drawbridge_WinchDrum) 360°:
+    ///     Cha quay trống tời, dây xích cuộn lồng đá đối trọng lên cao.
+    ///     Đối trọng nặng lên -> cầu đất lật rơi từ 68° về 0° (nằm phẳng khít giữa bến gỗ và tháp đá).
     ///
-    /// PHA 3 — Hai cha con cùng bước qua cầu phẳng sang bãi đá (Trestle) để vào KHU MỎ.
-    ///
-    /// Toàn bộ hình học được đo đạc 100% bằng raycast trên scene thật:
-    ///   - Bản lề (trục xoay Z thế giới):   H = (-17.30, 15.05, -73.40)
-    ///   - Cầu rút (Cove_Drawbridge_Deck):   dựng 37° chắn lối, hạ -30° thì phẳng ~14.3m
-    ///   - Đối trọng (Cove_Drawbridge_Counterweight), dây xích giữ cầu (SuspBridge_Release_Chain).
+    ///   PHA 3 — Hai Cha Con bước qua cầu phẳng lên tháp đá, đi tiếp qua cầu treo sang KHU MỎ.
     /// </summary>
     [SelectionBase]
     public class CoveDrawbridgeCoopController : MonoBehaviour
@@ -38,85 +33,81 @@ namespace Blocks.Gameplay.Core
 
         #region Serialized Fields
 
-        [Header("Cơ quang tời (pha 2 — Cha quay)")]
-        [Tooltip("Trống tời quay (Cove_Drawbridge_WinchDrum)")]
-        [SerializeField] private Transform winchDrum;
+        [Header("Trục bản lề (cầu đất lật)")]
+        [Tooltip("Pivot xoay của cánh cầu (Cove_Drawbridge_Pivot)")]
+        [SerializeField] private Transform hingePivot;
 
-        [Tooltip("Tay quay tời để Cha nắm (Cove_Drawbridge_CrankHandle)")]
-        [SerializeField] private Transform crankHandle;
+        [Tooltip("Cánh cầu (Cove_Drawbridge_Deck) — con của pivot")]
+        [SerializeField] private Transform leaf;
 
-        [Header("Chốt khóa sắt (pha 1 — Con nhổ)")]
-        [Tooltip("Chốt khóa sắt (Cove_Drawbridge_ReleasePin)")]
+        [Header("Pha 1 — Chốt chiến (Con nhổ)")]
+        [Tooltip("Chốt chiến sắt trong khe hẹp (Cove_Drawbridge_ReleasePin)")]
         [SerializeField] private Transform releasePin;
 
-        [Tooltip("Cần gạt nhỏ bên trong khe (Cove_Drawbridge_PawlLever)")]
-        [SerializeField] private Transform pawlLever;
+        [Tooltip("Vị trí để Con đứng chui vào khe hẹp")]
+        [SerializeField] private Vector3 crevicePos = new Vector3(-19.90f, 13.60f, -74.60f);
 
-        [Header("Cầu rút & đối trọng")]
-        [Tooltip("Mặt cầu rút (Cove_Drawbridge_Deck)")]
-        [SerializeField] private Transform drawbridgeDeck;
+        [Header("Pha 2 — Quay tời (Cha quay)")]
+        [Tooltip("Trống tời (Cove_Drawbridge_WinchDrum)")]
+        [SerializeField] private Transform winchDrum;
 
-        [Tooltip("Đối trọng đá (Cove_Drawbridge_Counterweight)")]
+        [Tooltip("Tay quay (Cove_Drawbridge_CrankHandle)")]
+        [SerializeField] private Transform crankHandle;
+
+        [Tooltip("Vị trí Cha đứng quay tời")]
+        [SerializeField] private Vector3 winchPos = new Vector3(-21.35f, 13.60f, -73.40f);
+
+        [Header("Đối trọng & xích")]
+        [Tooltip("Khối đá đối trọng (Cove_Drawbridge_Counterweight)")]
         [SerializeField] private Transform counterweight;
 
-        [Tooltip("Dây xích giữ cầu rút (SuspBridge_Release_Chain) - trải đúng trên khoảng trống cầu")]
-        [SerializeField] private Transform holdingChain;
+        [Tooltip("Xích nối đầu cầu với đối trọng (Cove_Drawbridge_Chain_Tip / _Tail)")]
+        [SerializeField] private Transform chainToTip;
 
-        [Header("Xích nối tời với cầu")]
-        [Tooltip("Xích bên phải (Cove_Drawbridge_Chain_R)")]
-        [SerializeField] private Transform chainR;
+        [SerializeField] private Transform chainToWeight;
 
-        [Tooltip("Xích bên trái (Cove_Drawbridge_Chain_L)")]
-        [SerializeField] private Transform chainL;
+        [Header("Chốt giữ trên tháp (Con đạp để ghim cầu)")]
+        [Tooltip("Bàn đạp chốt giữ (Cove_TowerE_HoldLatch)")]
+        [SerializeField] private Transform holdLatch;
 
-        [Header("Vị trí tương tác (đo đạc từ scene)")]
-        [Tooltip("Vị trí khe hẹp để Con chui vào nhổ chốt (mép nam thap East)")]
-        [SerializeField] private Vector3 pawlPos = new Vector3(-11.00f, 15.05f, -74.60f);
-
-        [Tooltip("Vị trí trụ tời để Cha quay")]
-        [SerializeField] private Vector3 winchPos = new Vector3(-9.55f, 16.05f, -74.80f);
-
-        [Header("Thông số cơ chế")]
-        [Tooltip("Góc cầu lúc dựng (độ, so với pose gốc)")]
-        [SerializeField] private float raisedAngle = 0f;
-
-        [Tooltip("Góc cầu khi hạ phẳng (độ)")]
-        [SerializeField] private float openAngle = -30f;
-
-        [Tooltip("Thời gian quay tời để mở khóa cầu (giây)")]
-        [SerializeField] private float crankDuration = 3.2f;
-
-        [Tooltip("Thời gian hạ cầu (giây)")]
-        [SerializeField] private float lowerDuration = 3.0f;
-
-        [Tooltip("Khoảng cách tương tác (mét)")]
-        [SerializeField] private float interactDistance = 3.4f;
+        [Tooltip("Vị trí chốt giữ trên sàn tháp")]
+        [SerializeField] private Vector3 latchPos = new Vector3(-11.00f, 13.95f, -72.90f);
 
         [Header("Trạng thái")]
         [SerializeField] private bool isPinReleased = false;
         [SerializeField] private bool isBridgeOpened = false;
+        [SerializeField] private bool isLatchPressed = false;
         [SerializeField] private float crankProgress = 0f;
+
+        [Header("Thông số")]
+        [Tooltip("Góc cầu lúc dựng (độ)")]
+        [SerializeField] private float raisedAngle = 68f;
+
+        [Tooltip("Góc cầu khi hạ phẳng (độ)")]
+        [SerializeField] private float openAngle = 0f;
+
+        [Tooltip("Thời gian quay tời (giây)")]
+        [SerializeField] private float crankDuration = 3.6f;
+
+        [Tooltip("Thời gian hạ cầu (giây)")]
+        [SerializeField] private float lowerDuration = 2.6f;
+
+        [Tooltip("Góc cầu khi Cha ĐANG GIỮ cần quay (độ) — cầu giữ phẳng ở 0 độ nhờ lực giữ")]
+        [SerializeField] private float holdAngle = 0f;
+
+        [Tooltip("Khoảng cách tương tác (mét)")]
+        [SerializeField] private float interactDistance = 3.6f;
 
         #endregion
 
         #region Private Fields
 
-        /// <summary>Trục bản lề thế giới — đo trực tiếp từ mesh Cove_Drawbridge_Hinge.</summary>
-        private static readonly Vector3 HingePoint = new Vector3(-17.30f, 15.05f, -73.40f);
+        private Vector3 m_WeightStartPos;
+        private Vector3 m_WeightEndPos;
+        private Vector3 m_TipLocalOffset;
+        private Vector3 m_SheaveWorld;
 
-        private Quaternion m_DeckInitRot;
-        private Vector3 m_DeckInitPos;
-        private Quaternion m_CounterInitRot;
-        private Vector3 m_CounterInitPos;
-
-        /// <summary>Đầu móc cầu (2 điểm) ở pose dựng ban đầu — lưu trong LOCAL SPACE của deck để xoay theo cầu.</summary>
-        private Vector3 m_TipLocalR;
-        private Vector3 m_TipLocalL;
-
-        private float m_CurrentAngle;
-        private bool m_IsCranking;
         private Coroutine m_BridgeRoutine;
-
         private CharacterController[] cachedControllers;
         private float lastUpdateTime = 0f;
 
@@ -126,6 +117,9 @@ namespace Blocks.Gameplay.Core
 
         private Light m_SignalLamp;
         private bool m_SignalLampCached;
+
+        private bool isDadHoldingCrank = false;
+        private float m_DadHoldStartWeightY = 0f;
 
         #endregion
 
@@ -147,29 +141,30 @@ namespace Blocks.Gameplay.Core
         {
             CachePlayers();
 
-            if (drawbridgeDeck != null)
+            if (hingePivot != null && leaf != null)
             {
-                m_DeckInitRot = drawbridgeDeck.rotation;
-                m_DeckInitPos = drawbridgeDeck.position;
+                // Đầu móc cầu: điểm xa nhất theo local +X của cánh cầu
+                var rend = leaf.GetComponentInChildren<Renderer>();
+                if (rend != null)
+                {
+                    Bounds b = rend.bounds;
+                    Vector3 tipWorld = new Vector3(b.max.x, b.max.y, b.center.z);
+                    m_TipLocalOffset = leaf.InverseTransformPoint(tipWorld);
+                }
 
-                // Đầu móc cầu: 2 điểm ở mép đông (max.x) của mesh, lưu LOCAL để xoay theo cầu
-                var b = drawbridgeDeck.GetComponentInChildren<Renderer>().bounds;
-                Vector3 tipWorldR = new Vector3(b.max.x, b.max.y, -72.57f);
-                Vector3 tipWorldL = new Vector3(b.max.x, b.max.y, -74.24f);
-                m_TipLocalR = drawbridgeDeck.transform.InverseTransformPoint(tipWorldR);
-                m_TipLocalL = drawbridgeDeck.transform.InverseTransformPoint(tipWorldL);
+                // Đối trọng: nằm ở đáy lồng lúc đầu, được kéo lên cao khi quay tời
+                if (counterweight != null)
+                {
+                    m_WeightStartPos = counterweight.position;
+                    m_WeightEndPos = m_WeightStartPos + Vector3.up * 2.10f;
+                }
+
+                if (hingePivot != null) m_SheaveWorld = hingePivot.position + Vector3.up * 0.10f;
+
+                ApplyState(0f, raisedAngle);
             }
 
-            if (counterweight != null)
-            {
-                m_CounterInitRot = counterweight.rotation;
-                m_CounterInitPos = counterweight.position;
-            }
-
-            m_CurrentAngle = raisedAngle;
-            ApplyBridgeAngle(raisedAngle);
-
-            if (!isPinReleased) ApplyHoldingChainState(true);
+            if (releasePin != null) releasePin.gameObject.SetActive(true);
         }
 
         private void Update()
@@ -196,22 +191,22 @@ namespace Blocks.Gameplay.Core
 
         public void AutoFindReferences()
         {
-            if (drawbridgeDeck == null)
+            if (hingePivot == null)
             {
-                var d = GameObject.Find("Cove_Drawbridge_Deck");
-                if (d != null) drawbridgeDeck = d.transform;
+                var p = GameObject.Find("Cove_Drawbridge_Pivot");
+                if (p != null) hingePivot = p.transform;
             }
 
-            if (counterweight == null)
+            if (leaf == null)
             {
-                var c = GameObject.Find("Cove_Drawbridge_Counterweight");
-                if (c != null) counterweight = c.transform;
+                var l = GameObject.Find("Cove_Drawbridge_Deck");
+                if (l != null) leaf = l.transform;
             }
 
-            if (holdingChain == null)
+            if (releasePin == null)
             {
-                var h = GameObject.Find("SuspBridge_Release_Chain");
-                if (h != null) holdingChain = h.transform;
+                var r = GameObject.Find("Cove_Drawbridge_ReleasePin");
+                if (r != null) releasePin = r.transform;
             }
 
             if (winchDrum == null)
@@ -222,42 +217,32 @@ namespace Blocks.Gameplay.Core
 
             if (crankHandle == null)
             {
-                var k = GameObject.Find("Cove_Drawbridge_CrankHandle");
-                if (k != null) crankHandle = k.transform;
+                var c = GameObject.Find("Cove_Drawbridge_CrankHandle");
+                if (c != null) crankHandle = c.transform;
             }
 
-            if (releasePin == null)
+            if (counterweight == null)
             {
-                var p = GameObject.Find("Cove_Drawbridge_ReleasePin");
-                if (p != null) releasePin = p.transform;
+                var w = GameObject.Find("Cove_Drawbridge_Counterweight");
+                if (w != null) counterweight = w.transform;
             }
 
-            if (pawlLever == null)
+            if (chainToTip == null)
             {
-                var l = GameObject.Find("Cove_Drawbridge_PawlLever");
-                if (l != null) pawlLever = l.transform;
+                var c = GameObject.Find("Cove_Drawbridge_Chain_Tip");
+                if (c != null) chainToTip = c.transform;
             }
 
-            if (chainR == null)
+            if (chainToWeight == null)
             {
-                var r = GameObject.Find("Cove_Drawbridge_Chain_R");
-                if (r != null) chainR = r.transform;
-            }
-
-            if (chainL == null)
-            {
-                var l2 = GameObject.Find("Cove_Drawbridge_Chain_L");
-                if (l2 != null) chainL = l2.transform;
+                var c = GameObject.Find("Cove_Drawbridge_Chain_Tail");
+                if (c != null) chainToWeight = c.transform;
             }
         }
 
         private void CachePlayers()
         {
-#if UNITY_2023_1_OR_NEWER
             cachedControllers = Object.FindObjectsByType<CharacterController>(FindObjectsSortMode.None);
-#else
-            cachedControllers = Object.FindObjectsOfType<CharacterController>();
-#endif
         }
 
         #endregion
@@ -266,235 +251,235 @@ namespace Blocks.Gameplay.Core
 
         private void HandleInteractions()
         {
-            // ---- ĐÃ MỞ CẦU: chỉ còn dẫn đường ----
             if (isBridgeOpened)
             {
-                PlayerRoleVisuals visOpen;
-                var nearOpen = GetNearestPlayer(winchPos, 9f, out visOpen);
-                if (nearOpen != null)
+                PlayerRoleVisuals vOpen;
+                var near = GetNearestPlayer(winchPos, 12f, out vOpen);
+                if (near != null)
                 {
-                    ShowPrompt("✅ Cầu rút đã hạ phẳng! Hai Cha Con cùng đi qua sang bãi đá để vào KHU MỎ.", Color.green, 0.4f);
+                    ShowPrompt("✅ CẦU ĐẤT LẬT ĐÃ HẠ PHẲNG! Hai Cha Con bước qua cầu lên tháp đá, đi tiếp sang KHU MỎ.", Color.green, 0.5f);
                 }
                 return;
             }
 
-            // ---- PHA 1: CON nhổ chốt khóa sắt trong khe hẹp ----
+            // ---- PHA 1: CON nhổ chốt chiến trong khe hẹp ----
             if (!isPinReleased)
             {
-                PlayerRoleVisuals visPawl;
-                var playerAtPawl = GetNearestPlayer(pawlPos, interactDistance, out visPawl);
-                if (playerAtPawl != null)
+                PlayerRoleVisuals vCrevice;
+                var child = GetNearestPlayer(crevicePos, interactDistance, out vCrevice);
+                if (child != null)
                 {
-                    bool isDad = visPawl != null ? visPawl.IsDad : playerAtPawl.name.ToLower().Contains("dad");
+                    bool isDad = vCrevice != null ? vCrevice.IsDad : child.name.ToLower().Contains("dad");
                     if (isDad)
                     {
-                        ShowPrompt("🚫 Khe dưới mái che quá hẹp — chỉ 👶 Con mới chui lọt vào nhổ chốt!", new Color(1f, 0.75f, 0.2f));
+                        ShowPrompt("🚫 Khe hẹp cao 0.78m — chỉ 👶 Con mới chui lọt vào nhổ chốt!", new Color(1f, 0.72f, 0.2f));
                     }
                     else
                     {
-                        ShowPrompt("👶 [E] Nhổ CHỐT KHÓA SẮT khỏi cơ quang tời", Color.cyan);
-                        if (IsInteractPressed())
-                        {
-                            StartCoroutine(ReleasePinRoutine());
-                        }
+                        ShowPrompt("👶 [E] Nhổ CHỐT CHIẾN khỏi lồng đá đối trọng", Color.cyan);
+                        if (IsInteractPressed()) StartCoroutine(ReleasePinRoutine());
                     }
                     return;
                 }
 
-                // Không ai ở khe: nhắc nhở nếu đứng gần cơ chế
-                PlayerRoleVisuals visW0;
-                var nearW0 = GetNearestPlayer(winchPos, 7f, out visW0);
+                PlayerRoleVisuals vW0;
+                var nearW0 = GetNearestPlayer(winchPos, 8f, out vW0);
                 if (nearW0 != null)
                 {
-                    ShowPrompt("⚙️ Cầu rút bị CHỐT KHÓA SẮT ghim chết. 👶 Con cần chui vào khe hẹp dưới mái che để nhổ chốt!", new Color(1f, 0.65f, 0.1f));
+                    ShowPrompt("⚙️ Cầu bị CHỐT CHIẾN ghim. 👶 Con phải chui vào khe hẹp để nhổ chốt!", new Color(1f, 0.65f, 0.1f));
                 }
                 return;
             }
 
-            // ---- PHA 2: CHA quay tời ----
-            if (!isBridgeOpened)
+            // ---- PHA 2: CHA quay tời (GIỮ => cầu ở góc 0°) ----
+            PlayerRoleVisuals vWinch;
+            var dad = GetNearestPlayer(winchPos, interactDistance + 1.4f, out vWinch);
+            if (dad != null)
             {
-                PlayerRoleVisuals visWinch;
-                var playerAtWinch = GetNearestPlayer(winchPos, interactDistance + 1.2f, out visWinch);
-                if (playerAtWinch != null)
+                bool isDad = vWinch != null ? vWinch.IsDad : dad.name.ToLower().Contains("dad");
+                if (!isDad)
                 {
-                    bool isDad = visWinch != null ? visWinch.IsDad : playerAtWinch.name.ToLower().Contains("dad");
-                    if (!isDad)
+                    ShowPrompt("🚫 Trống tời quá nặng! Cần sức 💪 của 🧔 Ba để quay!", Color.red);
+                }
+                else
+                {
+                    // CHA GIỮ CẦN QUAY -> cầu được giữ ở góc 0° (phẳng, đi qua được)
+                    if (IsInteractHeld())
                     {
-                        ShowPrompt("🚫 Trống tời quá nặng! Cần sức mạnh của 🧔 Ba để quay!", Color.red);
+                        if (!isDadHoldingCrank) { isDadHoldingCrank = true; m_DadHoldStartWeightY = counterweight != null ? counterweight.position.y : 0f; }
+                        ApplyState(1f, holdAngle);
+                        if (winchDrum != null) winchDrum.Rotate(Vector3.forward, 220f * Time.deltaTime, Space.Self);
+                        if (crankHandle != null) crankHandle.Rotate(Vector3.forward, 220f * Time.deltaTime, Space.Self);
+                        if (counterweight != null)
+                        {
+                            Vector3 p = counterweight.position;
+                            p.y = Mathf.MoveTowards(p.y, m_WeightEndPos.y, 1.2f * Time.deltaTime);
+                            counterweight.position = p;
+                        }
+                        crankProgress = Mathf.Clamp01(crankProgress + Time.deltaTime / crankDuration);
+                        ShowPrompt($"🧔 [GIỮ SPACE / E] Đang giữ cầu phẳng! ({Mathf.RoundToInt(crankProgress * 100)}%) — 👶 Con hãy đạp chốt giữ trên tháp!", Color.green);
                     }
                     else
                     {
-                        ShowPrompt($"🧔 [Giữ SPACE / E] Dùng sức quay tời mở cầu rút ({Mathf.RoundToInt(crankProgress * 100)}%)", Color.green);
-                        if (IsInteractHeld())
+                        isDadHoldingCrank = false;
+                        ShowPrompt($"🧔 [Giữ SPACE / E] Quay tời hạ cầu ({Mathf.RoundToInt(crankProgress * 100)}%) — nhả tay thì cầu sập lại!", new Color(1f, 0.85f, 0.3f));
+                        if (crankProgress > 0f) crankProgress = Mathf.Max(0f, crankProgress - Time.deltaTime / crankDuration * 2f);
+                        ApplyState(crankProgress, Mathf.Lerp(raisedAngle, holdAngle, crankProgress));
+                        if (counterweight != null)
                         {
-                            PerformCranking();
+                            Vector3 p = counterweight.position;
+                            p.y = Mathf.MoveTowards(p.y, m_DadHoldStartWeightY, 1.0f * Time.deltaTime);
+                            counterweight.position = p;
                         }
                     }
                 }
             }
-        }
 
-        /// <summary>Cha quay trống tời — quay đều, càng quay càng chắc.</summary>
-        private void PerformCranking()
-        {
-            if (isBridgeOpened) return;
-            m_IsCranking = true;
-
-            if (winchDrum != null) winchDrum.Rotate(Vector3.forward, 210f * Time.deltaTime, Space.Self);
-            if (crankHandle != null) crankHandle.Rotate(Vector3.forward, 210f * Time.deltaTime, Space.Self);
-
-            crankProgress = Mathf.Clamp01(crankProgress + Time.deltaTime / crankDuration);
-
-            if (crankProgress >= 1f)
+            // ---- PHA 3: CON đạp chốt giữ trên tháp -> hoàn thành vĩnh viễn ----
+            if (!isLatchPressed)
             {
-                crankProgress = 1f;
-                m_IsCranking = false;
-                LowerBridgeRoutine();
+                PlayerRoleVisuals vLatch;
+                var child = GetNearestPlayer(latchPos, 2.6f, out vLatch);
+                if (child != null)
+                {
+                    bool isDad = vLatch != null ? vLatch.IsDad : child.name.ToLower().Contains("dad");
+                    if (isDad)
+                    {
+                        ShowPrompt("🚫 Bàn đạp chốt giữ quá nhẹ — chỉ 👶 Con đạp mới giữ được cầu!", new Color(1f, 0.72f, 0.2f));
+                    }
+                    else
+                    {
+                        ShowPrompt("👶 [E] Đạp CHỐT GIU trên tháp để ghim cầu vĩnh viễn!", Color.cyan);
+                        if (IsInteractPressed()) StartCoroutine(PressLatchRoutine());
+                    }
+                }
+            }
+
+            // ---- Đã ghim chốt: cầu ở 0° vĩnh viễn ----
+            if (isLatchPressed)
+            {
+                ApplyState(1f, holdAngle);
+                if (counterweight != null) counterweight.position = m_WeightEndPos;
             }
         }
 
-        /// <summary>Con nhổ chốt khóa -> dây xích giữ cầu rơi xuống vực.</summary>
         private IEnumerator ReleasePinRoutine()
         {
             isPinReleased = true;
             UISoundManager.PlayConfirm();
-            ShowPrompt("⚙️ CHỐT KHÓA ĐÃ NHỔ RA! Dây xích giữ cầu đang rơi xuống vực...", Color.yellow, 3.0f);
-            Debug.Log("[CoveDrawbridge] Con đã nhổ chốt khóa sắt, cơ quang tời được giải phóng!");
+            ShowPrompt("⚙️ CHỐT CHIẾN ĐÃ NHỔ! Lồng đá đối trọng đã được giải phóng...", Color.yellow, 3.0f);
+            Debug.Log("[CoveDrawbridge] Con đã nhổ chốt chiến — lồng đối trọng được giải phóng!");
 
-            // Chốt nhổ ra, bay lệch
             if (releasePin != null)
             {
                 Vector3 p0 = releasePin.position;
                 Quaternion r0 = releasePin.rotation;
-                float dur = 0.7f, e = 0f;
+                float dur = 0.6f, e = 0f;
                 while (e < dur)
                 {
                     e += Time.deltaTime;
                     float t = e / dur;
-                    releasePin.position = p0 + new Vector3(0f, Mathf.Sin(t * Mathf.PI) * 0.8f, t * 1.6f);
-                    releasePin.rotation = r0 * Quaternion.Euler(t * 220f, t * 140f, 0f);
-                    releasePin.localScale = Vector3.Lerp(releasePin.localScale, Vector3.one * 0.2f, Time.deltaTime * 3f);
+                    releasePin.position = p0 + new Vector3(-t * 1.1f, Mathf.Sin(t * Mathf.PI) * 0.5f, 0f);
+                    releasePin.rotation = r0 * Quaternion.Euler(0f, 0f, t * 260f);
                     yield return null;
                 }
                 releasePin.gameObject.SetActive(false);
             }
 
-            // Cần gạt nhỏ bật ra
-            if (pawlLever != null)
-            {
-                Quaternion l0 = pawlLever.localRotation;
-                Quaternion l1 = l0 * Quaternion.Euler(0f, 0f, -38f);
-                float e2 = 0f, d2 = 0.4f;
-                while (e2 < d2)
-                {
-                    e2 += Time.deltaTime;
-                    pawlLever.localRotation = Quaternion.Slerp(l0, l1, e2 / d2);
-                    yield return null;
-                }
-                pawlLever.localRotation = l1;
-            }
-
-            // Dây xích giữ cầu rơi xuống vực
-            if (holdingChain != null)
-            {
-                var cols = holdingChain.GetComponentsInChildren<Collider>();
-                foreach (var c in cols) c.enabled = false;
-
-                Vector3 cp = holdingChain.position;
-                float e3 = 0f, d3 = 1.6f;
-                while (e3 < d3)
-                {
-                    e3 += Time.deltaTime;
-                    float t = e3 / d3;
-                    holdingChain.position = cp + Vector3.down * (t * t * 13f);
-                    holdingChain.Rotate(Vector3.forward, 22f * Time.deltaTime, Space.World);
-                    yield return null;
-                }
-                holdingChain.gameObject.SetActive(false);
-            }
-
             UISoundManager.PlaySuccess();
-            ShowPrompt("✨ CƠ QUANG TỜI ĐÃ ĐƯỢC GIẢI PHÓNG! 🧔 Ba hãy quay tời để hạ cầu rút!", Color.green, 5.0f);
+            ShowPrompt("✨ KHÓA ĐÁ ĐÃ VĂNG! 🧔 Ba hãy quay trống tời để kéo cầu hạ xuống!", Color.green, 5.0f);
         }
 
-        /// <summary>Hạ cầu rút từ 37° xuống phẳng (-30°) — đối trọng mất trọng lượng.</summary>
         private void LowerBridgeRoutine()
         {
             if (m_BridgeRoutine != null) StopCoroutine(m_BridgeRoutine);
             m_BridgeRoutine = StartCoroutine(LowerBridgeInner());
         }
 
+        /// <summary>Con đạp chốt giữ — cầu được ghim vĩnh viễn ở góc 0°.</summary>
+        private IEnumerator PressLatchRoutine()
+        {
+            isLatchPressed = true;
+            isBridgeOpened = true;
+            isDadHoldingCrank = false;
+            UISoundManager.PlaySuccess();
+            ShowPrompt("🔒 CHỐT GIU ĐÃ VÀO KHỚP! Cầu được ghim vĩnh viễn — Hai Cha Con cùng bước qua sang KHU MỎ!", Color.green, 8.0f);
+            Debug.Log("[CoveDrawbridge] Con đã đạp chốt giữ — cầu cửa vịnh đã mở vĩnh viễn!");
+
+            if (holdLatch != null)
+            {
+                Vector3 p0 = holdLatch.position;
+                Vector3 target = p0 + Vector3.down * 0.09f;
+                float dur = 0.35f, e = 0f;
+                while (e < dur)
+                {
+                    e += Time.deltaTime;
+                    float t = e / dur;
+                    holdLatch.position = Vector3.Lerp(p0, target, Mathf.SmoothStep(0f, 1f, t));
+                    yield return null;
+                }
+            }
+
+            ApplyState(1f, holdAngle);
+            if (counterweight != null) counterweight.position = m_WeightEndPos;
+            SetSignalLamp(Color.green);
+        }
+
         private IEnumerator LowerBridgeInner()
         {
             UISoundManager.PlayConfirm();
-            ShowPrompt("⚙️ ĐỐI TRỌNG MẤT TRỌNG LƯỢNG — CẦU RÚT ĐANG HẠ XUỐNG!", Color.yellow, 3.0f);
+            ShowPrompt("⚙️ XÍCH ĐANG CUỘN — CẦU ĐẤT LẬT ĐANG HẠ XUỐNG!", Color.yellow, 3.0f);
 
-            float startAngle = m_CurrentAngle;
+            float startAngle = raisedAngle;
+            float startWeightY = m_WeightStartPos.y;
             float e = 0f;
 
             while (e < lowerDuration)
             {
                 e += Time.deltaTime;
                 float t = Mathf.SmoothStep(0f, 1f, e / lowerDuration);
-                m_CurrentAngle = Mathf.Lerp(startAngle, openAngle, t);
-                ApplyBridgeAngle(m_CurrentAngle);
 
-                // Rung nhẹ khi cầu chạm đất
-                float rumble = (1f - t) * Mathf.Sin(e * 26f) * 0.035f;
-                if (drawbridgeDeck != null) drawbridgeDeck.position += new Vector3(0f, rumble, 0f);
+                float angle = Mathf.Lerp(startAngle, openAngle, t);
+                ApplyState(t, angle);
+
+                if (counterweight != null)
+                {
+                    Vector3 p = counterweight.position;
+                    p.y = Mathf.Lerp(startWeightY, m_WeightEndPos.y, t);
+                    counterweight.position = p;
+                }
+
+                float rumble = (1f - t) * Mathf.Sin(e * 24f) * 0.03f;
+                if (leaf != null) leaf.position += new Vector3(0f, rumble, 0f);
 
                 yield return null;
             }
 
-            ApplyBridgeAngle(openAngle);
-            isBridgeOpened = true;
+            ApplyState(1f, openAngle);
+            if (counterweight != null) counterweight.position = m_WeightEndPos;
 
+            isBridgeOpened = true;
             UISoundManager.PlaySuccess();
-            ShowPrompt("✅ CẦU RÚT ĐÃ HẠ PHẲNG! Hai Cha Con cùng đi qua sang bãi đá để vào KHU MỎ!", Color.green, 7.0f);
-            Debug.Log("[CoveDrawbridge] Cầu rút đã hạ phẳng, đường vào Khu Mỏ đã mở!");
+            ShowPrompt("✅ CẦU ĐÃ HẠ PHẲNG KHÍT! Hai Cha Con bước qua sang tháp đá để đi vào KHU MỎ!", Color.green, 7.0f);
+            Debug.Log("[CoveDrawbridge] Cầu đất lật đã hạ phẳng — đường vào Khu Mỏ đã mở!");
             SetSignalLamp(Color.green);
         }
 
-        /// <summary>Áp dụng góc cầu: xoay quanh trục bản lề thế giới Z, giữ nguyên pose gốc FBX.</summary>
-        private void ApplyBridgeAngle(float angle)
+        /// <summary>Áp dụng góc cánh cầu quanh trục bản lề (trục Z thế giới).</summary>
+        private void ApplyState(float t, float angle)
         {
-            Quaternion rz = Quaternion.Euler(0f, 0f, angle);
-
-            if (drawbridgeDeck != null)
-            {
-                drawbridgeDeck.rotation = rz * m_DeckInitRot;
-                drawbridgeDeck.position = HingePoint + rz * (m_DeckInitPos - HingePoint);
-            }
-
-            if (counterweight != null)
-            {
-                counterweight.rotation = rz * m_CounterInitRot;
-                counterweight.position = HingePoint + rz * (m_CounterInitPos - HingePoint);
-            }
+            if (hingePivot != null) hingePivot.rotation = Quaternion.Euler(0f, 0f, -angle);
         }
 
-        private void ApplyHoldingChainState(bool held)
-        {
-            if (holdingChain == null) return;
-            var cols = holdingChain.GetComponentsInChildren<Collider>();
-            foreach (var c in cols) c.enabled = held;
-        }
-
-        /// <summary>Xích nối trống tời với đầu móc cầu — bám sát 100% khi cầu hạ.</summary>
         private void UpdateChainVisuals()
         {
-            if (drawbridgeDeck == null || winchDrum == null) return;
+            if (leaf == null || hingePivot == null) return;
 
-            // Đầu móc cầu tính bằng transform thực tế của deck (đã xoay theo góc cầu)
-            Vector3 tipR = drawbridgeDeck.transform.TransformPoint(m_TipLocalR);
-            Vector3 tipL = drawbridgeDeck.transform.TransformPoint(m_TipLocalL);
+            Vector3 tip = leaf.TransformPoint(m_TipLocalOffset);
+            Vector3 sheave = m_SheaveWorld;
 
-            Vector3 drumR = winchDrum.position + new Vector3(0f, 0f, 0.55f);
-            Vector3 drumL = winchDrum.position + new Vector3(0f, 0f, -0.55f);
-
-            StretchChain(chainR, drumR, tipR);
-            StretchChain(chainL, drumL, tipL);
+            StretchChain(chainToTip, tip, sheave);
+            StretchChain(chainToWeight, sheave, counterweight != null ? counterweight.position + Vector3.up * 0.45f : sheave);
         }
 
         private void StretchChain(Transform chain, Vector3 a, Vector3 b)
@@ -512,7 +497,7 @@ namespace Blocks.Gameplay.Core
         {
             if (!m_SignalLampCached)
             {
-                var lampGo = GameObject.Find("Cove_Drawbridge_SignalLamp");
+                var lampGo = GameObject.Find("Cove_SignalLamp");
                 if (lampGo != null) m_SignalLamp = lampGo.GetComponent<Light>();
                 m_SignalLampCached = true;
             }
@@ -550,46 +535,46 @@ namespace Blocks.Gameplay.Core
 
         private bool IsInteractPressed()
         {
-#if ENABLE_INPUT_SYSTEM
+            #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null)
             {
                 if (Keyboard.current.eKey.wasPressedThisFrame ||
-                    Keyboard.current.spaceKey.wasPressedThisFrame ||
-                    Keyboard.current.enterKey.wasPressedThisFrame)
-                    return true;
+                Keyboard.current.spaceKey.wasPressedThisFrame ||
+                Keyboard.current.enterKey.wasPressedThisFrame)
+                return true;
             }
             if (Gamepad.current != null)
             {
                 if (Gamepad.current.buttonSouth.wasPressedThisFrame ||
-                    Gamepad.current.buttonWest.wasPressedThisFrame)
-                    return true;
+                Gamepad.current.buttonWest.wasPressedThisFrame)
+                return true;
             }
             return false;
-#else
+            #else
             return Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space);
-#endif
+            #endif
         }
 
         private bool IsInteractHeld()
         {
-#if ENABLE_INPUT_SYSTEM
+            #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null)
             {
                 if (Keyboard.current.eKey.isPressed ||
-                    Keyboard.current.spaceKey.isPressed ||
-                    Keyboard.current.enterKey.isPressed)
-                    return true;
+                Keyboard.current.spaceKey.isPressed ||
+                Keyboard.current.enterKey.isPressed)
+                return true;
             }
             if (Gamepad.current != null)
             {
                 if (Gamepad.current.buttonSouth.isPressed ||
-                    Gamepad.current.buttonWest.isPressed)
-                    return true;
+                Gamepad.current.buttonWest.isPressed)
+                return true;
             }
             return false;
-#else
+            #else
             return Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space);
-#endif
+            #endif
         }
 
         private void ShowPrompt(string text, Color col, float duration = 0.25f)
@@ -616,7 +601,7 @@ namespace Blocks.Gameplay.Core
             boxStyle.fontStyle = FontStyle.Bold;
             boxStyle.normal.textColor = promptColor;
 
-            float width = 860f, height = 56f;
+            float width = 900f, height = 56f;
             float x = (Screen.width - width) * 0.5f;
             float y = Screen.height - 170f;
 
@@ -624,9 +609,24 @@ namespace Blocks.Gameplay.Core
             GUI.Box(new Rect(x, y, width, height), currentPrompt, boxStyle);
         }
 
-        /// <summary>Bảng mục tiêu 2 pha của Cầu Rút (góc phải trên).</summary>
+        private bool IsAnyPlayerInCoveZone()
+        {
+            if (cachedControllers == null || cachedControllers.Length == 0)
+                cachedControllers = FindObjectsOfType<CharacterController>();
+            if (cachedControllers != null)
+            {
+                foreach (var cc in cachedControllers)
+                {
+                    if (cc != null && cc.transform.position.x <= 28f && cc.transform.position.z <= -60f)
+                        return true;
+                }
+            }
+            return false;
+        }
+
         private void DrawObjectivePanel()
         {
+            if (!IsAnyPlayerInCoveZone()) return;
             GUI.depth = -100;
             var titleStyle = new GUIStyle(GUI.skin.box);
             titleStyle.fontSize = 16;
@@ -638,20 +638,20 @@ namespace Blocks.Gameplay.Core
             itemStyle.fontSize = 15;
             itemStyle.alignment = TextAnchor.MiddleLeft;
 
-            float w = 320f, h = 82f;
+            float w = 340f, h = 82f;
             float x = Screen.width - w - 18f, y = 18f;
-            GUI.Box(new Rect(x, y, w, h), "🌉 MỤC TIÊU CẦU RÚT KHU VỊNH", titleStyle);
+            GUI.Box(new Rect(x, y, w, h), "🌉 MỤC TIÊU CẦU CỬA VỊNH", titleStyle);
 
             DrawObjectiveLine(itemStyle, x, y + 30f, isPinReleased,
-                "1. Con chui khe → nhổ chốt khóa sắt");
-            DrawObjectiveLine(itemStyle, x, y + 56f, isBridgeOpened,
-                "2. Cha quay tời → hạ cầu sang Khu Mỏ");
+            "1. Con chui khe hẹp → nhổ chốt chiến");
+            DrawObjectiveLine(itemStyle, x, y + 56f, isLatchPressed,
+            "2. Cha giữ tời → Con đạp chốt giữ");
         }
 
         private void DrawObjectiveLine(GUIStyle style, float x, float y, bool done, string text)
         {
             style.normal.textColor = done ? new Color(0.45f, 0.95f, 0.5f) : new Color(0.85f, 0.87f, 0.92f);
-            GUI.Label(new Rect(x + 12f, y, 300f, 24f), (done ? "✔ " : "○ ") + text, style);
+            GUI.Label(new Rect(x + 12f, y, 316f, 24f), (done ? "✔ " : "○ ") + text, style);
         }
 
         #endregion

@@ -15,7 +15,7 @@ namespace Blocks.Gameplay.Core
     /// 2. Giai đoạn 2: Ba & Con bước qua sàn sau (Quarterdeck):
     ///    - Ba dùng sức giữ [Space / E] xoay Bánh Lái Thuyền Trưởng (Captain's Helm) 100%.
     ///    - Trục cơ quan kích hoạt mở toang Nắp Rương Kho Báu Thuyền Trưởng (HMH_West_ChestLid).
-    ///    - Đồng thời kích hoạt mở ra Đoạn CẦU THANG ẨN PHÍA SAU dẫn đường sang KHU MỎ (Stage 4) & LÂU ĐÀI (Stage 5)!
+    ///    - Mở rương kho báu -> Tiến sang Cầu Cửa Vịnh.
     /// </summary>
     [SelectionBase]
     public class ShipwreckCoopController : MonoBehaviour
@@ -60,7 +60,7 @@ namespace Blocks.Gameplay.Core
 
         [Header("Quest State Progress")]
         [SerializeField] private bool isMastUnlocked = false;
-        [SerializeField] private bool isBridgeLowered = false;
+        [SerializeField] private bool isBridgeLowered = true;
         [SerializeField] private float wheelTurnProgress = 0f;
         [SerializeField] private bool isWheelCompleted = false;
         [SerializeField] private bool hasKey = false;
@@ -118,13 +118,13 @@ namespace Blocks.Gameplay.Core
             mainCamera = Camera.main;
             CachePlayers();
 
-            // Ép tư thế ban đầu của cầu: nghiêng 65° tại Y=5.85 (chặn đi qua)
-            if (deckBridge != null && !isBridgeLowered)
+            // Cầu nối phẳng giữa 2 sàn tàu
+            if (deckBridge != null)
             {
                 deckBridge.position = new Vector3(43.70f, 5.85f, -55.00f);
-                deckBridge.rotation = Quaternion.Euler(0f, 0f, 65f);
+                deckBridge.rotation = isBridgeLowered ? Quaternion.Euler(0f, 0f, 0f) : Quaternion.Euler(0f, 0f, 65f);
                 var plankCol = deckBridge.GetComponentInChildren<BoxCollider>();
-                if (plankCol != null) plankCol.isTrigger = false; // đặc: chặn vật lý khi dựng
+                if (plankCol != null) plankCol.isTrigger = false;
             }
 
             if (hiddenStaircase != null)
@@ -428,7 +428,7 @@ namespace Blocks.Gameplay.Core
             {
                 if (!m_WheelInitRecorded) { m_WheelInitialRot = steeringWheel.localRotation; m_WheelInitRecorded = true; }
                 float step = 130f * Time.deltaTime;
-                steeringWheel.localRotation = steeringWheel.localRotation * Quaternion.Euler(step, 0f, 0f);
+                steeringWheel.localRotation = steeringWheel.localRotation * Quaternion.Euler(0f, 0f, step);
                 m_WheelTurnedTotal += step;
             }
 
@@ -550,7 +550,7 @@ namespace Blocks.Gameplay.Core
 
             isChestOpened = true;
             UISoundManager.PlaySuccess();
-            ShowPrompt("🗝️ ĐÃ MỞ RƯƠNG KHO BÁU! Cơ quan bí mật đã kích hoạt CẦU THANG ẨN PHÍA SAU dẫn sang KHU MỎ!", Color.green, 7.0f);
+            ShowPrompt("🗝️ ĐÃ MỞ RƯƠNG KHO BÁU THUYỀN TRƯỞNG! Hai Cha Con hãy tiến về phía CẦU CỬA VỊNH để sang KHU MỎ!", Color.green, 7.0f);
             Debug.Log("[ShipwreckCoop] Rương thuyền trưởng đã mở, kích hoạt đường dẫn sang Khu Mỏ!");
         }
 
@@ -657,7 +657,7 @@ namespace Blocks.Gameplay.Core
             m_WheelTurnedTotal = Mathf.Max(0f, m_WheelTurnedTotal - slip);
             wheelTurnProgress = Mathf.Clamp01(m_WheelTurnedTotal / 360f);
             if (steeringWheel != null && slip > 0f)
-                steeringWheel.localRotation = steeringWheel.localRotation * Quaternion.Euler(-slip, 0f, 0f);
+                steeringWheel.localRotation = steeringWheel.localRotation * Quaternion.Euler(0f, 0f, -slip);
         }
 
         /// <summary>Sự sống nền: cờ tung bay + đèn nhấp nháy + bọt nước dập dềnh.</summary>
@@ -783,8 +783,21 @@ namespace Blocks.Gameplay.Core
         /// <summary>
         /// Bảng mục tiêu 3 pha (góc trái trên) — giúp người chơi luôn biết đang làm gì.
         /// </summary>
+        private bool IsAnyPlayerInShipwreckZone()
+        {
+            if (cachedControllers == null || cachedControllers.Length == 0) return true;
+            for (int i = 0; i < cachedControllers.Length; i++)
+            {
+                var cc = cachedControllers[i];
+                if (cc != null && cc.gameObject.activeInHierarchy && cc.transform.position.x >= 25f)
+                    return true;
+            }
+            return false;
+        }
+
         private void DrawObjectivePanel()
         {
+            if (!IsAnyPlayerInShipwreckZone()) return;
             GUI.depth = -100;
             var titleStyle = new GUIStyle(GUI.skin.box);
             titleStyle.fontSize = 16;
@@ -809,7 +822,7 @@ namespace Blocks.Gameplay.Core
             DrawObjectiveLine(itemStyle, x, y + 56f, phase2Done,
                 "2. Cha xoay bánh lái 360° → mở rương");
             DrawObjectiveLine(itemStyle, x, y + 82f, phase3Done,
-                "3. Cầu thang đá ẩn trồi lên → sang Khu Mỏ");
+                "3. Mở rương kho báu → Tiến sang Cầu Cửa Vịnh");
         }
 
         private void DrawObjectiveLine(GUIStyle style, float x, float y, bool done, string text)
