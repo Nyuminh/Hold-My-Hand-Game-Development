@@ -127,6 +127,57 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Bật chế độ thử nghiệm Solo: khi chỉ có 1 người chơi thì người đó được chèo lẫn lái")]
         [SerializeField] private bool soloTestMode = true;
 
+        [Header("River expedition")]
+        [SerializeField] private bool riverPhysicsEnabled;
+        [SerializeField] private float maxDriftSpeed = 5f;
+        private Vector3 m_ExternalDrift;
+        private float m_LastStrokeAt = -10f;
+        private float m_LastImpactAt = -10f;
+        private float m_DashUntil;
+        private float m_NextDash;
+        public void BeginRiverDash()
+        {
+            if (!HasSimulationAuthority || !HasCoopCrew || !HasRecentStroke || Time.time < m_NextDash) return;
+            m_DashUntil = Time.time + 1.2f; m_NextDash = Time.time + 2f;
+        }
+        public bool HasSimulationAuthority => !IsSpawned || IsServer;
+        public Vector3 ExternalDriftVelocity => m_ExternalDrift;
+        public bool HasRecentStroke => Time.time - m_LastStrokeAt < 0.55f;
+        public bool HasCoopCrew => IsDadMounted && IsChildMounted;
+        public bool IsCounterSteering(float rotationSign) => Mathf.Abs(m_ChildSteerInput) > 0.35f && Mathf.Sign(m_ChildSteerInput) == Mathf.Sign(rotationSign);
+        public void LimitWhirlpoolPropulsion(bool escaping)
+        {
+            if (HasSimulationAuthority && !escaping) m_CurrentSpeed = Mathf.Min(m_CurrentSpeed, 1.2f);
+        }
+        public void WarnRiverHazard()
+        {
+            if (!HasSimulationAuthority) return;
+            if (IsSpawned) RiverWarningRpc(); else GetComponent<LevelTwoFeedback>()?.Play(0.15f);
+        }
+        [Rpc(SendTo.Everyone)]
+        private void RiverWarningRpc() => GetComponent<LevelTwoFeedback>()?.Play(0.15f);
+
+        // Acceleration is integrated once per physics step by each water volume.
+        public void AddExternalDriftForce(Vector3 acceleration, float deltaTime)
+        {
+            if (!HasSimulationAuthority || !riverPhysicsEnabled || !HasCoopCrew) return;
+            acceleration.y = 0f;
+            m_ExternalDrift = Vector3.ClampMagnitude(m_ExternalDrift + acceleration * Mathf.Clamp(deltaTime, 0f, 0.1f), maxDriftSpeed);
+        }
+
+        public void ApplyRockImpact(Vector3 normal)
+        {
+            if (!HasSimulationAuthority || Time.time - m_LastImpactAt < 0.35f) return;
+            m_LastImpactAt = Time.time;
+            normal.y = 0f;
+            m_CurrentSpeed *= 0.25f;
+            m_ExternalDrift = normal.normalized * 1.8f;
+            if (IsSpawned) RiverImpactRpc(); else GetComponent<LevelTwoFeedback>()?.Play(0.4f);
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void RiverImpactRpc() => GetComponent<LevelTwoFeedback>()?.Play(0.4f);
+
         [Header("Độ lệch vị trí ngồi (Seat Offsets)")]
         [SerializeField] private Vector3 dadSeatLocalOffset = new Vector3(0f, 0.06f, 0f);
         [SerializeField] private Vector3 childSeatLocalOffset = new Vector3(0f, 0.06f, 0f);
@@ -607,9 +658,12 @@ namespace Blocks.Gameplay.Core
             // Đặt người chơi xuống mạn thuyền bên phải an toàn (hướng cầu tàu)
             Vector3 boatRight = GetBoatWorldRight();
             Vector3 safePos = transform.position + boatRight * 2.0f + Vector3.up * 0.5f;
+            Vector3 dockPosition = default;
+            bool atDock = riverPhysicsEnabled && LevelTwoDock.TryLanding(transform.position, isDad, out dockPosition);
+            if (atDock) safePos = dockPosition;
 
             // Kiểm tra raycast xuống sàn cầu tàu hoặc đất liền
-            if (Physics.Raycast(safePos + Vector3.up * 2f, Vector3.down, out var groundHit, 5f))
+            if (!atDock && Physics.Raycast(safePos + Vector3.up * 2f, Vector3.down, out var groundHit, 5f, ~0, QueryTriggerInteraction.Ignore))
             {
                 safePos = groundHit.point + Vector3.up * 0.1f;
             }
@@ -899,6 +953,8 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public void TriggerRowStroke()
         {
+            if (!HasSimulationAuthority) return;
+            m_LastStrokeAt = Time.time;
             // Kiểm tra trạng thái mắc cạn trên đất liền:
             if (m_IsGroundedOnLand)
             {
@@ -945,6 +1001,8 @@ namespace Blocks.Gameplay.Core
                 var col = hits[i].collider;
                 if (col == null || col.isTrigger) continue;
                 if (col == m_BoatCollider || col.gameObject == gameObject || col.transform.IsChildOf(transform)) continue;
+                // Bridges, gates and seated players are obstacles, never the river bed.
+                if (riverPhysicsEnabled && !(col is TerrainCollider)) continue;
 
                 if (hits[i].point.y > highestGroundY)
                 {
@@ -1015,6 +1073,8 @@ namespace Blocks.Gameplay.Core
         private void SimulateBoatPhysics()
         {
             float dt = Time.deltaTime;
+            if (riverPhysicsEnabled && !HasCoopCrew) m_ExternalDrift = Vector3.zero;
+            if (riverPhysicsEnabled && Time.time < m_DashUntil && HasCoopCrew) m_CurrentSpeed = Mathf.Max(m_CurrentSpeed, 11f);
             Vector3 forwardDir = GetBoatWorldForward();
 
             // 0. CẬP NHẬT TRẠNG THÁI MẮC CẠN
@@ -1043,10 +1103,11 @@ namespace Blocks.Gameplay.Core
 
             // 2. TÍNH TOÁN TIẾN THẲNG THEO NHỊP CHÈO SPACE VÀ TRÔI QUÁN TÍNH
             // THUYỀN CHỈ DI CHUYỂN ĐƯỢC KHI Ở DƯỚI MẶT NƯỚC (KHÔNG BỊ MẮC CẠN TRÊN ĐẤT)
-            if (!m_IsGroundedOnLand && m_CurrentSpeed > 0.02f)
+            if (!m_IsGroundedOnLand && (m_CurrentSpeed > 0.02f || m_ExternalDrift.sqrMagnitude > 0.0001f))
             {
                 float moveDist = m_CurrentSpeed * dt;
-                Vector3 desiredMove = forwardDir * moveDist;
+                Vector3 desiredMove = forwardDir * moveDist + m_ExternalDrift * dt;
+                m_ExternalDrift *= Mathf.Exp(-0.65f * dt);
 
                 // Quét va chạm chướng ngại vật & mép bờ sông để ngăn phi thuyền lên đất liền
                 if (CheckObstacleAndShoreCollision(desiredMove, out Vector3 safeMove))
@@ -1072,6 +1133,7 @@ namespace Blocks.Gameplay.Core
             {
                 m_CurrentSpeed = 0f;
                 m_IsDadRowing = false;
+                m_ExternalDrift = Vector3.zero;
             }
         }
 
@@ -1083,6 +1145,27 @@ namespace Blocks.Gameplay.Core
         private bool CheckObstacleAndShoreCollision(Vector3 moveDelta, out Vector3 safeMove)
         {
             safeMove = moveDelta;
+            if (riverPhysicsEnabled && m_BoatCollider is BoxCollider hull && moveDelta.sqrMagnitude > 0.000001f)
+            {
+                var half = Vector3.Scale(hull.size * 0.5f, transform.lossyScale);
+                var hits = Physics.BoxCastAll(transform.TransformPoint(hull.center), half,
+                    moveDelta.normalized, transform.rotation, moveDelta.magnitude + 0.04f, ~0, QueryTriggerInteraction.Ignore);
+                float nearest = float.PositiveInfinity;
+                RaycastHit obstacle = default;
+                foreach (var candidate in hits)
+                {
+                    var col = candidate.collider;
+                    if (col == hull || col.transform.IsChildOf(transform) || col is TerrainCollider ||
+                        col.GetComponentInParent<CorePlayerManager>() != null) continue;
+                    if (candidate.distance < nearest) { nearest = candidate.distance; obstacle = candidate; }
+                }
+                if (nearest < float.PositiveInfinity)
+                {
+                    safeMove = moveDelta.normalized * Mathf.Max(0f, nearest - 0.04f);
+                    ApplyRockImpact(obstacle.normal);
+                    return true;
+                }
+            }
             Vector3 forwardDir = GetBoatWorldForward();
             Vector3 rightDir = GetBoatWorldRight();
 
@@ -1134,7 +1217,7 @@ namespace Blocks.Gameplay.Core
             float checkDist = moveDelta.magnitude + 0.4f;
             Vector3 checkOrigin = transform.position + Vector3.up * 0.3f;
 
-            if (Physics.SphereCast(checkOrigin, 0.7f, moveDelta.normalized, out var hit, checkDist))
+            if (!riverPhysicsEnabled && Physics.SphereCast(checkOrigin, 0.7f, moveDelta.normalized, out var hit, checkDist))
             {
                 if (!hit.collider.isTrigger && hit.collider != m_BoatCollider && !hit.collider.transform.IsChildOf(transform))
                 {
@@ -1525,10 +1608,11 @@ namespace Blocks.Gameplay.Core
         #region Network RPCs
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void RequestMountServerRpc(NetworkObjectReference playerRef, bool asDad)
+        private void RequestMountServerRpc(NetworkObjectReference playerRef, bool asDad, RpcParams rpc = default)
         {
             if (playerRef.TryGet(out NetworkObject playerNet))
             {
+                if (playerNet.OwnerClientId != rpc.Receive.SenderClientId || IsPlayerDad(playerNet.gameObject) != asDad) return;
                 float dist = GetDistanceToPlayer(playerNet.transform.position);
                 if (dist <= boardInteractionRadius + 2.5f)
                 {
@@ -1555,8 +1639,9 @@ namespace Blocks.Gameplay.Core
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void RequestDismountServerRpc(bool isDad)
+        private void RequestDismountServerRpc(bool isDad, RpcParams rpc = default)
         {
+            if (!OwnsSeat(rpc.Receive.SenderClientId, isDad)) return;
             if (isDad)
             {
                 m_NetDadPlayer.Value = default;
@@ -1572,8 +1657,9 @@ namespace Blocks.Gameplay.Core
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void SendRowStrokeServerRpc()
+        private void SendRowStrokeServerRpc(RpcParams rpc = default)
         {
+            if (!CanRow(rpc.Receive.SenderClientId) || Time.time - m_LastStrokeAt < 0.08f) return;
             TriggerRowStroke();
         }
 
@@ -1586,16 +1672,25 @@ namespace Blocks.Gameplay.Core
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void SendRowInputServerRpc(bool isRowing, bool isReverse)
+        private void SendRowInputServerRpc(bool isRowing, bool isReverse, RpcParams rpc = default)
         {
+            if (!CanRow(rpc.Receive.SenderClientId) || Time.time - m_LastStrokeAt < 0.08f) return;
             if (isRowing) TriggerRowStroke();
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void SendSteerInputServerRpc(float steerInput)
+        private void SendSteerInputServerRpc(float steerInput, RpcParams rpc = default)
         {
+            if (!OwnsSeat(rpc.Receive.SenderClientId, false) && !(soloTestMode && !IsChildMounted && OwnsSeat(rpc.Receive.SenderClientId, true))) return;
             m_ChildSteerInput = Mathf.Clamp(steerInput, -1f, 1f);
         }
+
+        private bool OwnsSeat(ulong sender, bool dad)
+        {
+            var actor = dad ? m_DadPlayer : m_ChildPlayer;
+            return actor != null && actor.TryGetComponent<NetworkObject>(out var net) && net.OwnerClientId == sender;
+        }
+        private bool CanRow(ulong sender) => OwnsSeat(sender, true) || (soloTestMode && !IsDadMounted && OwnsSeat(sender, false));
 
         #endregion
 
