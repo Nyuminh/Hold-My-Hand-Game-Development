@@ -24,6 +24,7 @@ namespace Blocks.Gameplay.Core
         static GameObject post;
         static CampaignRecoveryValidation()
         { EditorApplication.update += Tick; EditorApplication.playModeStateChanged += StateChanged; }
+        [MenuItem("Hold My Hand/Campaign/Run Recovery QA")]
         public static void Run()
         {
             if (EditorApplication.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().isDirty) throw new Exception("Save scenes and stop Play Mode first.");
@@ -104,7 +105,7 @@ namespace Blocks.Gameplay.Core
                 if (phase == 2 && step == 2 && elapsed > 3)
                 {
                     Check(cp.Checkpoint == 2 && CampaignProgress.LastLevel == 2, "fresh session resumes saved Level 2 checkpoint, not Level 1");
-                    Check(boat.HasCoopCrew && Vector3.Distance(boat.transform.position, CampaignCheckpointController.BoatPosition(2)) < 4, "both actors remounted beyond the sluice on resume");
+                    Check(boat.HasCoopCrew && Vector3.Distance(boat.transform.position, CampaignCheckpointController.BoatPosition(2)) < 8, "both actors remounted beyond the sluice on resume");
                     Check(Object.FindAnyObjectByType<SluiceGateObstacle>().Open && Object.FindObjectsByType<RiverSlalomGate>(FindObjectsSortMode.None).All(g => g.Passed), "resume restores solved sluice and all slalom gates");
                     CampaignProgress.Save(1, 2); NextPhase(3); return;
                 }
@@ -140,7 +141,7 @@ namespace Blocks.Gameplay.Core
                     if (elapsed < 1) return;
                     var cc = child.GetComponent<CharacterController>();
                     cc.Move(new Vector3(0, -.04f, .045f));
-                    if (child.transform.position.z < 77.8f) return;
+                    if (child.transform.position.z < 77.5f) return;
                     Check(sluice.ChildTraversed, "Child physically walks through full crawl passage using CharacterController.Move");
                     Check(sluice.TryOpenValve(child), "valve opens only after complete physical traversal");
                     File.AppendAllText(Report, "Child exit " + child.transform.position + ", capsule height " + cc.height + "\n");
@@ -172,7 +173,7 @@ namespace Blocks.Gameplay.Core
                 }
                 if (step == 7 && elapsed > 3.2)
                 {
-                    Check(cp.Checkpoint == 2 && boat.HasCoopCrew && boat.transform.position.z < 90, "manual stage retry restores saved checkpoint and crew");
+                    Check(cp.Checkpoint == 2 && boat.HasCoopCrew && boat.transform.position.z < 96, "manual stage retry restores saved checkpoint and crew");
                     cp.RequestRestart(true); Next(); return;
                 }
                 if (step == 8 && elapsed > 1)

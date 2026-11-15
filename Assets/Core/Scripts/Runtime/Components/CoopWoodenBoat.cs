@@ -254,6 +254,12 @@ namespace Blocks.Gameplay.Core
         public bool IsRowing => m_IsDadRowing;
         public bool IsGroundedOnLand => m_IsGroundedOnLand;
 
+        /// <summary>
+        /// Guard an toan: chi cho phep ghi NetworkVariable khi NetworkManager
+        /// van dang hoat dong. Tranh log loi cosmetic khi thoat Play Mode.
+        /// </summary>
+        private bool CanWriteNetVars => IsSpawned && IsServer && NetworkManager != null && NetworkManager.IsListening;
+
         #endregion
 
         #region Unity Lifecycle
@@ -338,7 +344,7 @@ namespace Blocks.Gameplay.Core
                 }
 
                 // Ghi vào NetworkVariable đồng bộ xuống các Client
-                if (IsSpawned && IsServer)
+                if (CanWriteNetVars)
                 {
                     m_NetBoatPosition.Value = transform.position;
                     m_NetBoatRotation.Value = transform.rotation;
@@ -512,7 +518,7 @@ namespace Blocks.Gameplay.Core
                 else
                 {
                     DismountPlayer(isMeDad);
-                    if (IsSpawned && IsServer)
+                    if (CanWriteNetVars)
                     {
                         if (isMeDad) m_NetDadPlayer.Value = default;
                         else m_NetChildPlayer.Value = default;
@@ -569,7 +575,7 @@ namespace Blocks.Gameplay.Core
             {
                 Debug.Log($"[CoopWoodenBoat] ✅ Lên thuyền thành công! Nhân vật '{localPlayer.name}' vào vị trí {(isDad ? "🧔 Ba" : "👶 Con")}.");
                 MountPlayer(localPlayer, isDad);
-                if (IsSpawned && IsServer)
+                if (CanWriteNetVars)
                 {
                     var netObj = localPlayer.GetComponent<NetworkObject>();
                     if (netObj != null)
@@ -593,7 +599,7 @@ namespace Blocks.Gameplay.Core
             m_DashUntil = 0; m_NextDash = 0; m_LastStrokeAt = -100;
             m_IsGroundedOnLand = false; m_IsDadRowing = false; m_IsStrokeActive = false;
             transform.SetPositionAndRotation(position, Quaternion.Euler(-90, 180, 0));
-            if (IsServer)
+            if (CanWriteNetVars)
             {
                 m_NetDadPlayer.Value = default; m_NetChildPlayer.Value = default;
                 m_NetBoatPosition.Value = position; m_NetBoatRotation.Value = transform.rotation;
@@ -602,7 +608,7 @@ namespace Blocks.Gameplay.Core
         }
         public void MountCrewAtCheckpoint()
         {
-            if (!IsServer) return;
+            if (!CanWriteNetVars) return;
             foreach (var actor in LevelTwoActors.All)
             {
                 bool dad = LevelOnePlayer.IsDad(actor);
@@ -1005,7 +1011,7 @@ namespace Blocks.Gameplay.Core
                 m_CurrentSpeed = Mathf.Min(m_CurrentSpeed + speedBoostPerSpam, maxRowSpeed);
             }
 
-            if (IsSpawned && IsServer)
+            if (CanWriteNetVars)
             {
                 m_NetIsRowing.Value = true;
                 m_NetSpeed.Value = m_CurrentSpeed;
