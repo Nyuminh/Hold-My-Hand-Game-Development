@@ -13,6 +13,7 @@ namespace Blocks.Gameplay.Core
         private bool localPassed;
         private Vector3 lastPosition;
         private bool sampled;
+        public void RestoreCheckpoint(bool value) { if (IsServer) { passed.Value = value; sampled = false; } }
         public bool Passed => IsSpawned ? passed.Value : localPassed;
 
         private void FixedUpdate()

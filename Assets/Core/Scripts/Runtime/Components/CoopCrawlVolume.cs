@@ -151,10 +151,11 @@ namespace Blocks.Gameplay.Core
                     m_OriginalCenters[controller] = controller.center;
                 }
 
-                controller.height = crawlHeight;
+                float safeHeight = Mathf.Max(crawlHeight, controller.radius * 2f);
+                controller.height = safeHeight;
                 controller.center = new Vector3(
                     controller.center.x, 
-                    crawlHeight / 2f, 
+                    safeHeight / 2f, 
                     controller.center.z
                 );
 

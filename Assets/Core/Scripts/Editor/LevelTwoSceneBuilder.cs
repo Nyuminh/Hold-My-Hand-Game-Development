@@ -168,6 +168,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             sluice.crawlDoor = Find("Crawl_LiftingDoor");
             Find("Sluice_SideDock").localScale = new Vector3(7, 0.25f, 5);
             sluice.valve.position = new Vector3(109.5f, 1.7f, 78);
+            CampaignRecoveryAuthoring.FixPassage(sluice);
             Feedback(stage.gameObject, "Assets/Core/Audio/LVL2_Water.wav", Color.white, sluice.gate.position);
             var boat = Object.FindAnyObjectByType<CoopWoodenBoat>();
             for (int i = 1; i <= 2; i++)
@@ -260,6 +261,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             }
             mill.safetyBoom = controller.Find("Watermill_SafetyBoom");
             var climax = Ensure<LevelTwoClimaxManager>(Find("LevelTwo_VictoryTrigger").gameObject);
+            Ensure<CampaignCheckpointController>(mill.boat.gameObject).level = 2;
             climax.boat = mill.boat; climax.watermill = mill; climax.west = beacons[0]; climax.east = beacons[1];
             climax.altar = Find("AltarOfDawn_Podium");
             climax.harbor = Trigger("Haven_Arrival", stage5, new Vector3(100, 0.7f, 242), new Vector3(14, 3, 7)).GetComponent<BoxCollider>();

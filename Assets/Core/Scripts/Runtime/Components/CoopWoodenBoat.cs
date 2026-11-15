@@ -169,6 +169,8 @@ namespace Blocks.Gameplay.Core
         {
             if (!HasSimulationAuthority || Time.time - m_LastImpactAt < 0.35f) return;
             m_LastImpactAt = Time.time;
+            if (riverPhysicsEnabled)
+                FindAnyObjectByType<CampaignCheckpointController>()?.BoatImpact(Mathf.Abs(m_CurrentSpeed) + m_ExternalDrift.magnitude);
             normal.y = 0f;
             m_CurrentSpeed *= 0.25f;
             m_ExternalDrift = normal.normalized * 1.8f;
@@ -583,6 +585,32 @@ namespace Blocks.Gameplay.Core
         /// <summary>
         /// Đưa người chơi vào ghế ngồi trên thuyền và cố định vị trí ngay lập tức.
         /// </summary>
+        public void ResetForCheckpoint(Vector3 position)
+        {
+            DismountPlayer(true); DismountPlayer(false);
+            m_CurrentSpeed = 0; m_ExternalDrift = Vector3.zero;
+            m_CurrentTillerAngle = 0; m_ChildSteerInput = 0;
+            m_DashUntil = 0; m_NextDash = 0; m_LastStrokeAt = -100;
+            m_IsGroundedOnLand = false; m_IsDadRowing = false; m_IsStrokeActive = false;
+            transform.SetPositionAndRotation(position, Quaternion.Euler(-90, 180, 0));
+            if (IsServer)
+            {
+                m_NetDadPlayer.Value = default; m_NetChildPlayer.Value = default;
+                m_NetBoatPosition.Value = position; m_NetBoatRotation.Value = transform.rotation;
+                m_NetSpeed.Value = 0; m_NetTiller.Value = 0;
+            }
+        }
+        public void MountCrewAtCheckpoint()
+        {
+            if (!IsServer) return;
+            foreach (var actor in LevelTwoActors.All)
+            {
+                bool dad = LevelOnePlayer.IsDad(actor);
+                MountPlayer(actor.gameObject, dad);
+                if (dad) m_NetDadPlayer.Value = actor.NetworkObject; else m_NetChildPlayer.Value = actor.NetworkObject;
+            }
+        }
+
         public void MountPlayer(GameObject player, bool asDad)
         {
             if (player == null) return;

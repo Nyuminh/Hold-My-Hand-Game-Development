@@ -18,6 +18,8 @@
             <!-- Buttons Area -->
             <engine:VisualElement class="escape-button-group">
                 <engine:Button name="resume-button" text="▶  TIẾP TỤC" class="btn-escape-resume" />
+                <engine:Button name="restart-stage-button" text="CHƠI LẠI CHẶNG HIỆN TẠI" class="btn-escape-lobby" />
+                <engine:Button name="restart-level-button" text="CHƠI LẠI MÀN TỪ ĐẦU" class="btn-escape-lobby" />
                 <engine:Button name="back-to-lobby-button" text="🏠  TRỞ VỀ SẢNH CHỜ" class="btn-escape-lobby" />
             </engine:VisualElement>
 

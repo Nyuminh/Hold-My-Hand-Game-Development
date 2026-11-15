@@ -192,6 +192,7 @@ namespace Blocks.Gameplay.Core
         protected override void ResetForCheckpoint(int index)
         {
             base.ResetForCheckpoint(index);
+            transitioning = false; transitionError = null;
             if(IsServer) { lift.Value=0;enteredDrain.Value=false;phaseTimer=0; }
         }
 

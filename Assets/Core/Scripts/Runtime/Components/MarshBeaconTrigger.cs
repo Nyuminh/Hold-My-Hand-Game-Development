@@ -15,6 +15,7 @@ namespace Blocks.Gameplay.Core
         private CorePlayerManager launchedChild;
         private float launchDeadline;
         public bool Lit => lit.Value;
+        public void RestoreCheckpoint(bool value) { if (IsServer) { lit.Value = value; launchedChild = null; launchDeadline = 0; } }
 
         public void NotifyLaunch(NetworkObject child)
         {

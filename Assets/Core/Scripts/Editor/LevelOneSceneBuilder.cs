@@ -90,6 +90,7 @@ namespace Blocks.Gameplay.Core.LevelOneAuthoring
             Object.DestroyImmediate(proxy);
             proxy = (GameObject)PrefabUtility.InstantiatePrefab(prefab, Root.transform);
             Boss = Root.AddComponent<ChaseBossController>();
+            Root.AddComponent<CampaignCheckpointController>().level = 1;
             Boss.route = route; Boss.bossVisual = proxy.transform; Boss.footsteps = proxy.GetComponent<AudioSource>();
             proxy.transform.position = route.Sample(0, out var direction); proxy.transform.forward = direction;
             var cpRoot = Marker("Checkpoints", Root.transform, Vector3.zero);

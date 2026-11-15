@@ -18,6 +18,7 @@ namespace Blocks.Gameplay.Core
         private Vector3 lastBoat;
         private bool sampled;
         public bool Passed => passed.Value;
+        public void RestoreCheckpoint(bool value) { if (IsServer) { passed.Value = value; sampled = false; epoch.Value = NetworkManager.ServerTime.Time; } }
         public bool BeaconsLit => west != null && east != null && west.Lit && east.Lit;
         public double CycleTime => IsSpawned ? (NetworkManager.ServerTime.Time - epoch.Value) % cycleSeconds : Time.time % cycleSeconds;
         public bool IsOpenWindow => BeaconsLit && CycleTime >= cycleSeconds - openingSeconds;

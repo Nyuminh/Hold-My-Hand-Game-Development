@@ -8921,6 +8921,7 @@ GameObject:
   - component: {fileID: 414655381}
   - component: {fileID: 414655384}
   - component: {fileID: 414655383}
+  - component: {fileID: 414655385}
   m_Layer: 0
   m_Name: LVL1_Encounter
   m_TagString: Untagged
@@ -9062,6 +9063,20 @@ MonoBehaviour:
   - {fileID: 180365690}
   - {fileID: 1565313827}
   - {fileID: 1149678163}
+--- !u!114 &414655385
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 414655380}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 721c4b2cfec19454abae3554a7cc896e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CampaignCheckpointController
+  ShowTopMostFoldoutHeaderGroup: 1
+  level: 1
 --- !u!1 &415760507
 GameObject:
   m_ObjectHideFlags: 0

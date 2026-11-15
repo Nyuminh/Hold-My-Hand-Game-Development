@@ -178,6 +178,11 @@ namespace Blocks.Gameplay.Core
             }
 
             // Bind âm thanh Hover & Click
+            var retry = root.Q<Button>("restart-stage-button");
+            var restart = root.Q<Button>("restart-level-button");
+            bool campaign = CampaignProgress.Level(SceneManager.GetActiveScene().name) != 0;
+            if (retry != null) { retry.style.display = campaign ? DisplayStyle.Flex : DisplayStyle.None; retry.clicked += () => RestartCampaign(false); }
+            if (restart != null) { restart.style.display = campaign ? DisplayStyle.Flex : DisplayStyle.None; restart.clicked += () => RestartCampaign(true); }
             UISoundManager.BindButtons(root);
 
             // Ban đầu ẩn menu
@@ -231,6 +236,14 @@ namespace Blocks.Gameplay.Core
             {
                 ToggleMenu();
             }
+        }
+
+        private void RestartCampaign(bool fromBeginning)
+        {
+            var campaign = FindAnyObjectByType<CampaignCheckpointController>();
+            if (campaign == null || !campaign.IsSpawned) return;
+            campaign.RequestRestart(fromBeginning);
+            CloseMenu();
         }
 
         public void ToggleMenu()

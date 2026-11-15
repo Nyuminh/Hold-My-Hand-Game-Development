@@ -23,6 +23,14 @@ namespace Blocks.Gameplay.Core
         private Color originalColor;
         public bool Completed => completed.Value;
         public bool Docked => docked.Value;
+        public void RestoreCheckpoint(bool arrived, bool finished)
+        { if (IsServer) { docked.Value = arrived; completed.Value = finished; } }
+        public override void OnNetworkSpawn()
+        { completed.OnValueChanged += CompletionChanged; }
+        public override void OnNetworkDespawn()
+        { completed.OnValueChanged -= CompletionChanged; }
+        private void CompletionChanged(bool before, bool after)
+        { if (!after) { presented = transitioning = false; transitionError = null; } }
         private void Awake()
         {
             originalFog = RenderSettings.fog; originalDensity = RenderSettings.fogDensity;

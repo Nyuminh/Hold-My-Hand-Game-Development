@@ -25,6 +25,14 @@ namespace Blocks.Gameplay.Core
         public float Lift => lift.Value;
         public bool Open => Phase == 2;
         public bool ChildTraversed => crossedChild != null;
+        public void RestoreCheckpoint(bool opened)
+        {
+            if (!IsServer) return;
+            phase.Value = opened ? 2 : 0; lift.Value = opened ? fullLift : 0;
+            holder.Value = default; dad = enteredChild = crossedChild = null;
+            gate.localPosition = closedPosition + Vector3.up * lift.Value;
+            crawlDoor.localPosition = crawlClosedPosition + Vector3.up * (opened ? 1.5f : 0f);
+        }
 
         private void Awake() { if (gate != null) closedPosition = gate.localPosition; if (crawlDoor != null) crawlClosedPosition = crawlDoor.localPosition; }
         public override void OnNetworkSpawn() { closedPosition = gate.localPosition; crawlClosedPosition = crawlDoor.localPosition; }
@@ -48,7 +56,7 @@ namespace Blocks.Gameplay.Core
             if (!IsServer || Phase != 1 || lift.Value < 0.45f || !LevelTwoActors.OnFoot(actor) || LevelOnePlayer.IsDad(actor)) return;
             Vector3 p = crawl.transform.InverseTransformPoint(actor.transform.position);
             if (crawl.bounds.Contains(actor.transform.position + Vector3.up * 0.2f) && p.z < 0) enteredChild = actor;
-            if (enteredChild == actor && p.z > 0.4f && Mathf.Abs(p.x) < 0.6f) crossedChild = actor;
+            if (enteredChild == actor && p.z > 2.3f && Mathf.Abs(p.x) < 0.75f) crossedChild = actor;
         }
         private void Update()
         {
@@ -68,7 +76,7 @@ namespace Blocks.Gameplay.Core
                 if (Phase == 0 && !occupied) { enteredChild = null; crossedChild = null; }
             }
             gate.localPosition = closedPosition + Vector3.up * lift.Value;
-            crawlDoor.localPosition = crawlClosedPosition + Vector3.up * Mathf.Min(lift.Value, 1.5f);
+            crawlDoor.localPosition = crawlClosedPosition + Vector3.up * Mathf.Min(lift.Value * 2.4f, 1.5f);
             PresentBrace();
             var local = LevelTwoActors.Local;
             if (local == null || Keyboard.current == null) return;
