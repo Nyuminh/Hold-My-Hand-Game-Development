@@ -25664,7 +25664,7 @@ MonoBehaviour:
   chainBreakClip: {fileID: 8300000, guid: 84d70c692c780424aafa9f5fd65e1fba, type: 3}
   gateSlamClip: {fileID: 8300000, guid: e91919c4e9d89f44fb9c519738e2a666, type: 3}
   bossImpactClip: {fileID: 8300000, guid: 8b969f35a6f6b794a94cbd58d9a4c5a1, type: 3}
-  nextLevelScene: PlayScene1
+  nextLevelScene: PlayScene2
 --- !u!64 &1092347206
 MeshCollider:
   m_ObjectHideFlags: 0

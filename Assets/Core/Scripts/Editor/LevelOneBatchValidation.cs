@@ -35,9 +35,9 @@ namespace Blocks.Gameplay.Core.LevelOneAuthoring
             var c=LevelOneSceneBuilder.Root.GetComponentInChildren<CastleGateClimaxManager>();
             LevelOneValidation.Check(c.gateDriver is ILevelOneGateDriver,"CastleGateController implements driver");
             LevelOneValidation.Check(c.chainBreakClip&&c.gateSlamClip&&c.bossImpactClip,"all three audio cues assigned");
-            LevelOneValidation.Check(c.nextLevelScene=="PlayScene1","user-selected continuation");
+            LevelOneValidation.Check(c.nextLevelScene=="PlayScene2","river level continuation");
             CaptureCastle(c);
-            File.WriteAllText(Report,"PASS compile and scene: climax driver, audio, blockers, next scene PlayScene1.\n");
+            File.WriteAllText(Report,"PASS compile and scene: climax driver, audio, blockers, next scene PlayScene2.\n");
             SessionState.SetBool(ActiveKey,true);stage=0;started=EditorApplication.timeSinceStartup;
             EditorApplication.isPlaying=true;
         }
@@ -121,12 +121,12 @@ namespace Blocks.Gameplay.Core.LevelOneAuthoring
                     Pass("victory and checkpoint persisted");
                     climax.ContinueToNextLevel();Advance();return;
                 }
-                if(stage==8 && SceneManager.GetActiveScene().name=="PlayScene1" && elapsed>3)
+                if(stage==8 && SceneManager.GetActiveScene().name=="PlayScene2" && elapsed>3)
                 {
                     LevelOneValidation.Check(nm!=null&&nm.IsListening,"network session survives next scene");
                     LevelOneValidation.Check(nm.LocalClient.PlayerObject!=null,"player respawned in next scene");
                     LevelOneValidation.Check(GameManager.Instance!=null,"next-level GameManager exists");
-                    Pass("Continue loads PlayScene1, keeps host session and respawns player");
+                    Pass("Continue loads PlayScene2, keeps host session and respawns player");
                     File.AppendAllText(Report,"LIMITATION: one host with two owned actors, not two independent network clients.\n");
                     RestoreProgress();SessionState.SetBool(ActiveKey,false);EditorApplication.Exit(0);
                 }

@@ -195,6 +195,21 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        // Continuing an already-started game must not wait for a new SessionAdded or
+        // StartGame broadcast. Refresh cached components to the newly spawned actor.
+        public void ResumeGameplay()
+        {
+            StopAllCoroutines();
+            m_IsWaiting = false;
+            m_IsStarting = false;
+            m_LocalMovement = null;
+            m_LocalInput = null;
+            if (waitRoomUI != null) waitRoomUI.rootVisualElement.style.display = DisplayStyle.None;
+            LockPlayer(false);
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
         private IEnumerator AutoStartGameRoutine()
         {
             m_IsStarting = true;

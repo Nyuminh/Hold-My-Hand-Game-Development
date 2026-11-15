@@ -16,9 +16,13 @@ public class RoleBasedSpawner : MonoBehaviour
     // Theo dõi danh sách clientId đã được spawn để ngăn chặn nhân bản tuyệt đối
     private static readonly HashSet<ulong> s_SpawnedClients = new HashSet<ulong>();
     private bool m_CallbacksRegistered = false;
+    private bool OwnsSession => GetComponent<NetworkManager>() == NetworkManager.Singleton;
 
     private void Awake()
     {
+        // A destination scene can contain another NetworkManager prefab while the
+        // live session persists. Its spawner must not replace or race the live one.
+        if (NetworkManager.Singleton != null && !OwnsSession) { enabled = false; return; }
         Instance = this;
         s_SpawnedClients.Clear();
         if (dadPrefab == null) dadPrefab = ResolvePrefab(true);
@@ -28,6 +32,7 @@ public class RoleBasedSpawner : MonoBehaviour
 
     private void OnEnable()
     {
+        if (NetworkManager.Singleton != null && !OwnsSession) { enabled = false; return; }
         RegisterCallbacks();
     }
 
@@ -39,12 +44,13 @@ public class RoleBasedSpawner : MonoBehaviour
     private void OnDestroy()
     {
         UnregisterCallbacks();
-        s_SpawnedClients.Clear();
+        if (Instance == this) { s_SpawnedClients.Clear(); Instance = null; }
     }
 
     private void Update()
     {
         if (NetworkManager.Singleton == null) return;
+        if (!OwnsSession) return;
         if (!NetworkManager.Singleton.IsServer || !NetworkManager.Singleton.IsListening) return;
 
         // Đảm bảo callbacks luôn được đăng ký khi server bắt đầu lắng nghe
@@ -72,6 +78,7 @@ public class RoleBasedSpawner : MonoBehaviour
     private void RegisterCallbacks()
     {
         if (NetworkManager.Singleton == null) return;
+        if (!OwnsSession) return;
 
         NetworkManager.Singleton.OnServerStarted -= OnServerStarted;
         NetworkManager.Singleton.OnServerStarted += OnServerStarted;
