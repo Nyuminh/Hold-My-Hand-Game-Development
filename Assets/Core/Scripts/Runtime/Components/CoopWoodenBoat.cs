@@ -258,7 +258,7 @@ namespace Blocks.Gameplay.Core
         /// Guard an toan: chi cho phep ghi NetworkVariable khi NetworkManager
         /// van dang hoat dong. Tranh log loi cosmetic khi thoat Play Mode.
         /// </summary>
-        private bool CanWriteNetVars => IsSpawned && IsServer && NetworkManager != null && NetworkManager.IsListening;
+        private bool CanWriteNetVars => IsSpawned && NetworkManager != null && NetworkManager.IsListening && m_NetBoatPosition.CanClientWrite(NetworkManager.LocalClientId);
 
         #endregion
 
@@ -281,7 +281,7 @@ namespace Blocks.Gameplay.Core
         {
             base.OnNetworkSpawn();
 
-            if (IsServer)
+            if (CanWriteNetVars)
             {
                 m_NetBoatPosition.Value = transform.position;
                 m_NetBoatRotation.Value = transform.rotation;
@@ -290,8 +290,8 @@ namespace Blocks.Gameplay.Core
                 m_NetIsRowing.Value = false;
                 m_NetRowCycleTime.Value = 0f;
                 m_NetIsGrounded.Value = false;
-                m_NetDadPlayer.Value = default;
-                m_NetChildPlayer.Value = default;
+                if (m_NetDadPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetDadPlayer.Value = default;
+                if (m_NetChildPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetChildPlayer.Value = default;
             }
             else
             {
@@ -520,8 +520,8 @@ namespace Blocks.Gameplay.Core
                     DismountPlayer(isMeDad);
                     if (CanWriteNetVars)
                     {
-                        if (isMeDad) m_NetDadPlayer.Value = default;
-                        else m_NetChildPlayer.Value = default;
+                        if (isMeDad && m_NetDadPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetDadPlayer.Value = default;
+                        else if (m_NetChildPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetChildPlayer.Value = default;
                     }
                 }
                 return;
@@ -580,8 +580,8 @@ namespace Blocks.Gameplay.Core
                     var netObj = localPlayer.GetComponent<NetworkObject>();
                     if (netObj != null)
                     {
-                        if (isDad) m_NetDadPlayer.Value = netObj;
-                        else m_NetChildPlayer.Value = netObj;
+                        if (isDad && m_NetDadPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetDadPlayer.Value = netObj;
+                        else if (m_NetChildPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetChildPlayer.Value = netObj;
                     }
                 }
                 CheckAndMountCompanionDummy();
@@ -601,7 +601,8 @@ namespace Blocks.Gameplay.Core
             transform.SetPositionAndRotation(position, Quaternion.Euler(-90, 180, 0));
             if (CanWriteNetVars)
             {
-                m_NetDadPlayer.Value = default; m_NetChildPlayer.Value = default;
+                if (m_NetDadPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetDadPlayer.Value = default;
+                if (m_NetChildPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetChildPlayer.Value = default;
                 m_NetBoatPosition.Value = position; m_NetBoatRotation.Value = transform.rotation;
                 m_NetSpeed.Value = 0; m_NetTiller.Value = 0;
             }
@@ -613,7 +614,14 @@ namespace Blocks.Gameplay.Core
             {
                 bool dad = LevelOnePlayer.IsDad(actor);
                 MountPlayer(actor.gameObject, dad);
-                if (dad) m_NetDadPlayer.Value = actor.NetworkObject; else m_NetChildPlayer.Value = actor.NetworkObject;
+                if (dad)
+                {
+                    if (m_NetDadPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetDadPlayer.Value = actor.NetworkObject;
+                }
+                else
+                {
+                    if (m_NetChildPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetChildPlayer.Value = actor.NetworkObject;
+                }
             }
         }
 
@@ -1653,13 +1661,13 @@ namespace Blocks.Gameplay.Core
                     if (asDad)
                     {
                         if (m_NetDadPlayer.Value.TryGet(out _)) return;
-                        m_NetDadPlayer.Value = playerRef;
+                        if (m_NetDadPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetDadPlayer.Value = playerRef;
                         MountPlayer(playerNet.gameObject, true);
                     }
                     else
                     {
                         if (m_NetChildPlayer.Value.TryGet(out _)) return;
-                        m_NetChildPlayer.Value = playerRef;
+                        if (m_NetChildPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetChildPlayer.Value = playerRef;
                         MountPlayer(playerNet.gameObject, false);
                     }
 
@@ -1678,12 +1686,12 @@ namespace Blocks.Gameplay.Core
             if (!OwnsSeat(rpc.Receive.SenderClientId, isDad)) return;
             if (isDad)
             {
-                m_NetDadPlayer.Value = default;
+                if (m_NetDadPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetDadPlayer.Value = default;
                 DismountPlayer(true);
             }
             else
             {
-                m_NetChildPlayer.Value = default;
+                if (m_NetChildPlayer.CanClientWrite(NetworkManager.LocalClientId)) m_NetChildPlayer.Value = default;
                 DismountPlayer(false);
             }
 
