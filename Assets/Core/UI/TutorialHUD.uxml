@@ -54,6 +54,31 @@
             </engine:VisualElement>
         </engine:VisualElement>
 
+        <!-- Objective Card (Center-Top or Bottom-Center) – controlled by TutorialObjectiveDirector -->
+        <engine:VisualElement class="objective-panel" picking-mode="Ignore">
+            <!-- Compass Arrow pointing to target -->
+            <engine:VisualElement name="compass-arrow" class="compass-arrow" picking-mode="Ignore">
+                <engine:Label text="▲" class="compass-arrow-icon"/>
+            </engine:VisualElement>
+
+            <engine:VisualElement class="objective-card" picking-mode="Ignore">
+                <!-- Header row -->
+                <engine:VisualElement class="objective-header-row">
+                    <engine:Label text="🎯" class="objective-icon"/>
+                    <engine:Label text="MỤC TIÊU HIỆN TẠI" class="objective-section-label"/>
+                </engine:VisualElement>
+
+                <!-- Title -->
+                <engine:Label name="objective-title-label" text="Khởi động…" class="objective-title"/>
+
+                <!-- Hint (hidden when empty) -->
+                <engine:Label name="objective-hint-label" text="" class="objective-hint"/>
+
+                <!-- Keys container -->
+                <engine:VisualElement name="objective-keys-container" class="objective-keys-row"/>
+            </engine:VisualElement>
+        </engine:VisualElement>
+
         <!-- Bottom Tips Banner -->
         <engine:VisualElement class="bottom-tips-container" picking-mode="Ignore">
             <engine:VisualElement class="tips-box" picking-mode="Position">

@@ -15,7 +15,7 @@ namespace Blocks.Gameplay.Core
         public Transform blockers;
         public AudioSource impactAudio;
         public AudioClip chainBreakClip, gateSlamClip, bossImpactClip;
-        public string nextLevelScene = "PlayScene1";
+        public string nextLevelScene = "PlayScene2";
         private readonly NetworkVariable<float> lift = new NetworkVariable<float>();
         private readonly NetworkVariable<bool> enteredDrain = new NetworkVariable<bool>();
         private float phaseTimer;
@@ -192,6 +192,7 @@ namespace Blocks.Gameplay.Core
         protected override void ResetForCheckpoint(int index)
         {
             base.ResetForCheckpoint(index);
+            transitioning = false; transitionError = null;
             if(IsServer) { lift.Value=0;enteredDrain.Value=false;phaseTimer=0; }
         }
 

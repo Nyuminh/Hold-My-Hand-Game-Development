@@ -507,6 +507,8 @@ namespace Blocks.Gameplay.Core
             AssistedLaunch(transform.position + transform.right * 0.65f, ref launchDirection, ref finalVerticalVel, ref finalForwardForce);
 
             // 0. Tháo Con khỏi lưng trước khi phóng bay
+            if (AssistedLandingTarget != null && m_PartnerBoostAbility != null)
+                AssistedLandingTarget.GetComponentInParent<MarshBeaconTrigger>()?.NotifyLaunch(m_PartnerBoostAbility.NetworkObject);
             SetPartnerPiggyback(false);
 
             // Gửi lực phóng tới Con
@@ -792,7 +794,10 @@ namespace Blocks.Gameplay.Core
                 airTimer += Time.deltaTime;
 
                 // Kiểm tra tiếp đất sau ít nhất 0.2s bay
-                if (airTimer > 0.2f && (m_Motor.IsGrounded || (m_CharacterController != null && m_CharacterController.isGrounded)))
+                // The launch RPC may run before the motor's first airborne update. A stale
+                // grounded flag must not cancel the throw, especially on a slow host frame.
+                if (airTimer > 0.2f && m_Motor.VerticalVelocity <= 0f &&
+                    (m_Motor.IsGrounded || (m_CharacterController != null && m_CharacterController.isGrounded)))
                 {
                     break;
                 }

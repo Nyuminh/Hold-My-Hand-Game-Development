@@ -62,6 +62,7 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private SoundDef respawnTimerSFX;
 
         private SessionObserver m_SessionObserver;
+        private bool m_IsLevelContinuation;
         private const string k_PlayerNameKey = "_player_name";
 
         #endregion
@@ -74,6 +75,7 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         private void OnDestroy()
         {
+            if (Instance == this) Instance = null;
             // Cleanup NetworkManager callbacks
             if (NetworkManager.Singleton != null)
             {
@@ -194,6 +196,23 @@ namespace Blocks.Gameplay.Core
             StartCoroutine(WaitAndSetupLocalPlayerDirect());
         }
 
+        /// <summary>
+        /// A Netcode scene change keeps the existing session. Neither SessionAdded nor a
+        /// new client connection is guaranteed to fire on this scene's fresh GameManager.
+        /// </summary>
+        public void ResumeAfterLevelTransition()
+        {
+            if (m_IsLevelContinuation) return;
+            m_IsLevelContinuation = true;
+            if (onStatDepleted != null)
+            {
+                onStatDepleted.UnregisterListener(HandleStatDepleted);
+                onStatDepleted.RegisterListener(HandleStatDepleted);
+            }
+            StartCoroutine(FadeOutAndDisable());
+            StartCoroutine(WaitAndSetupLocalPlayerDirect());
+        }
+
         private IEnumerator WaitAndSetupLocalPlayerDirect()
         {
             while (NetworkManager.Singleton == null || NetworkManager.Singleton.LocalClient == null || NetworkManager.Singleton.LocalClient.PlayerObject == null)
@@ -216,7 +235,8 @@ namespace Blocks.Gameplay.Core
 
             if (waitRoomManager != null)
             {
-                waitRoomManager.EnterWaitRoom("Local Session");
+                if (m_IsLevelContinuation) waitRoomManager.ResumeGameplay();
+                else waitRoomManager.EnterWaitRoom("Local Session");
             }
             else
             {
@@ -294,7 +314,8 @@ namespace Blocks.Gameplay.Core
             // Hiện phòng chờ sau khi player đã spawn xong
             if (waitRoomManager != null)
             {
-                waitRoomManager.EnterWaitRoom(session.Name);
+                if (m_IsLevelContinuation) waitRoomManager.ResumeGameplay();
+                else waitRoomManager.EnterWaitRoom(session.Name);
             }
             else
             {
@@ -632,7 +653,7 @@ namespace Blocks.Gameplay.Core
             float elapsedTime = 0f;
             while (elapsedTime < fadeDuration)
             {
-                elapsedTime += Time.deltaTime;
+                elapsedTime += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsedTime / fadeDuration);
                 root.style.opacity = Mathf.Lerp(startOpacity, 0f, t);
                 yield return null;

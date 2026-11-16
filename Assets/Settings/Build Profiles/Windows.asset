@@ -26,17 +26,23 @@ MonoBehaviour:
     m_path: Assets/Core/Scenes/LoginScene.unity
     m_guid: 0312f248b50c43c48977c5e373959952
   - m_enabled: 1
-    m_path: Assets/Core/Scenes/Tutorial.unity
-    m_guid: 05c679bdeb81e9f4c8d578f19b77212d
-  - m_enabled: 1
     m_path: Assets/Core/Scenes/Lobby.unity
     m_guid: 6e907ae890a838149afca46eb660d536
   - m_enabled: 1
-    m_path: Assets/Core/Scenes/PlayScene3.unity
-    m_guid: c82b5034da313134d8f370303320f633
+    m_path: Assets/Core/Scenes/Tutorial.unity
+    m_guid: 9c970485b2124180bbec170ac82139ef
   - m_enabled: 1
     m_path: Assets/Core/Scenes/PlayScene1.unity
-    m_guid: e51f9a6c5c03e4afd816dfab25b341e2
+    m_guid: 14e5e7d67baa95048b30c06ab5f7e71d
+  - m_enabled: 1
+    m_path: Assets/Core/Scenes/PlayScene2.unity
+    m_guid: 26fcf4976c944d04b8168ff3a4816ba4
+  - m_enabled: 1
+    m_path: Assets/Core/Scenes/PlayScene3.unity
+    m_guid: 05c679bdeb81e9f4c8d578f19b77212d
+  - m_enabled: 1
+    m_path: Assets/Core/Scenes/TestScene.unity
+    m_guid: c82b5034da313134d8f370303320f633
   m_HasScriptingDefines: 0
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:

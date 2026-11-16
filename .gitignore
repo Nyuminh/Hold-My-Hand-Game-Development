@@ -111,11 +111,13 @@ hold_my_hand_erd.html
 
 # IDE and Local Editor configs
 .vscode/
+.cursor/
 
 # AI Multi-Agent Orchestrator local files (Zero-Cost Local Tooling)
 .agents/
 AGENTS.md
 AI_Agents/
+.cursor/
 AI_Tasks/
 AI_Reports/
 Blender/

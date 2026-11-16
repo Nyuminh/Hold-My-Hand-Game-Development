@@ -12,14 +12,20 @@ EditorBuildSettings:
     path: Assets/Core/Scenes/LoginScene.unity
     guid: 0312f248b50c43c48977c5e373959952
   - enabled: 1
-    path: Assets/Core/Scenes/Tutorial.unity
+    path: Assets/Core/Scenes/PlayScene3.unity
     guid: 05c679bdeb81e9f4c8d578f19b77212d
   - enabled: 1
     path: Assets/Core/Scenes/Lobby.unity
     guid: 6e907ae890a838149afca46eb660d536
   - enabled: 1
     path: Assets/Core/Scenes/PlayScene1.unity
-    guid: e51f9a6c5c03e4afd816dfab25b341e2
+    guid: 14e5e7d67baa95048b30c06ab5f7e71d
+  - enabled: 1
+    path: Assets/Core/Scenes/PlayScene2.unity
+    guid: 26fcf4976c944d04b8168ff3a4816ba4
+  - enabled: 1
+    path: Assets/Core/Scenes/Tutorial.unity
+    guid: 9c970485b2124180bbec170ac82139ef
   - enabled: 0
     path: Assets/Platformer/TestScenes/[BB] Platformer.unity
     guid: 4e44aede820bc4317a6a9afc9a194aea
@@ -32,9 +38,6 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Shooter/TestScenes/[BB] Shooter MultiplayerSession.unity
     guid: 7d42b85864099114e8d3c5e25250b013
-  - enabled: 1
-    path: Assets/Core/Scenes/PlayScene3.unity
-    guid: c82b5034da313134d8f370303320f633
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

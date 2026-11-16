@@ -141,6 +141,17 @@ namespace Blocks.Gameplay.Core
             if (active) obstacles.Add(source); else obstacles.Remove(source);
         }
 
+        public void RestoreCampaignCheckpoint(int index)
+        {
+            if (!IsServer || checkpoints.Length == 0) return;
+            StopAllCoroutines(); respawnRoutine = null;
+            checkpoint.Value = Mathf.Clamp(index, 0, checkpoints.Length - 1);
+            finalCharge = false; obstacles.Clear();
+            state.Value = ChaseState.Caught;
+            BeginTeamRespawnRpc(checkpoint.Value);
+            StartCoroutine(ResumeChase());
+        }
+
         public void SetCheckpoint(int index)
         {
             if (!IsServer || index <= checkpoint.Value || index >= checkpoints.Length || state.Value != ChaseState.Chasing) return;
@@ -158,6 +169,7 @@ namespace Blocks.Gameplay.Core
         [Rpc(SendTo.Everyone)]
         private void BeginTeamRespawnRpc(int index)
         {
+            InGameEscapeMenuManager.Instance?.CloseMenu();
             if (respawnRoutine != null) StopCoroutine(respawnRoutine);
             respawnRoutine = StartCoroutine(RespawnOwners(index));
         }
@@ -176,7 +188,11 @@ namespace Blocks.Gameplay.Core
             yield return new WaitForSeconds(respawnDelay);
             RefreshPlayers();
             foreach (var player in players)
+            {
                 LevelOnePlayer.Respawn(player, LevelOnePlayer.IsDad(player) ? checkpoints[index].dad : checkpoints[index].child);
+                if (player.IsOwner && index < checkpoints.Length - 1)
+                { player.CoreInput.enabled = true; player.SetMovementInputEnabled(true); }
+            }
             respawnRoutine = null;
         }
 

@@ -129,6 +129,10 @@ namespace Blocks.Gameplay.Core
         private string m_CurrentLobbyCode;
         private string m_CurrentLobbyId;
         private bool m_IsHost;
+        private int m_LevelChoice;
+        private bool m_StartingGame;
+        private Button m_ContinueCampaign, m_LevelOne, m_LevelTwo;
+        private TextMeshProUGUI m_LevelSelectionLabel;
         private CancellationTokenSource m_PollCts;
 
         // ────────────────────────────────────────────────────────
@@ -327,6 +331,14 @@ namespace Blocks.Gameplay.Core
             m_CancelJoinButton = FindUI<Button>("cancel-join-button");
             m_LobbyButtonsPanel = FindPanel("lobby-buttons-panel");
             m_PlayButton = FindUI<Button>("play-button");
+            m_ContinueCampaign = FindUI<Button>("campaign-continue-button");
+            m_LevelOne = FindUI<Button>("campaign-level1-button");
+            m_LevelTwo = FindUI<Button>("campaign-level2-button");
+            m_LevelSelectionLabel = FindUI<TextMeshProUGUI>("campaign-selection-label");
+            if (m_ContinueCampaign != null) m_ContinueCampaign.onClick.AddListener(() => ChooseCampaign(0));
+            if (m_LevelOne != null) m_LevelOne.onClick.AddListener(() => ChooseCampaign(1));
+            if (m_LevelTwo != null) m_LevelTwo.onClick.AddListener(() => ChooseCampaign(2));
+            RefreshCampaignSelection();
             m_SwapRoleButton = FindUI<Button>("swap-role-button");
             m_LeaveRoomButton = FindUI<Button>("leave-room-button");
             m_VoiceMicButton = FindUI<Button>("voice-mic-button");
@@ -759,9 +771,44 @@ namespace Blocks.Gameplay.Core
 
         public static bool AmIDad = true; // Lưu role của bản thân để dùng lúc Spawn
 
+        private int SelectedLevel => m_LevelChoice == 0 ? CampaignProgress.LastLevel : m_LevelChoice;
+        private int SelectedCheckpoint => m_LevelChoice == 0 ? CampaignProgress.SavedCheckpoint(SelectedLevel) : 0;
+        private async void ChooseCampaign(int choice)
+        {
+            if (m_StartingGame || (!string.IsNullOrEmpty(m_CurrentLobbyId) && !m_IsHost)) return;
+            m_LevelChoice = choice;
+            RefreshCampaignSelection();
+            if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
+            try { await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, new UpdateLobbyOptions { Data = CampaignLobbyData() }); }
+            catch (Exception ex) { ShowToast("Chưa đồng bộ lựa chọn màn. Bấm PLAY để thử lại."); Debug.LogWarning(ex.Message); }
+        }
+        private Dictionary<string, DataObject> CampaignLobbyData() => new Dictionary<string, DataObject>
+        {
+            { "campaignScene", new DataObject(DataObject.VisibilityOptions.Member, CampaignProgress.Scene(SelectedLevel)) },
+            { "campaignCheckpoint", new DataObject(DataObject.VisibilityOptions.Member, SelectedCheckpoint.ToString()) }
+        };
+        private void RefreshCampaignSelection()
+        {
+            bool canChoose = !m_StartingGame && (string.IsNullOrEmpty(m_CurrentLobbyId) || m_IsHost);
+            foreach (var button in new[] { m_ContinueCampaign, m_LevelOne, m_LevelTwo })
+                if (button != null) button.interactable = canChoose;
+            if (m_LevelSelectionLabel != null && canChoose)
+                m_LevelSelectionLabel.text = (m_LevelChoice == 0 ? "Tiếp tục: " : "Chơi từ đầu: ") + CampaignProgress.Description(SelectedLevel, SelectedCheckpoint);
+        }
+        private void ReadCampaignSelection(Lobby lobby)
+        {
+            RefreshCampaignSelection();
+            if (m_IsHost || m_LevelSelectionLabel == null) return;
+            int level = lobby.Data.TryGetValue("campaignScene", out var scene) ? CampaignProgress.Level(scene.Value) : 1;
+            int checkpoint = lobby.Data.TryGetValue("campaignCheckpoint", out var cp) && int.TryParse(cp.Value, out var value) ? value : 0;
+            m_LevelSelectionLabel.text = "Chủ phòng chọn: " + CampaignProgress.Description(level == 0 ? 1 : level, checkpoint);
+        }
+
         private async void OnPlayClicked()
         {
-            if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
+            if (string.IsNullOrEmpty(m_CurrentLobbyId) || !m_IsHost || m_StartingGame) return;
+            m_StartingGame = true;
+            RefreshCampaignSelection();
             UISoundManager.PlayConfirm();
             if (m_PlayButton != null) m_PlayButton.interactable = false;
             if (m_SwapRoleButton != null) m_SwapRoleButton.interactable = false;
@@ -771,15 +818,16 @@ namespace Blocks.Gameplay.Core
             try
             {
                 var lobby = await LobbyService.Instance.GetLobbyAsync(m_CurrentLobbyId);
+                if (lobby.HostId != AuthenticationService.Instance.PlayerId || lobby.Players.Count < 2)
+                    throw new InvalidOperationException("Chỉ chủ phòng đủ hai người mới bắt đầu được.");
                 string dadId = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : "";
                 if (string.IsNullOrEmpty(dadId)) dadId = lobby.HostId;
                 AmIDad = (AuthenticationService.Instance.PlayerId == dadId);
 
-                var options = new UpdateLobbyOptions {
-                    Data = new Dictionary<string, DataObject> {
-                        { "status", new DataObject(DataObject.VisibilityOptions.Public, "InGame") }
-                    }
-                };
+                int level = SelectedLevel, checkpoint = SelectedCheckpoint;
+                var data = CampaignLobbyData();
+                data["status"] = new DataObject(DataObject.VisibilityOptions.Public, "InGame");
+                var options = new UpdateLobbyOptions { Data = data };
                 await LobbyService.Instance.UpdateLobbyAsync(m_CurrentLobbyId, options);
                 StopPolling();
 
@@ -794,7 +842,8 @@ namespace Blocks.Gameplay.Core
                 var starter = bootstrapper.AddComponent<AutoSessionStarter>();
                 starter.Setup(true, m_CurrentLobbyId);
 
-                SceneManager.LoadScene(gameSceneName);
+                CampaignProgress.Select(level, checkpoint);
+                SceneManager.LoadScene(CampaignProgress.Scene(level));
             }
             catch (System.Exception ex)
             {
@@ -803,6 +852,8 @@ namespace Blocks.Gameplay.Core
                 if (m_PlayButton != null) m_PlayButton.interactable = true;
                 if (m_SwapRoleButton != null) m_SwapRoleButton.interactable = true;
                 if (m_LeaveRoomButton != null) m_LeaveRoomButton.interactable = true;
+                m_StartingGame = false;
+                RefreshCampaignSelection();
             }
         }
 
@@ -1030,6 +1081,7 @@ namespace Blocks.Gameplay.Core
                     var lobby = await LobbyService.Instance.GetLobbyAsync(m_CurrentLobbyId);
                     UpdateLobbyUI(MapToFakeResponse(lobby));
                     ReceiveChatMessages(lobby);
+                    ReadCampaignSelection(lobby);
 
                     if (lobby.Data.ContainsKey("status") && lobby.Data["status"].Value == "InGame" && !m_IsHost)
                     {
@@ -1050,7 +1102,11 @@ namespace Blocks.Gameplay.Core
                         var starter = bootstrapper.AddComponent<AutoSessionStarter>();
                         starter.Setup(false, m_CurrentLobbyId);
 
-                        SceneManager.LoadScene(gameSceneName);
+                        int level = lobby.Data.TryGetValue("campaignScene", out var selectedScene) ? CampaignProgress.Level(selectedScene.Value) : 1;
+                        if (level == 0) level = 1;
+                        int checkpoint = lobby.Data.TryGetValue("campaignCheckpoint", out var selectedCheckpoint) && int.TryParse(selectedCheckpoint.Value, out var saved) ? saved : 0;
+                        CampaignProgress.Select(level, checkpoint);
+                        SceneManager.LoadScene(CampaignProgress.Scene(level));
                         
                         break;
                     }
@@ -1160,7 +1216,8 @@ namespace Blocks.Gameplay.Core
             }
 
             // PLAY button — chỉ enable khi đủ 2 người + status Waiting
-            bool canPlay = hasPlayer2 && lobby.status == "Waiting";
+            bool canPlay = m_IsHost && !m_StartingGame && hasPlayer2 && lobby.status == "Waiting";
+            RefreshCampaignSelection();
             if (m_PlayButton != null)
             {
                 m_PlayButton.interactable = canPlay;

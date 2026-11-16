@@ -90,6 +90,7 @@ namespace Blocks.Gameplay.Core.LevelOneAuthoring
             Object.DestroyImmediate(proxy);
             proxy = (GameObject)PrefabUtility.InstantiatePrefab(prefab, Root.transform);
             Boss = Root.AddComponent<ChaseBossController>();
+            Root.AddComponent<CampaignCheckpointController>().level = 1;
             Boss.route = route; Boss.bossVisual = proxy.transform; Boss.footsteps = proxy.GetComponent<AudioSource>();
             proxy.transform.position = route.Sample(0, out var direction); proxy.transform.forward = direction;
             var cpRoot = Marker("Checkpoints", Root.transform, Vector3.zero);
@@ -229,7 +230,7 @@ namespace Blocks.Gameplay.Core.LevelOneAuthoring
             climax.childSafe=Marker("ChildSafe",climax.transform,climax.transform.TransformPoint(new Vector3(1.2f,-0.5f,12)));
             climax.dadSafe=Marker("DadSafe",climax.transform,climax.transform.TransformPoint(new Vector3(-1,-0.5f,10)));
             climax.exit.position=climax.dadSafe.position;climax.exit.forward=forward;
-            climax.nextLevelScene="PlayScene1";
+            climax.nextLevelScene="PlayScene2";
             climax.impactAudio=climax.gameObject.AddComponent<AudioSource>();climax.impactAudio.playOnAwake=false;climax.impactAudio.spatialBlend=0.5f;climax.impactAudio.pitch=0.7f;
             climax.chainBreakClip=AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Platformer/Audio/Clips/RotatingObstacleImpact.wav");
             climax.gateSlamClip=AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Shooter/Audio/Clips/Weapons/Grenade Launcher/Explode/Grenade Explode-001.wav");
@@ -239,7 +240,7 @@ namespace Blocks.Gameplay.Core.LevelOneAuthoring
             Boss.route.Rebuild();
             Boss.checkpoints[4].dad.position=climax.dadSafe.position;Boss.checkpoints[4].child.position=climax.childSafe.position;
             EditorSceneManager.MarkSceneDirty(Root.scene);EditorSceneManager.SaveScene(Root.scene);AssetDatabase.SaveAssets();
-            Debug.Log("[LVL1] Castle climax built, continuation=PlayScene1.");
+            Debug.Log("[LVL1] Castle climax built, continuation=PlayScene2.");
         }
     }
 }
