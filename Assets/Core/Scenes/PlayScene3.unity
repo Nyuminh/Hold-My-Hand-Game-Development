@@ -33737,7 +33737,13 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 6210442453835750401, guid: d89a425fed1e99b4d8c83ff16d8dc789, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 510511611}
+    - targetCorrespondingSourceObject: {fileID: 6210442453835750401, guid: d89a425fed1e99b4d8c83ff16d8dc789, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 774507097}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d89a425fed1e99b4d8c83ff16d8dc789, type: 3}
 --- !u!4 &422813931 stripped
@@ -37416,6 +37422,37 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 4441856770616068201, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+--- !u!1 &510511610
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 510511611}
+  m_Layer: 0
+  m_Name: SpawnPoint_Dad
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &510511611
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 510511610}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.8, y: 0.2, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 422813931}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &511062355 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7697167834646395286, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -52252,6 +52289,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 774193673}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &774507096
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 774507097}
+  m_Layer: 0
+  m_Name: SpawnPoint_Child
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &774507097
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 774507096}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.8, y: 0.2, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 422813931}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &775674467 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6167641775094593832, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -62439,7 +62507,7 @@ GameObject:
   m_Component:
   - component: {fileID: 936259571}
   m_Layer: 0
-  m_Name: ---Tutorial Course---
+  m_Name: ---Level 3 Gameplay---
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -62547,217 +62615,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 504680746537897740, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
---- !u!1 &939296889
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 939296892}
-  - component: {fileID: 939296891}
-  - component: {fileID: 939296890}
-  - component: {fileID: 939296893}
-  m_Layer: 0
-  m_Name: '[TutorialManager]'
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &939296890
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 939296889}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 11400000, guid: 078617a76b5fb4433800df5984ca3db2, type: 2}
-  m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 9197481963319205126, guid: 86145313869d2af43b96621dac2fac1f, type: 3}
-  m_SortingOrder: 0
-  m_Position: 0
-  m_WorldSpaceSizeMode: 1
-  m_WorldSpaceWidth: 1920
-  m_WorldSpaceHeight: 1080
-  m_PivotReferenceSize: 0
-  m_Pivot: 0
-  m_WorldSpaceCollider: {fileID: 0}
---- !u!114 &939296891
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 939296889}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a540483a3bc2e774c8eef6d67d755d46, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.TutorialManager
-  tutorialHUD: {fileID: 939296890}
-  spawnPoint: {fileID: 422813931}
---- !u!4 &939296892
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 939296889}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &939296893
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 939296889}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 98bcd1b86eee78a4a9f6fa2f04f4cfb1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.TutorialObjectiveDirector
-  chapters:
-  - id: ch0_movement
-    title: "Ch\u01B0\u01A1ng 1: L\xE0m quen thao t\xE1c di chuy\u1EC3n & nh\u1EA3y"
-    hint: "D\xF9ng WASD \u0111\u1EC3 \u0111i, Space \u0111\u1EC3 nh\u1EA3y, gi\u1EEF
-      Shift \u0111\u1EC3 ch\u1EA1y nhanh"
-    triggerCenter: {x: -4.5, y: 5, z: 5}
-    triggerRadius: 12
-    order: 0
-    probe: 0
-    plateObjectNames: []
-    keys:
-    - W
-    - A
-    - S
-    - D
-    - Space
-    - Shift
-  - id: ch1_boost_ladder
-    title: "Ch\u01B0\u01A1ng 2: \u0110\xF4i c\xE1nh c\u1EE7a Cha (Ki\u1EC7u vai &
-      N\xE9m Con)"
-    hint: "Ba gi\u1EEF [F] n\xE9m Con l\xEAn \u0111\u1EC9nh t\u01B0\u1EDDng cao \u0111\u1EC3
-      Con \u0111\u1EA1p thang d\xE2y xu\u1ED1ng"
-    triggerCenter: {x: 0, y: 3.2, z: -8}
-    triggerRadius: 5
-    order: 1
-    probe: 2
-    plateObjectNames: []
-    keys:
-    - F
-  - id: ch2_crane_elevator
-    title: "Ch\u01B0\u01A1ng 3: V\u1EADn h\xE0nh c\u1EA9u n\xE2ng qua v\u1EF1c s\xE2u"
-    hint: "M\u1ED9t ng\u01B0\u1EDDi k\xE9o t\u1EDDi \u0111\u01B0a ng\u01B0\u1EDDi
-      kia l\xEAn cao r\u1ED3i \u0111\u1EA9y kh\u1ED1i \u0111\xE1 \u0111\u1ED1i tr\u1ECDng"
-    triggerCenter: {x: -9.2, y: 11.8, z: -14.2}
-    triggerRadius: 9
-    order: 2
-    probe: 3
-    plateObjectNames: []
-    keys:
-    - F
-    - E
-    - T
-  - id: ch3_gear_turntable
-    title: "Ch\u01B0\u01A1ng 4: R\xFAt ch\u1ED1t & xoay b\xE1nh r\u0103ng m\u1EDF
-      \u0111\u01B0\u1EDDng h\u1EA7m"
-    hint: "Con chui qua h\u1ED1c \u0111\xE1 nh\u1ED5 ch\u1ED1t h\xE3m, Ba quay tay
-      quay xoay b\xE1nh r\u0103ng"
-    triggerCenter: {x: 0, y: 14.2, z: -72}
-    triggerRadius: 10
-    order: 3
-    probe: 4
-    plateObjectNames: []
-    keys:
-    - F
-    - C
-    - T
-  - id: ch4_cove_drawbridge
-    title: "Ch\u01B0\u01A1ng 5: H\u1EA1 c\u1EA7u v\u01B0\u1EE3t v\u1ECBnh bi\u1EC3n"
-    hint: "Con lu\u1ED3n v\xE0o khe nh\u1ED5 then s\u1EAFt, Ba xoay t\u1EDDi c\xE1p
-      h\u1EA1 c\u1EA7u r\xFAt"
-    triggerCenter: {x: -10.89, y: 13.6, z: -75.8}
-    triggerRadius: 9
-    order: 4
-    probe: 5
-    plateObjectNames: []
-    keys:
-    - F
-    - T
-  - id: ch5_zipline
-    title: "Ch\u01B0\u01A1ng 6: M\xF3c t\u1EDDi c\u0103ng d\xE2y c\xE1p & \u0111u
-      sang t\xE0u \u0111\u1EAFm"
-    hint: "Ba quay t\u1EDDi kh\xF3a c\u0103ng c\xE1p, hai cha con b\xE1m r\xF2ng
-      r\u1ECDc tr\u01B0\u1EE3t sang b\u1EBFn t\xE0u"
-    triggerCenter: {x: 39.5, y: 5.8, z: -53.5}
-    triggerRadius: 10
-    order: 5
-    probe: 6
-    plateObjectNames: []
-    keys:
-    - F
-    - Space
-  - id: ch6_shipwreck
-    title: "Ch\u01B0\u01A1ng 7: M\u1EDF r\u01B0\u01A1ng thuy\u1EC1n tr\u01B0\u1EDFng
-      & h\u1EA1 c\u1EA7u t\xE0u"
-    hint: "Ba xoay b\xE1nh l\xE1i m\u1EDF ch\u1ED1t, Con tr\xE8o \u0111\xE0i quan
-      s\xE1t th\xE1o d\xE2y bu\u1ED3m"
-    triggerCenter: {x: 42.5, y: 16.2, z: -55}
-    triggerRadius: 12
-    order: 6
-    probe: 8
-    plateObjectNames: []
-    keys:
-    - F
-    - E
-    - T
-  - id: ch7_victory_portal
-    title: "Ch\u01B0\u01A1ng 8: C\u1ED5ng C\u1ED5 \u0110\u1EA1i \u2014 N\u1EAFm tay
-      nhau sang M\xE0n ti\u1EBFp theo"
-    hint: "Hai Cha Con c\xF9ng \u0111\u1EE9ng l\xEAn 2 b\u1EC7 \u0111\xE1 v\xE0 N\u1EAEM
-      CH\u1EB6T TAY NHAU [H] \u0111\u1EC3 k\xEDch ho\u1EA1t C\u1ED5ng sang M\xE0n
-      1!"
-    triggerCenter: {x: 23.5, y: 3.4, z: -52}
-    triggerRadius: 6.5
-    order: 7
-    probe: 10
-    plateObjectNames: []
-    keys:
-    - H
-    - Space
-  ropeLadderCtrl: {fileID: 778899023}
-  zone1DrawbridgeCtrl: {fileID: 119998910}
-  craneElevatorCtrl: {fileID: 1077121097}
-  gearTurntableCtrl: {fileID: 1009355037}
-  coveDrawbridgeCtrl: {fileID: 433975767}
-  ziplineCtrl: {fileID: 525501098}
-  shipwreckCtrl: {fileID: 311282746}
-  seesawCatapultCtrl: {fileID: 0}
-  tetherAbyssCtrl: {fileID: 0}
-  shieldSledCtrl: {fileID: 0}
-  nextLevelPortalCtrl: {fileID: 1920527938}
-  beaconObject: {fileID: 0}
-  tutorialHUD: {fileID: 939296890}
-  objectiveTitleElementName: objective-title-label
-  objectiveHintElementName: objective-hint-label
-  keysContainerElementName: objective-keys-container
-  compassArrowElementName: compass-arrow
-  probeHz: 10
-  completionDelay: 1.2
 --- !u!1 &939371784 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -7512678875975089080, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -107663,7 +107520,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0caf1f2ddb7e3b9428199d219968a350, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopLevelExitPortal
-  nextSceneName: PlayScene1
+  nextSceneName: Lobby
+  finalCampaignLevel: 1
   dadPadPosition: {x: 23.5, y: 3.5, z: -54}
   childPadPosition: {x: 23.5, y: 3.5, z: -50}
   padRadius: 2.4
@@ -117506,16 +117364,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2341912560403749330, guid: 51238ec1086bd4d9abf55bc190cdfd1a, type: 3}
       propertyPath: spawnPoints.Array.size
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 2341912560403749330, guid: 51238ec1086bd4d9abf55bc190cdfd1a, type: 3}
       propertyPath: 'spawnPoints.Array.data[0]'
       value: 
-      objectReference: {fileID: 422813931}
+      objectReference: {fileID: 510511611}
     - target: {fileID: 2341912560403749330, guid: 51238ec1086bd4d9abf55bc190cdfd1a, type: 3}
       propertyPath: 'spawnPoints.Array.data[1]'
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 774507097}
     - target: {fileID: 2341912560403749330, guid: 51238ec1086bd4d9abf55bc190cdfd1a, type: 3}
       propertyPath: isUsingMultiplayerServices
       value: 0
@@ -117587,7 +117445,6 @@ SceneRoots:
   - {fileID: 259220600}
   - {fileID: 4231823221422156427}
   - {fileID: 69335625}
-  - {fileID: 939296892}
   - {fileID: 936259571}
   - {fileID: 1275934356}
   - {fileID: 1416172099}

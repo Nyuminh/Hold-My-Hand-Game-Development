@@ -49,6 +49,7 @@ namespace Blocks.Gameplay.Core
                 if(GameManager.Instance != null && network.LocalClient?.PlayerObject != null && network.LocalClient.PlayerObject.IsSpawned)
                 {
                     GameManager.Instance.ResumeAfterLevelTransition();
+                    if (target == "PlayScene3") CampaignProgress.Save(3, 0);
                     // Scene-authored NetworkManagers are dormant while the existing
                     // session survives. Remove duplicates before another transition.
                     foreach(var other in FindObjectsByType<NetworkManager>())

@@ -12,7 +12,7 @@ namespace Blocks.Gameplay.Core
         public MarshBeaconTrigger west, east;
         public Transform altar;
         public BoxCollider harbor;
-        public string nextLevelScene = "PlayScene1";
+        public string nextLevelScene = "PlayScene3";
         private readonly NetworkVariable<bool> docked = new NetworkVariable<bool>();
         private readonly NetworkVariable<bool> completed = new NetworkVariable<bool>();
         private bool presented, transitioning;
@@ -53,7 +53,8 @@ namespace Blocks.Gameplay.Core
             if (Completed && !presented)
             {
                 presented = true;
-                PlayerPrefs.SetInt("HMH.Level2.Completed", 1); PlayerPrefs.SetInt("HMH.Level2.Checkpoint", 3); PlayerPrefs.Save();
+                PlayerPrefs.SetInt("HMH.Level2.Completed", 1);
+                CampaignProgress.Save(2, 6);
                 GetComponent<LevelTwoFeedback>().Play();
             }
         }
@@ -77,7 +78,11 @@ namespace Blocks.Gameplay.Core
             if (status != SceneEventProgressStatus.Started) { transitioning = false; transitionError = "Chưa chuyển được màn: " + status; }
         }
         [Rpc(SendTo.Everyone)]
-        private void PrepareNextLevelRpc() => NetworkManager.gameObject.AddComponent<LevelOneSceneTransition>().Begin(NetworkManager, nextLevelScene);
+        private void PrepareNextLevelRpc()
+        {
+            CampaignProgress.Select(3, 0);
+            NetworkManager.gameObject.AddComponent<LevelOneSceneTransition>().Begin(NetworkManager, nextLevelScene);
+        }
         public override void OnDestroy()
         {
             RenderSettings.fog = originalFog; RenderSettings.fogDensity = originalDensity;
@@ -98,7 +103,7 @@ namespace Blocks.Gameplay.Core
             GUI.Box(r, "MÀN 2 HOÀN THÀNH\nNẮM TAY NHAU — BẾN BỜ BÌNH MINH", style);
             if (GUI.Button(new Rect(r.x + 35, r.y + 120, 250, 45), "Quay về Lobby")) InGameEscapeMenuManager.EnsureInstanceInScene().ReturnToLobby();
             GUI.enabled = IsServer && !transitioning;
-            if (GUI.Button(new Rect(r.x + 335, r.y + 120, 250, 45), "Tiếp tục")) ContinueToNextLevel();
+            if (GUI.Button(new Rect(r.x + 335, r.y + 120, 250, 45), "Tiếp tục Màn 3")) ContinueToNextLevel();
             GUI.enabled = true;
             GUI.Label(new Rect(r.x + 35, r.y + 190, 550, 35), transitionError ?? (IsServer ? "Tiến độ đã lưu." : "Chờ chủ phòng chuyển màn."));
         }

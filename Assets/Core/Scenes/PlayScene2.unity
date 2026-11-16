@@ -60888,7 +60888,7 @@ MonoBehaviour:
   east: {fileID: 1103791612}
   altar: {fileID: 2110722331}
   harbor: {fileID: 1050663598}
-  nextLevelScene: PlayScene1
+  nextLevelScene: PlayScene3
 --- !u!114 &720435704
 MonoBehaviour:
   m_ObjectHideFlags: 0
