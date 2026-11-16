@@ -186,6 +186,10 @@ namespace Blocks.Gameplay.Core
 
         private bool DetermineIsDad()
         {
+            // Player names are display text and may contain another role's name.
+            // The owning player's Lobby selection is authoritative at spawn.
+            if (IsOwner && NetworkObject != null && NetworkObject.IsPlayerObject)
+                return Lobby3DManager.AmIDad;
             string objName = gameObject.name.ToLower();
             if (objName.Contains("child") || objName.Contains("son") || objName.Contains("con")) return false;
             if (objName.Contains("dad") || objName.Contains("father") || objName.Contains("ba")) return true;
@@ -209,6 +213,9 @@ namespace Blocks.Gameplay.Core
         {
             get
             {
+                if (IsSpawned && NetworkObject.IsPlayerObject)
+                    return IsOwner ? Lobby3DManager.AmIDad :
+                        m_RoleVisuals != null ? m_RoleVisuals.IsDad : m_IsDadNetworkVar.Value;
                 // 1. Kiểm tra dứt khoát theo tên GameObject
                 string objName = gameObject.name.ToLower();
                 if (objName.Contains("child") || objName.Contains("son") || objName.Contains("con")) return false;

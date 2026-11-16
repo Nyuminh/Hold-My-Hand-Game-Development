@@ -18,10 +18,25 @@ namespace Blocks.Gameplay.Core.Validation
         private const string Active = "HMH.Level3QA.Active";
         private const string Report = "AI_Reports/tests/LVL3/transition-playmode.txt";
         private static readonly string[] Keys = { CampaignProgress.LastLevelKey, "HMH.Level2.Completed", "HMH.Campaign.Level2.Checkpoint", "HMH.Campaign.Level3.Checkpoint" };
-        private static int step;
+        private static int step { get => SessionState.GetInt(Active + ".Step", 0); set => SessionState.SetInt(Active + ".Step", value); }
         private static double since;
-        private static ulong oldPlayer;
-        static LevelThreeTransitionValidation() { EditorApplication.update += Tick; }
+        private static ulong oldPlayer
+        {
+            get => ulong.TryParse(SessionState.GetString(Active + ".Player", "0"), out var id) ? id : 0;
+            set => SessionState.SetString(Active + ".Player", value.ToString());
+        }
+        static LevelThreeTransitionValidation()
+        {
+            EditorApplication.update += Tick;
+            EditorApplication.playModeStateChanged += state =>
+            {
+                if (state == PlayModeStateChange.ExitingPlayMode && SessionState.GetBool(Active, false))
+                {
+                    File.AppendAllText(Report, "CANCELLED: Play Mode stopped before test completion.\n");
+                    RestoreSession();
+                }
+            };
+        }
 
         [MenuItem("Hold My Hand/QA/Level 2 to Level 3 (Host Dad)")]
         private static void RunDad() => Run(true);
@@ -61,6 +76,13 @@ namespace Blocks.Gameplay.Core.Validation
             double elapsed = EditorApplication.timeSinceStartup - since;
             try
             {
+                string scene = SceneManager.GetActiveScene().name;
+                if ((step < 4 && scene != "PlayScene2") || (step == 4 && scene != "PlayScene2" && scene != "PlayScene3"))
+                {
+                    File.AppendAllText(Report, "CANCELLED: unexpected scene " + scene + "; test will not alter this session.\n");
+                    RestoreSession();
+                    return;
+                }
                 if (elapsed > 90) throw new TimeoutException("Step " + step + " in " + SceneManager.GetActiveScene().name);
                 var net = NetworkManager.Singleton;
                 if (step == 0)
@@ -70,11 +92,11 @@ namespace Blocks.Gameplay.Core.Validation
                     var transport = net.GetComponent<UnityTransport>();
                     transport.ConnectionData.Address = "127.0.0.1";
                     transport.ConnectionData.Port = 7795;
-                    Check(net.StartHost(), "source host starts"); Next(); return;
+                    Check(!net.IsListening && net.StartHost(), "source host starts"); Next(); return;
                 }
                 if (step == 1 && elapsed > 2)
                 {
-                    if (net.LocalClient?.PlayerObject == null) return;
+                    if (net == null || !net.IsListening || net.LocalClient?.PlayerObject == null) return;
                     var spawner = net.GetComponent<RoleBasedSpawner>();
                     var companion = Object.Instantiate(spawner.ResolvePrefab(!Lobby3DManager.AmIDad));
                     companion.GetComponent<CoopBoostThrowAbility>().SetRole(!Lobby3DManager.AmIDad);
@@ -130,7 +152,14 @@ namespace Blocks.Gameplay.Core.Validation
                     Check(camera.enabled && camera.ActiveCameraMode != null, "gameplay camera active");
                     Check(CampaignProgress.Level("PlayScene3") == 3 && CampaignProgress.LastLevel == 3, "campaign correctly records level 3");
                     foreach (var d in Object.FindObjectsByType<UIDocument>(FindObjectsSortMode.None))
-                        if (d.name == "LoadingScreenUI") Check(d.rootVisualElement.resolvedStyle.display == DisplayStyle.None, "loading overlay hidden");
+                        if (d.name == "LoadingScreenUI")
+                        {
+                            var root = d.rootVisualElement;
+                            File.AppendAllText(Report, "UI inline=" + root.style.display + " resolved=" + root.resolvedStyle.display + " panel=" + (root.panel != null) + "\n");
+                            // An unattached editor panel does not resolve its styles. Inline
+                            // display:none is still the authoritative hidden state in that case.
+                            Check(root.style.display.value == DisplayStyle.None || root.resolvedStyle.display == DisplayStyle.None, "loading overlay hidden");
+                        }
                     Check(Object.FindAnyObjectByType<CraneElevatorController>() != null && Object.FindAnyObjectByType<GiantGearTurntableController>() != null && Object.FindAnyObjectByType<CoveDrawbridgeCoopController>() != null && Object.FindAnyObjectByType<Stage3ZiplineCoopController>() != null && Object.FindAnyObjectByType<ShipwreckCoopController>() != null, "authored level 3 puzzles remain");
                     File.AppendAllText(Report, "RESULT PASS. LIMITATION: host plus owned companion fixture; independent two-client transition not exercised.\n");
                     Finish();
@@ -140,12 +169,16 @@ namespace Blocks.Gameplay.Core.Validation
         }
         private static void Finish()
         {
+            RestoreSession();
+            EditorApplication.isPlaying = false;
+        }
+        private static void RestoreSession()
+        {
+            SessionState.SetBool(Active, false);
             foreach (var key in Keys)
                 if (SessionState.GetBool(key + Active, false)) PlayerPrefs.SetInt(key, SessionState.GetInt(key + Active, 0)); else PlayerPrefs.DeleteKey(key);
             PlayerPrefs.Save(); CampaignProgress.Select(1, 0);
             Lobby3DManager.AmIDad = SessionState.GetBool("HMH.Level3QA.Role", true);
-            SessionState.SetBool(Active, false);
-            EditorApplication.isPlaying = false;
         }
     }
 }
