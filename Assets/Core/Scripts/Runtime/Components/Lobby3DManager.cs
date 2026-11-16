@@ -131,7 +131,7 @@ namespace Blocks.Gameplay.Core
         private bool m_IsHost;
         private int m_LevelChoice;
         private bool m_StartingGame;
-        private Button m_ContinueCampaign, m_LevelOne, m_LevelTwo;
+        private Button m_ContinueCampaign, m_LevelOne, m_LevelTwo, m_LevelThree;
         private TextMeshProUGUI m_LevelSelectionLabel;
         private CancellationTokenSource m_PollCts;
 
@@ -334,10 +334,12 @@ namespace Blocks.Gameplay.Core
             m_ContinueCampaign = FindUI<Button>("campaign-continue-button");
             m_LevelOne = FindUI<Button>("campaign-level1-button");
             m_LevelTwo = FindUI<Button>("campaign-level2-button");
+            m_LevelThree = FindUI<Button>("campaign-level3-button");
             m_LevelSelectionLabel = FindUI<TextMeshProUGUI>("campaign-selection-label");
             if (m_ContinueCampaign != null) m_ContinueCampaign.onClick.AddListener(() => ChooseCampaign(0));
             if (m_LevelOne != null) m_LevelOne.onClick.AddListener(() => ChooseCampaign(1));
             if (m_LevelTwo != null) m_LevelTwo.onClick.AddListener(() => ChooseCampaign(2));
+            if (m_LevelThree != null) m_LevelThree.onClick.AddListener(() => ChooseCampaign(3));
             RefreshCampaignSelection();
             m_SwapRoleButton = FindUI<Button>("swap-role-button");
             m_LeaveRoomButton = FindUI<Button>("leave-room-button");
@@ -790,7 +792,7 @@ namespace Blocks.Gameplay.Core
         private void RefreshCampaignSelection()
         {
             bool canChoose = !m_StartingGame && (string.IsNullOrEmpty(m_CurrentLobbyId) || m_IsHost);
-            foreach (var button in new[] { m_ContinueCampaign, m_LevelOne, m_LevelTwo })
+            foreach (var button in new[] { m_ContinueCampaign, m_LevelOne, m_LevelTwo, m_LevelThree })
                 if (button != null) button.interactable = canChoose;
             if (m_LevelSelectionLabel != null && canChoose)
                 m_LevelSelectionLabel.text = (m_LevelChoice == 0 ? "Tiếp tục: " : "Chơi từ đầu: ") + CampaignProgress.Description(SelectedLevel, SelectedCheckpoint);
