@@ -9,23 +9,25 @@ namespace Blocks.Gameplay.Core
         private static int requestedLevel, requestedCheckpoint;
         public static string CheckpointKey(int level) => "HMH.Campaign.Level" + level + ".Checkpoint";
         public static int LastLevel => Mathf.Clamp(PlayerPrefs.GetInt(LastLevelKey,
-            PlayerPrefs.GetInt("HMH.Level1.Completed", 0) == 1 ? 2 : 1), 1, 2);
-        public static string Scene(int level) => level == 2 ? "PlayScene2" : "PlayScene3";
-        public static int Level(string scene) => scene == "PlayScene2" ? 2 : scene == "PlayScene3" ? 1 : 0;
-        public static int Clamp(int level, int checkpoint) => Mathf.Clamp(checkpoint, 0, level == 2 ? 6 : 4);
+            PlayerPrefs.GetInt("HMH.Level1.Completed", 0) == 1 ? 2 : 1), 1, 3);
+        public static string Scene(int level) => level == 3 ? "PlayScene3" : level == 2 ? "PlayScene2" : "PlayScene1";
+        public static int Level(string scene) => scene == "PlayScene3" ? 3 : scene == "PlayScene2" ? 2 : scene == "PlayScene1" ? 1 : 0;
+        public static int Clamp(int level, int checkpoint) => Mathf.Clamp(checkpoint, 0, level == 3 ? 0 : level == 2 ? 6 : 4);
         public static int SavedCheckpoint(int level) => Clamp(level, PlayerPrefs.GetInt(CheckpointKey(level), 0));
         public static void Save(int level, int checkpoint)
         {
-            if (level < 1 || level > 2) return;
+            if (level < 1 || level > 3) return;
             PlayerPrefs.SetInt(LastLevelKey, level);
             PlayerPrefs.SetInt(CheckpointKey(level), Clamp(level, checkpoint));
             PlayerPrefs.Save();
         }
         public static void Select(int level, int checkpoint)
-        { requestedLevel = Mathf.Clamp(level, 1, 2); requestedCheckpoint = Clamp(requestedLevel, checkpoint); }
+        { requestedLevel = Mathf.Clamp(level, 1, 3); requestedCheckpoint = Clamp(requestedLevel, checkpoint); }
         public static int ConsumeStart(int level)
         {
-            int checkpoint = requestedLevel == level ? requestedCheckpoint : SavedCheckpoint(level);
+            // Only Lobby Continue supplies a saved checkpoint. Direct scene entry and
+            // progression from the previous level start a fresh attempt.
+            int checkpoint = requestedLevel == level ? requestedCheckpoint : 0;
             requestedLevel = 0;
             return checkpoint;
         }

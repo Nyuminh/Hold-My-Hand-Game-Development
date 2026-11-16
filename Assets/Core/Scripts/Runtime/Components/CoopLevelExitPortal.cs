@@ -25,6 +25,7 @@ namespace Blocks.Gameplay.Core
         [Header("Scene Transition Target")]
         [Tooltip("Tên Scene tiếp theo sẽ load khi qua màn thành công")]
         [SerializeField] private string nextSceneName = "PlayScene1";
+        [SerializeField] private bool finalCampaignLevel;
 
         [Header("Pads Configuration")]
         [Tooltip("Vị trí bệ kích hoạt của Cha")]
@@ -265,7 +266,15 @@ namespace Blocks.Gameplay.Core
             }
 
             m_ShowVictoryScreen = true;
-            StartCoroutine(VictorySequenceRoutine());
+            if (finalCampaignLevel)
+            {
+                PlayerPrefs.SetInt("HMH.Level3.Completed", 1);
+                PlayerPrefs.Save();
+                m_VictoryStatusText = "Hai cha con đã hoàn thành hành trình.";
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            else StartCoroutine(VictorySequenceRoutine());
         }
 
         private IEnumerator VictorySequenceRoutine()
@@ -293,6 +302,7 @@ namespace Blocks.Gameplay.Core
 
         public void LoadNextScene()
         {
+            if (finalCampaignLevel) { ReturnToLobby(); return; }
             Debug.Log($"[CoopLevelExitPortal] Đang load Scene tiếp theo: {nextSceneName}");
 
             // Đồng bộ Netcode nếu đang host multiplayer
@@ -398,7 +408,7 @@ namespace Blocks.Gameplay.Core
             titleStyle.fontSize = 28;
             titleStyle.fontStyle = FontStyle.Bold;
             titleStyle.normal.textColor = new Color(1f, 0.85f, 0.25f);
-            GUI.Label(new Rect(cardX, cardY + 30f, cardW, 40f), "🏆 HOÀN THÀNH MÀN HUẤN LUYỆN!", titleStyle);
+            GUI.Label(new Rect(cardX, cardY + 30f, cardW, 40f), finalCampaignLevel ? "HOÀN THÀNH MÀN 3!" : "🏆 HOÀN THÀNH MÀN HUẤN LUYỆN!", titleStyle);
 
             // Subtitle
             var subStyle = new GUIStyle(GUI.skin.label);
@@ -406,7 +416,7 @@ namespace Blocks.Gameplay.Core
             subStyle.fontSize = 17;
             subStyle.normal.textColor = new Color(0.85f, 0.90f, 0.95f);
             GUI.Label(new Rect(cardX + 40f, cardY + 80f, cardW - 80f, 60f),
-                "\"Tình Phụ Tử đã gắn kết hai cha con vượt qua mọi vách vực và giông bão.\nGiờ đây, cánh cổng cổ đại đã mở lối vào chuyến phiêu lưu thực sự!\"", subStyle);
+                finalCampaignLevel ? "Hai cha con đã cùng vượt qua vách vực và giông bão.\nHành trình đã trọn vẹn!" : "\"Tình Phụ Tử đã gắn kết hai cha con vượt qua mọi vách vực và giông bão.\nGiờ đây, cánh cổng cổ đại đã mở lối vào chuyến phiêu lưu thực sự!\"", subStyle);
 
             // Divider
             GUI.backgroundColor = new Color(1f, 0.85f, 0.25f, 0.4f);
@@ -416,10 +426,13 @@ namespace Blocks.Gameplay.Core
             var statStyle = new GUIStyle(GUI.skin.label);
             statStyle.fontSize = 15;
             statStyle.normal.textColor = new Color(0.7f, 0.95f, 0.8f);
-            GUI.Label(new Rect(cardX + 80f, cardY + 175f, cardW - 160f, 28f), "✔ Màn 1: Cầu gỗ suối mù — Nắm tay vượt sợ hãi", statStyle);
-            GUI.Label(new Rect(cardX + 80f, cardY + 205f, cardW - 160f, 28f), "✔ Màn 2: Tường thành — Tung bổng & Thang dây đồng đội", statStyle);
-            GUI.Label(new Rect(cardX + 80f, cardY + 235f, cardW - 160f, 28f), "✔ Màn 3: Bập bênh búng người & Đu cáp trượt tuyết", statStyle);
-            GUI.Label(new Rect(cardX + 80f, cardY + 265f, cardW - 160f, 28f), "✔ Màn 4: Thuyền đắm bão biển — Rương báu Thuyền Trưởng", statStyle);
+            if (!finalCampaignLevel)
+            {
+                GUI.Label(new Rect(cardX + 80f, cardY + 175f, cardW - 160f, 28f), "✔ Màn 1: Cầu gỗ suối mù — Nắm tay vượt sợ hãi", statStyle);
+                GUI.Label(new Rect(cardX + 80f, cardY + 205f, cardW - 160f, 28f), "✔ Màn 2: Tường thành — Tung bổng & Thang dây đồng đội", statStyle);
+                GUI.Label(new Rect(cardX + 80f, cardY + 235f, cardW - 160f, 28f), "✔ Màn 3: Bập bênh búng người & Đu cáp trượt tuyết", statStyle);
+                GUI.Label(new Rect(cardX + 80f, cardY + 265f, cardW - 160f, 28f), "✔ Màn 4: Thuyền đắm bão biển — Rương báu Thuyền Trưởng", statStyle);
+            }
 
             // Status loading
             var loadStyle = new GUIStyle(GUI.skin.label);
@@ -434,13 +447,13 @@ namespace Blocks.Gameplay.Core
             float btnY = cardY + 365f;
 
             GUI.backgroundColor = new Color(0.2f, 0.75f, 0.35f);
-            if (GUI.Button(new Rect(cardX + 90f, btnY, btnW, btnH), "▶ TIẾP TỤC SANG MÀN 1 [Space]"))
+            if (!finalCampaignLevel && GUI.Button(new Rect(cardX + 90f, btnY, btnW, btnH), "▶ TIẾP TỤC SANG MÀN 1 [Space]"))
             {
                 LoadNextScene();
             }
 
             GUI.backgroundColor = new Color(0.6f, 0.25f, 0.25f);
-            if (GUI.Button(new Rect(cardX + cardW - 90f - btnW, btnY, btnW, btnH), "🏠 TRỞ VỀ LOBBY"))
+            if (GUI.Button(new Rect(finalCampaignLevel ? cardX + (cardW - btnW) / 2 : cardX + cardW - 90f - btnW, btnY, btnW, btnH), "🏠 TRỞ VỀ LOBBY"))
             {
                 ReturnToLobby();
             }

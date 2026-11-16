@@ -12,7 +12,7 @@ namespace Blocks.Gameplay.Core
         public MarshBeaconTrigger west, east;
         public Transform altar;
         public BoxCollider harbor;
-        public string nextLevelScene = "PlayScene1";
+        public string nextLevelScene = "PlayScene3";
         private readonly NetworkVariable<bool> docked = new NetworkVariable<bool>();
         private readonly NetworkVariable<bool> completed = new NetworkVariable<bool>();
         private bool presented, transitioning;
@@ -24,7 +24,12 @@ namespace Blocks.Gameplay.Core
         public bool Completed => completed.Value;
         public bool Docked => docked.Value;
         public void RestoreCheckpoint(bool arrived, bool finished)
-        { if (IsServer) { docked.Value = arrived; completed.Value = finished; } }
+        {
+            if (!IsServer) return;
+            docked.Value = arrived;
+            completed.Value = finished;
+            if (!finished) { presented = transitioning = false; transitionError = null; }
+        }
         public override void OnNetworkSpawn()
         { completed.OnValueChanged += CompletionChanged; }
         public override void OnNetworkDespawn()
@@ -53,18 +58,22 @@ namespace Blocks.Gameplay.Core
             if (Completed && !presented)
             {
                 presented = true;
-                PlayerPrefs.SetInt("HMH.Level2.Completed", 1); PlayerPrefs.SetInt("HMH.Level2.Checkpoint", 3); PlayerPrefs.Save();
+                PlayerPrefs.SetInt("HMH.Level2.Completed", 1);
+                CampaignProgress.Save(2, 6);
                 GetComponent<LevelTwoFeedback>().Play();
             }
         }
         public bool TryComplete()
         {
-            if (!IsServer || Completed || !Docked || !watermill.Passed || !west.Lit || !east.Lit || boat.IsDadMounted || boat.IsChildMounted) return false;
+            if (!IsServer || Completed || !watermill.Passed || !west.Lit || !east.Lit || boat.IsDadMounted || boat.IsChildMounted) return false;
             CorePlayerManager dad = null, child = null;
             foreach (var actor in LevelTwoActors.All)
                 if (LevelTwoActors.Near(actor, altar, 3f)) { if (LevelOnePlayer.IsDad(actor)) dad = actor; else child = actor; }
-            if (dad == null || child == null || Vector3.Distance(dad.transform.position, child.transform.position) > 2.2f ||
-                !dad.TryGetComponent<CoopHoldHandAbility>(out var dadHand) || !child.TryGetComponent<CoopHoldHandAbility>(out var childHand) ||
+            if (dad == null || child == null || Vector3.Distance(dad.transform.position, child.transform.position) > 2.2f) return false;
+            // The dock allows disembarking before the hull enters the arrival box.
+            // Both living roles reaching the altar also proves they arrived at Haven.
+            docked.Value = true;
+            if (!dad.TryGetComponent<CoopHoldHandAbility>(out var dadHand) || !child.TryGetComponent<CoopHoldHandAbility>(out var childHand) ||
                 !dadHand.IsHoldingHands || !childHand.IsHoldingHands) return false;
             completed.Value = true; return true;
         }
@@ -77,7 +86,11 @@ namespace Blocks.Gameplay.Core
             if (status != SceneEventProgressStatus.Started) { transitioning = false; transitionError = "Chưa chuyển được màn: " + status; }
         }
         [Rpc(SendTo.Everyone)]
-        private void PrepareNextLevelRpc() => NetworkManager.gameObject.AddComponent<LevelOneSceneTransition>().Begin(NetworkManager, nextLevelScene);
+        private void PrepareNextLevelRpc()
+        {
+            CampaignProgress.Select(3, 0);
+            NetworkManager.gameObject.AddComponent<LevelOneSceneTransition>().Begin(NetworkManager, nextLevelScene);
+        }
         public override void OnDestroy()
         {
             RenderSettings.fog = originalFog; RenderSettings.fogDensity = originalDensity;
@@ -89,7 +102,11 @@ namespace Blocks.Gameplay.Core
             if (!IsSpawned) return;
             if (!Completed)
             {
-                if (Docked) GUI.Box(new Rect(20, 85, 650, 60), "Haven Harbor: cả hai bấm [E] lên bờ.\nTới Bàn Thờ Ký Ức, giữ [H] nắm tay nhau.");
+                var local = LevelTwoActors.Local;
+                if (Docked || (local != null && Vector3.Distance(local.transform.position, altar.position) < 14f))
+                    GUI.Box(new Rect(20, 85, 650, 60), !west.Lit || !east.Lit ? "Hãy thắp sáng đủ hai hải đăng trước khi hoàn thành màn." :
+                        !watermill.Passed ? "Chưa ghi nhận vượt cối xay. Cả hai cùng chèo thuyền qua lúc cửa mở." :
+                        "Haven Harbor: cả hai bấm [E] lên bờ.\nCùng tới Bàn Thờ Ký Ức, đứng sát và giữ [H] nắm tay để hoàn thành.");
                 return;
             }
             Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
@@ -98,7 +115,7 @@ namespace Blocks.Gameplay.Core
             GUI.Box(r, "MÀN 2 HOÀN THÀNH\nNẮM TAY NHAU — BẾN BỜ BÌNH MINH", style);
             if (GUI.Button(new Rect(r.x + 35, r.y + 120, 250, 45), "Quay về Lobby")) InGameEscapeMenuManager.EnsureInstanceInScene().ReturnToLobby();
             GUI.enabled = IsServer && !transitioning;
-            if (GUI.Button(new Rect(r.x + 335, r.y + 120, 250, 45), "Tiếp tục")) ContinueToNextLevel();
+            if (GUI.Button(new Rect(r.x + 335, r.y + 120, 250, 45), "Tiếp tục Màn 3")) ContinueToNextLevel();
             GUI.enabled = true;
             GUI.Label(new Rect(r.x + 35, r.y + 190, 550, 35), transitionError ?? (IsServer ? "Tiến độ đã lưu." : "Chờ chủ phòng chuyển màn."));
         }

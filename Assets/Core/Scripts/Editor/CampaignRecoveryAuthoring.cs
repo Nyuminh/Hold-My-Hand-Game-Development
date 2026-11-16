@@ -70,9 +70,35 @@ namespace Blocks.Gameplay.Core
                 var tmp = text.GetComponent<TextMeshProUGUI>(); tmp.font = prototype.GetComponentInChildren<TextMeshProUGUI>().font;
                 tmp.fontSize = 16; tmp.color = Color.white; tmp.alignment = TextAlignmentOptions.Center; tmp.text = "CHỌN MÀN / TIẾP TỤC";
             }
+            EnsureThreeLevelButtons(canvas.transform.Find("campaign-selection-panel"));
             EditorSceneManager.MarkSceneDirty(lobby); EditorSceneManager.SaveScene(lobby);
             if (!string.IsNullOrEmpty(original)) EditorSceneManager.OpenScene(original);
             AssetDatabase.SaveAssets();
+        }
+
+        public static void EnsureThreeLevelButtons(Transform panel)
+        {
+            var prototype = panel.Find("campaign-level1-button").GetComponent<Button>();
+            const float width = (344f - 16f) / 3f;
+            for (int level = 1; level <= 3; level++)
+            {
+                string name = "campaign-level" + level + "-button";
+                var existing = panel.Find(name);
+                var button = existing != null ? existing.GetComponent<Button>() : Object.Instantiate(prototype, panel);
+                if (existing == null)
+                {
+                    button.name = name;
+                    button.onClick = new Button.ButtonClickedEvent();
+                }
+                var rect = button.GetComponent<RectTransform>();
+                rect.anchorMin = rect.anchorMax = rect.pivot = Vector2.zero;
+                rect.anchoredPosition = new Vector2(8 + (level - 1) * (width + 8), 20);
+                rect.sizeDelta = new Vector2(width, 38);
+                var label = button.GetComponentInChildren<TextMeshProUGUI>();
+                label.text = "MÀN " + level;
+                label.fontSize = 15;
+                button.gameObject.SetActive(true);
+            }
         }
     }
 }

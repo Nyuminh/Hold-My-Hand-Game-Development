@@ -215,6 +215,7 @@ namespace Blocks.Gameplay.Core
         [Rpc(SendTo.Everyone)]
         private void PrepareNextLevelRpc()
         {
+            CampaignProgress.Select(CampaignProgress.Level(nextLevelScene), 0);
             var transition=NetworkManager.gameObject.AddComponent<LevelOneSceneTransition>();
             transition.Begin(NetworkManager,nextLevelScene);
         }
