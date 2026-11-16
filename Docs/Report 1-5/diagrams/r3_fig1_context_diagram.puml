@@ -1,0 +1,94 @@
+@startuml r3_fig1_context_diagram
+' =============================================================================
+' Data Flow Diagram Level 0 (System Context Diagram) - Hold My Hand (FA26SE047)
+' Academic Monochrome Style | Ready for Draw.io (Arrange -> Insert -> Advanced -> PlantUML)
+' =============================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Segoe UI", Arial, sans-serif
+skinparam defaultFontSize 11
+skinparam roundCorner 0
+skinparam shadowing false
+skinparam monochrome true
+
+skinparam rectangle {
+    BackgroundColor #FFFFFF
+    BorderColor #0F172A
+    BorderThickness 1.5
+    FontColor #0F172A
+    FontStyle bold
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #0F172A
+    BorderThickness 2.0
+    FontColor #0F172A
+    FontStyle bold
+}
+
+skinparam arrow {
+    Color #0F172A
+    Thickness 1.2
+    FontColor #0F172A
+    FontSize 10
+}
+
+' --- Center Process (DFD Level 0 System) ---
+usecase Sys as "<b>HOLD MY HAND</b>
+--
+<b>ASYMMETRIC CO-OP GAME</b>
+<b>INFORMATION SYSTEM</b>"
+
+' --- 5 External Entities ---
+rectangle "<b>GUEST</b>\n<i>(Unauthenticated User)</i>" as Guest
+rectangle "<b>USER AS A DAD</b>\n<i>(Host Player / Listen Server)</i>" as Dad
+rectangle "<b>USER AS A CHILD</b>\n<i>(Client Player / Peer)</i>" as Child
+rectangle "<b>MODERATOR</b>\n<i>(Game Master Staff)</i>" as Mod
+rectangle "<b>ADMINISTRATOR</b>\n<i>(System Operator)</i>" as Admin
+
+' --- Data Flows: GUEST (5 flows) ---
+Guest -right-> Sys : 1. account_registration_req (email, user, pass)
+Guest -right-> Sys : 2. login_credentials_req (user, pass)
+Sys -left-> Guest : 3. auth_jwt_token_payload (access, refresh)
+Sys -left-> Guest : 4. game_version_compatibility_status
+Sys -left-> Guest : 5. global_leaderboards_and_rankings
+
+' --- Data Flows: USER AS A DAD (6 flows) ---
+Dad -right-> Sys : 6. create_lobby_req (max_players=2, 6char_code)
+Dad -right-> Sys : 7. configure_chapter_and_stage_settings
+Dad -right-> Sys : 8. authoritative_tick_world_state_60hz
+Dad -right-> Sys : 9. boss_ai_state_and_phase_sync (hp, target)
+Sys -left-> Dad : 10. forwarded_child_input_packets (wasd, aim)
+Sys -left-> Dad : 11. match_summary_exp_and_rewards
+
+' --- Data Flows: USER AS A CHILD (6 flows) ---
+Child -right-> Sys : 12. join_lobby_by_code_req (6_char_code)
+Child -right-> Sys : 13. request_role_swap_dad_child
+Child -right-> Sys : 14. client_movement_inputs (wasd, jump)
+Child -right-> Sys : 15. child_action_crawl_and_slingshot
+Sys -left-> Child : 16. interpolated_world_snapshot_60hz
+Sys -left-> Child : 17. tether_tension_and_boss_status
+
+' --- Data Flows: MODERATOR (8 flows) ---
+Mod -left-> Sys : 18. query_active_lobbies_filter
+Sys -right-> Mod : 19. active_lobbies_realtime_list
+Mod -left-> Sys : 20. mod001_force_terminate_lobby_cmd
+Mod -left-> Sys : 21. adjust_dynamic_character_stats_cmd
+Mod -left-> Sys : 22. override_scene_item_config_cmd
+Mod -left-> Sys : 23. kick_disruptive_player_cmd
+Mod -left-> Sys : 24. broadcast_system_announcement_cmd
+Sys -right-> Mod : 25. lobby_telemetry_metrics (latency/loss)
+
+' --- Data Flows: ADMINISTRATOR (8 flows) ---
+Admin -left-> Sys : 26. user_account_ban_unban_req
+Sys -right-> Admin : 27. user_accounts_management_data
+Admin -left-> Sys : 28. assign_rbac_role_cmd (mod/admin)
+Sys -right-> Admin : 29. immutable_security_audit_logs
+Admin -left-> Sys : 30. server_rules_config_cmd
+Admin -left-> Sys : 31. purge_expired_lobbies_maintenance
+Admin -left-> Sys : 32. system_backup_and_restore_cmd
+Sys -right-> Admin : 33. server_operational_health_metrics
+
+@enduml
+

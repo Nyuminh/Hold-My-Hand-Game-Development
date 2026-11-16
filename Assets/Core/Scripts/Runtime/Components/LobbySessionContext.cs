@@ -71,7 +71,9 @@ namespace Blocks.Gameplay.Core
 
                 try
                 {
-                    await Task.Delay(30000, ct); // increased to 30s
+                    // UGS Lobby tự động xóa phòng nếu không nhận ping trong 30s.
+                    // Theo chuẩn Unity, ping phải gửi mỗi 15s để giữ phòng luôn tồn tại.
+                    await Task.Delay(15000, ct);
                 }
                 catch
                 {
@@ -88,7 +90,7 @@ namespace Blocks.Gameplay.Core
             {
                 try
                 {
-                    await Task.Delay(30000, ct); // increased to 30s
+                    await Task.Delay(15000, ct);
                 }
                 catch
                 {

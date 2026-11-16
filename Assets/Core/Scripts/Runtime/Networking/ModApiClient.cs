@@ -10,6 +10,40 @@ namespace Blocks.Gameplay.Core
     /// </summary>
     public static class ModApiClient
     {
+        [Serializable]
+        public class CloseLobbyRequest
+        {
+            public string reason;
+            public bool notifyPlayers = true;
+        }
+
+        [Serializable]
+        public class CloseLobbyResponse
+        {
+            public bool success;
+            public string lobbyCode;
+            public string previousStatus;
+            public string currentStatus;
+            public string closedBy;
+            public string closedAt;
+            public string reason;
+            public AffectedPlayer[] affectedPlayers;
+        }
+
+        [Serializable]
+        public class AffectedPlayer
+        {
+            public string playerId;
+            public string username;
+            public string role;
+        }
+
+        public static async Task<CloseLobbyResponse> CloseLobbyAsync(string lobbyCode, CloseLobbyRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(lobbyCode)) throw new ArgumentException("Lobby code is required.", nameof(lobbyCode));
+            var json = await ApiClient.PostAsync($"/mod/lobby/{Uri.EscapeDataString(lobbyCode)}/close", JsonUtility.ToJson(req));
+            return JsonUtility.FromJson<CloseLobbyResponse>(json);
+        }
         // ─── Chapters CRUD ──────────────────────────────────────────
 
         public static async Task<ChapterDto[]> GetChaptersAsync()

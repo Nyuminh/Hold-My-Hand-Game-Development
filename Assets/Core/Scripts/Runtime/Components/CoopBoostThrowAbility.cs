@@ -235,6 +235,22 @@ namespace Blocks.Gameplay.Core
 
         public bool IsCharging => m_IsCharging;
         public float CurrentChargeRatio => m_CurrentChargeRatio;
+        // Authored launch pads can supply a landing marker; ordinary throws retain mouse aiming.
+        public Transform AssistedLandingTarget { get; set; }
+
+        private void AssistedLaunch(Vector3 start, ref Vector3 direction, ref float vertical, ref float horizontal)
+        {
+            if (AssistedLandingTarget == null) return;
+            Vector3 delta = AssistedLandingTarget.position - start;
+            float gravityMagnitude = m_PartnerBoostAbility != null && m_PartnerBoostAbility.m_Motor != null
+                ? Mathf.Abs(m_PartnerBoostAbility.m_Motor.gravity) : 15f;
+            gravityMagnitude = Mathf.Max(1f, gravityMagnitude);
+            vertical = Mathf.Sqrt(2f * gravityMagnitude * (Mathf.Max(0f, delta.y) + 2.5f));
+            float duration = (vertical + Mathf.Sqrt(Mathf.Max(0f, vertical * vertical - 2f * gravityMagnitude * delta.y))) / gravityMagnitude;
+            Vector3 flat = Vector3.ProjectOnPlane(delta, Vector3.up);
+            direction = flat.normalized;
+            horizontal = flat.magnitude / Mathf.Max(0.1f, duration - 0.02f * duration * duration);
+        }
 
         #endregion
 
@@ -320,6 +336,24 @@ namespace Blocks.Gameplay.Core
                 transform.position = Vector3.Lerp(transform.position, socketPos, Time.deltaTime * 24f);
                 transform.rotation = Quaternion.Slerp(transform.rotation, socketRot, Time.deltaTime * 24f);
             }
+        }
+
+        public void CancelForRespawn()
+        {
+            if (m_ActiveFlightCoroutine != null)
+            {
+                StopCoroutine(m_ActiveFlightCoroutine);
+                m_ActiveFlightCoroutine = null;
+            }
+            if (m_IsCharging) CancelCharge();
+            if (m_IsPiggybackingOnDad) SetPiggybackStateLocally(false, null);
+            if (m_VisualModel != null)
+            {
+                m_VisualModel.localPosition = m_OriginalModelPos;
+                m_VisualModel.localRotation = m_OriginalModelRot;
+                m_VisualModel.localScale = m_OriginalModelScale;
+            }
+            if (m_Motor != null) m_Motor.ResetMovementForces();
         }
 
         private void OnDisable()
@@ -470,8 +504,11 @@ namespace Blocks.Gameplay.Core
             }
 
             Vector3 launchDirection = horizontalDir.sqrMagnitude > 0.01f ? horizontalDir : transform.forward;
+            AssistedLaunch(transform.position + transform.right * 0.65f, ref launchDirection, ref finalVerticalVel, ref finalForwardForce);
 
             // 0. Tháo Con khỏi lưng trước khi phóng bay
+            if (AssistedLandingTarget != null && m_PartnerBoostAbility != null)
+                AssistedLandingTarget.GetComponentInParent<MarshBeaconTrigger>()?.NotifyLaunch(m_PartnerBoostAbility.NetworkObject);
             SetPartnerPiggyback(false);
 
             // Gửi lực phóng tới Con
@@ -757,7 +794,10 @@ namespace Blocks.Gameplay.Core
                 airTimer += Time.deltaTime;
 
                 // Kiểm tra tiếp đất sau ít nhất 0.2s bay
-                if (airTimer > 0.2f && (m_Motor.IsGrounded || (m_CharacterController != null && m_CharacterController.isGrounded)))
+                // The launch RPC may run before the motor's first airborne update. A stale
+                // grounded flag must not cancel the throw, especially on a slow host frame.
+                if (airTimer > 0.2f && m_Motor.VerticalVelocity <= 0f &&
+                    (m_Motor.IsGrounded || (m_CharacterController != null && m_CharacterController.isGrounded)))
                 {
                     break;
                 }
@@ -877,9 +917,14 @@ namespace Blocks.Gameplay.Core
 
             Vector3 forwardDir = horizontalDir.sqrMagnitude > 0.01f ? horizontalDir : transform.forward;
             Vector3 startPos = transform.position + transform.right * 0.25f + forwardDir * 0.5f + Vector3.up * 1.45f;
+            if (AssistedLandingTarget != null)
+            {
+                startPos = transform.position + transform.right * 0.65f;
+                AssistedLaunch(startPos, ref forwardDir, ref vY, ref fF);
+            }
 
             Vector3 velocity = forwardDir * fF + Vector3.up * vY;
-            Vector3 gravity = Physics.gravity;
+            Vector3 gravity = Vector3.up * (m_PartnerBoostAbility != null && m_PartnerBoostAbility.m_Motor != null ? m_PartnerBoostAbility.m_Motor.gravity : -15f);
 
             int count = 30;
             float timeStep = 0.05f;

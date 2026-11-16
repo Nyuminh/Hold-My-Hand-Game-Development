@@ -909,11 +909,11 @@ namespace Blocks.Gameplay.Core
         {
             if (m_Animator != null)
             {
-                m_Animator.SetBool(s_IsHoldingHandsHash, isHolding);
+                SetOptionalHoldingParameter(m_Animator, isHolding);
             }
             if (m_PartnerAnimator != null)
             {
-                m_PartnerAnimator.SetBool(s_IsHoldingHandsHash, isHolding);
+                SetOptionalHoldingParameter(m_PartnerAnimator, isHolding);
                 if (!isHolding)
                 {
                     m_PartnerAnimator.SetFloat("Speed", 0f);
@@ -925,6 +925,13 @@ namespace Blocks.Gameplay.Core
         {
             m_StatusAlert = msg;
             m_StatusAlertTimer = duration;
+        }
+
+        private static void SetOptionalHoldingParameter(Animator animator, bool value)
+        {
+            foreach (var parameter in animator.parameters)
+                if (parameter.nameHash == s_IsHoldingHandsHash && parameter.type == AnimatorControllerParameterType.Bool)
+                { animator.SetBool(s_IsHoldingHandsHash, value); return; }
         }
 
         private void FindPartnerIfNeeded()

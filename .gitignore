@@ -117,6 +117,7 @@ hold_my_hand_erd.html
 .agents/
 AGENTS.md
 AI_Agents/
+.cursor/
 AI_Tasks/
 AI_Reports/
 Blender/
@@ -125,3 +126,11 @@ tools/
 orchestrator.bat
 __pycache__/
 *.pyc
+WORK_STATUS.md
+
+
+# Document generation scripts & Python tooling (Keep Git clean for Docs & Unity)
+*.py
+Docs/**/*.py
+Docs/*.py
+*.ps1

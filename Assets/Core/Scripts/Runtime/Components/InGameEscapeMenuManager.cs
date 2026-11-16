@@ -52,6 +52,7 @@ namespace Blocks.Gameplay.Core
         public bool IsOpen => m_IsOpen;
         private bool m_IsQuitting = false;
         private bool m_HandlersRegistered = false;
+        private NetworkManager m_RegisteredNetwork;
 
         private CoreMovement m_LocalMovement;
 
@@ -139,6 +140,8 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        private void OnApplicationQuit() => m_IsQuitting = true;
+
         private void SetupUI()
         {
             if (escapeUI == null)
@@ -176,6 +179,11 @@ namespace Blocks.Gameplay.Core
             }
 
             // Bind âm thanh Hover & Click
+            var retry = root.Q<Button>("restart-stage-button");
+            var restart = root.Q<Button>("restart-level-button");
+            bool campaign = CampaignProgress.Level(SceneManager.GetActiveScene().name) != 0;
+            if (retry != null) { retry.style.display = campaign ? DisplayStyle.Flex : DisplayStyle.None; retry.clicked += () => RestartCampaign(false); }
+            if (restart != null) { restart.style.display = campaign ? DisplayStyle.Flex : DisplayStyle.None; restart.clicked += () => RestartCampaign(true); }
             UISoundManager.BindButtons(root);
 
             // Ban đầu ẩn menu
@@ -229,6 +237,14 @@ namespace Blocks.Gameplay.Core
             {
                 ToggleMenu();
             }
+        }
+
+        private void RestartCampaign(bool fromBeginning)
+        {
+            var campaign = FindAnyObjectByType<CampaignCheckpointController>();
+            if (campaign == null || !campaign.IsSpawned) return;
+            campaign.RequestRestart(fromBeginning);
+            CloseMenu();
         }
 
         public void ToggleMenu()
@@ -304,6 +320,8 @@ namespace Blocks.Gameplay.Core
             CloseMenu();
         }
 
+        public void ReturnToLobby() => OnBackToLobbyClicked();
+
         private void OnBackToLobbyClicked()
         {
             if (m_IsQuitting) return;
@@ -334,7 +352,10 @@ namespace Blocks.Gameplay.Core
             if (m_HandlersRegistered || NetworkManager.Singleton == null) return;
 
             // Đăng ký disconnect callback
-            NetworkManager.Singleton.OnClientDisconnectCallback += OnNetworkClientDisconnected;
+            m_RegisteredNetwork = NetworkManager.Singleton;
+            // OnEnable can run before messaging is ready; repeated registration must stay idempotent.
+            m_RegisteredNetwork.OnClientDisconnectCallback -= OnNetworkClientDisconnected;
+            m_RegisteredNetwork.OnClientDisconnectCallback += OnNetworkClientDisconnected;
 
             // Đăng ký custom messaging nếu có CustomMessagingManager
             var msgMgr = NetworkManager.Singleton.CustomMessagingManager;
@@ -349,11 +370,9 @@ namespace Blocks.Gameplay.Core
 
         private void UnregisterNetworkHandlers()
         {
-            if (!m_HandlersRegistered || NetworkManager.Singleton == null) return;
-
-            NetworkManager.Singleton.OnClientDisconnectCallback -= OnNetworkClientDisconnected;
-
-            var msgMgr = NetworkManager.Singleton.CustomMessagingManager;
+            if (m_RegisteredNetwork == null) { m_HandlersRegistered = false; return; }
+            m_RegisteredNetwork.OnClientDisconnectCallback -= OnNetworkClientDisconnected;
+            var msgMgr = m_RegisteredNetwork.CustomMessagingManager;
             if (msgMgr != null)
             {
                 msgMgr.UnregisterNamedMessageHandler(MsgReturnToLobby);
@@ -361,6 +380,7 @@ namespace Blocks.Gameplay.Core
             }
 
             m_HandlersRegistered = false;
+            m_RegisteredNetwork = null;
         }
 
         /// <summary>
@@ -394,6 +414,7 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         private void OnNetworkClientDisconnected(ulong clientId)
         {
+            if (this == null || !isActiveAndEnabled || !Application.isPlaying) return;
             if (m_IsQuitting) return;
 
             // Nếu người bị ngắt là bản thân, hoặc người ngắt là Host (ServerClientId)
