@@ -18,6 +18,10 @@ namespace Blocks.Gameplay.Core.Validation
         private const string Active = "HMH.FullE2E.Active";
         private const string StepKey = "HMH.FullE2E.Step";
         private const string Report = "AI_Reports/tests/FullGameE2E_playmode.txt";
+        private static readonly string[] ProgressKeys = {
+            CampaignProgress.LastLevelKey, CampaignProgress.CheckpointKey(1), CampaignProgress.CheckpointKey(2), CampaignProgress.CheckpointKey(3),
+            "HMH.Level1.Completed", "HMH.Level1.Checkpoint", "HMH.Level2.Completed", "HMH.Level2.Checkpoint", "HMH.Level3.Completed"
+        };
 
         private static int step;
         private static double stepStarted;
@@ -25,6 +29,14 @@ namespace Blocks.Gameplay.Core.Validation
         static FullGameE2EValidation()
         {
             EditorApplication.update += Tick;
+            EditorApplication.playModeStateChanged += state =>
+            {
+                if (state == PlayModeStateChange.ExitingPlayMode && SessionState.GetBool(Active, false))
+                {
+                    File.AppendAllText(Report, "CANCELLED: Play Mode stopped.\n");
+                    RestoreProgress();
+                }
+            };
         }
 
         [MenuItem("Hold My Hand/QA/Run Full Game E2E (Login -> Lobby -> Level 1 -> Level 2)")]
@@ -34,7 +46,8 @@ namespace Blocks.Gameplay.Core.Validation
                 throw new InvalidOperationException("Please save scenes and stop Play Mode first.");
 
             // Backup player prefs
-            foreach (var key in new[] { "HMH.Level1.Completed", "HMH.Level1.Checkpoint", "HMH.Level2.Completed", "HMH.Level2.Checkpoint" })
+            SessionState.SetBool(Active + ".Role", Lobby3DManager.AmIDad);
+            foreach (var key in ProgressKeys)
             {
                 SessionState.SetBool(key + ".E2E.Exists", PlayerPrefs.HasKey(key));
                 SessionState.SetInt(key + ".E2E.Value", PlayerPrefs.GetInt(key));
@@ -629,17 +642,8 @@ namespace Blocks.Gameplay.Core.Validation
                     child.GetComponent<CoopHoldHandAbility>().SetHoldingHandsDirect(true);
 
                     bool completed = climax.TryComplete();
-                    if (!completed)
-                    {
-                        climax.RestoreCheckpoint(true, true);
-                        completed = true;
-                    }
                     Check(completed, "[Level 2 Stage 5] Hand-holding at Altar of Memory triggers Level 2 Victory!");
                     Check(climax.Completed, "[Level 2 Stage 5] Level 2 Completed status is true");
-                    PlayerPrefs.SetInt("HMH.Level2.Completed", 1);
-                    PlayerPrefs.SetInt("HMH.Level2.Checkpoint", 3);
-                    PlayerPrefs.Save();
-                    Check(PlayerPrefs.GetInt("HMH.Level2.Completed") == 1, "[Level 2 Stage 5] Level 2 victory persisted to PlayerPrefs");
 
                     Capture(climax.altar.position, "full-e2e-haven-victory");
                     File.AppendAllText(Report, "--- Phase 4: Level 2 Full Expedition Passed! ---\n\n");
@@ -650,6 +654,9 @@ namespace Blocks.Gameplay.Core.Validation
                 // ─── STEP 18: FINISH & SUITE REPORT ─────────────────────
                 if (step == 18)
                 {
+                    if (elapsed < .2) return;
+                    Check(PlayerPrefs.GetInt("HMH.Level2.Completed") == 1 && CampaignProgress.SavedCheckpoint(2) == 6,
+                        "[Level 2 Stage 5] Runtime persisted completed checkpoint");
                     Check(true, "🎉 ALL TESTS PASSED: Full game flow validated from Login -> Lobby -> Level 1 -> Level 2!");
                     Finish();
                     return;
@@ -659,20 +666,27 @@ namespace Blocks.Gameplay.Core.Validation
             {
                 File.AppendAllText(Report, $"\n[ERROR at Step {step}]: {ex.Message}\n{ex.StackTrace}\n");
                 Debug.LogException(ex);
-                Finish();
+                Finish(false);
             }
         }
 
-        private static void Finish()
+        private static void Finish(bool success = true)
         {
             File.AppendAllText(Report, "\n==================================================\n");
-            File.AppendAllText(Report, "E2E SUITE RESULT: 100% ALL CHECKS PASSED\n");
+            File.AppendAllText(Report, success ? "E2E SUITE RESULT: ALL CHECKS PASSED\n" : "E2E SUITE RESULT: FAILED\n");
             File.AppendAllText(Report, "Flow: LoginScene -> Lobby -> PlayScene1 (Lvl 1) -> PlayScene2 (Lvl 2) -> Haven Harbor Victory\n");
             File.AppendAllText(Report, "Finished at: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\n");
             File.AppendAllText(Report, "==================================================\n");
 
-            // Restore PlayerPrefs
-            foreach (var key in new[] { "HMH.Level1.Completed", "HMH.Level1.Checkpoint", "HMH.Level2.Completed", "HMH.Level2.Checkpoint" })
+            RestoreProgress();
+            EditorApplication.isPlaying = false;
+        }
+
+        private static void RestoreProgress()
+        {
+            SessionState.SetBool(Active, false);
+            // Include the keys written automatically by CampaignCheckpointController.
+            foreach (var key in ProgressKeys)
             {
                 if (SessionState.GetBool(key + ".E2E.Exists", false))
                     PlayerPrefs.SetInt(key, SessionState.GetInt(key + ".E2E.Value", 0));
@@ -681,8 +695,7 @@ namespace Blocks.Gameplay.Core.Validation
             }
             PlayerPrefs.Save();
 
-            SessionState.SetBool(Active, false);
-            EditorApplication.isPlaying = false;
+            Lobby3DManager.AmIDad = SessionState.GetBool(Active + ".Role", true);
         }
 
         private static void Capture(Vector3 target, string name)

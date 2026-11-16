@@ -17,7 +17,7 @@ namespace Blocks.Gameplay.Core.Validation
     {
         private const string Active = "HMH.Level3QA.Active";
         private const string Report = "AI_Reports/tests/LVL3/transition-playmode.txt";
-        private static readonly string[] Keys = { CampaignProgress.LastLevelKey, "HMH.Level2.Completed", "HMH.Campaign.Level2.Checkpoint", "HMH.Campaign.Level3.Checkpoint" };
+        private static readonly string[] Keys = { CampaignProgress.LastLevelKey, "HMH.Level2.Completed", "HMH.Level2.Checkpoint", "HMH.Campaign.Level2.Checkpoint", "HMH.Campaign.Level3.Checkpoint" };
         private static int step { get => SessionState.GetInt(Active + ".Step", 0); set => SessionState.SetInt(Active + ".Step", value); }
         private static double since;
         private static ulong oldPlayer
@@ -89,6 +89,7 @@ namespace Blocks.Gameplay.Core.Validation
                 {
                     if (net == null) return;
                     Lobby3DManager.AmIDad = SessionState.GetBool("HMH.Level3QA.TestRole", true);
+                    CampaignProgress.Select(2, 0);
                     var transport = net.GetComponent<UnityTransport>();
                     transport.ConnectionData.Address = "127.0.0.1";
                     transport.ConnectionData.Port = 7795;

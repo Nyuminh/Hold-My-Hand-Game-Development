@@ -25,7 +25,9 @@ namespace Blocks.Gameplay.Core
         { requestedLevel = Mathf.Clamp(level, 1, 3); requestedCheckpoint = Clamp(requestedLevel, checkpoint); }
         public static int ConsumeStart(int level)
         {
-            int checkpoint = requestedLevel == level ? requestedCheckpoint : SavedCheckpoint(level);
+            // Only Lobby Continue supplies a saved checkpoint. Direct scene entry and
+            // progression from the previous level start a fresh attempt.
+            int checkpoint = requestedLevel == level ? requestedCheckpoint : 0;
             requestedLevel = 0;
             return checkpoint;
         }

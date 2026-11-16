@@ -41,11 +41,13 @@ namespace Blocks.Gameplay.Core
         private IEnumerator StartAtCheckpoint()
         {
             int start = CampaignProgress.ConsumeStart(level);
+            // A durable completion record is not a live victory in a new attempt.
+            if (level == 2 && start >= 6) start = 5;
             // Let GameManager finish assigning cameras/spawn points before relocating the crew.
             while (!HasBothRoles()) yield return null;
             yield return new WaitForSeconds(1f);
             if (start > 0) Restore(start);
-            else { checkpoint.Value = 0; SaveCheckpoint(0, 0); }
+            else Restore(0);
             ready = true;
         }
         private bool HasBothRoles() => LevelTwoActors.All.Any(LevelOnePlayer.IsDad) &&
@@ -62,7 +64,9 @@ namespace Blocks.Gameplay.Core
                 if (next == 2 && boat.HasCoopCrew && boat.transform.position.z >= 145f && boat.transform.position.z < 160f) next = 3;
                 if (next == 3 && beacons.Length == 2 && beacons.All(b => b.Lit)) next = 4;
                 if (next == 4 && mill.Passed) next = 5;
-                if (next == 5 && climax.Completed) next = 6;
+                // A confirmed altar success is terminal even if a previous stage's
+                // positional checkpoint was missed. Never overwrite its saved 6.
+                if (climax.Completed) next = 6;
             }
             if (next > checkpoint.Value) { checkpoint.Value = next; boatHealth.Value = 100; }
         }
@@ -99,7 +103,8 @@ namespace Blocks.Gameplay.Core
             sluice.RestoreCheckpoint(index >= 2);
             foreach (var beacon in beacons) beacon.RestoreCheckpoint(index >= 4);
             mill.RestoreCheckpoint(index >= 5);
-            climax.RestoreCheckpoint(index >= 5, index >= 6);
+            // Restoring/replaying the final checkpoint must re-arm the altar.
+            climax.RestoreCheckpoint(index >= 5, false);
             boatHealth.Value = 100;
             nextDamage = Time.time + 3f;
             RestoreCrewRpc(index);

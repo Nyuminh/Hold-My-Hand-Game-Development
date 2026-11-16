@@ -24,7 +24,12 @@ namespace Blocks.Gameplay.Core
         public bool Completed => completed.Value;
         public bool Docked => docked.Value;
         public void RestoreCheckpoint(bool arrived, bool finished)
-        { if (IsServer) { docked.Value = arrived; completed.Value = finished; } }
+        {
+            if (!IsServer) return;
+            docked.Value = arrived;
+            completed.Value = finished;
+            if (!finished) { presented = transitioning = false; transitionError = null; }
+        }
         public override void OnNetworkSpawn()
         { completed.OnValueChanged += CompletionChanged; }
         public override void OnNetworkDespawn()
@@ -60,12 +65,15 @@ namespace Blocks.Gameplay.Core
         }
         public bool TryComplete()
         {
-            if (!IsServer || Completed || !Docked || !watermill.Passed || !west.Lit || !east.Lit || boat.IsDadMounted || boat.IsChildMounted) return false;
+            if (!IsServer || Completed || !watermill.Passed || !west.Lit || !east.Lit || boat.IsDadMounted || boat.IsChildMounted) return false;
             CorePlayerManager dad = null, child = null;
             foreach (var actor in LevelTwoActors.All)
                 if (LevelTwoActors.Near(actor, altar, 3f)) { if (LevelOnePlayer.IsDad(actor)) dad = actor; else child = actor; }
-            if (dad == null || child == null || Vector3.Distance(dad.transform.position, child.transform.position) > 2.2f ||
-                !dad.TryGetComponent<CoopHoldHandAbility>(out var dadHand) || !child.TryGetComponent<CoopHoldHandAbility>(out var childHand) ||
+            if (dad == null || child == null || Vector3.Distance(dad.transform.position, child.transform.position) > 2.2f) return false;
+            // The dock allows disembarking before the hull enters the arrival box.
+            // Both living roles reaching the altar also proves they arrived at Haven.
+            docked.Value = true;
+            if (!dad.TryGetComponent<CoopHoldHandAbility>(out var dadHand) || !child.TryGetComponent<CoopHoldHandAbility>(out var childHand) ||
                 !dadHand.IsHoldingHands || !childHand.IsHoldingHands) return false;
             completed.Value = true; return true;
         }
@@ -94,7 +102,11 @@ namespace Blocks.Gameplay.Core
             if (!IsSpawned) return;
             if (!Completed)
             {
-                if (Docked) GUI.Box(new Rect(20, 85, 650, 60), "Haven Harbor: cả hai bấm [E] lên bờ.\nTới Bàn Thờ Ký Ức, giữ [H] nắm tay nhau.");
+                var local = LevelTwoActors.Local;
+                if (Docked || (local != null && Vector3.Distance(local.transform.position, altar.position) < 14f))
+                    GUI.Box(new Rect(20, 85, 650, 60), !west.Lit || !east.Lit ? "Hãy thắp sáng đủ hai hải đăng trước khi hoàn thành màn." :
+                        !watermill.Passed ? "Chưa ghi nhận vượt cối xay. Cả hai cùng chèo thuyền qua lúc cửa mở." :
+                        "Haven Harbor: cả hai bấm [E] lên bờ.\nCùng tới Bàn Thờ Ký Ức, đứng sát và giữ [H] nắm tay để hoàn thành.");
                 return;
             }
             Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
