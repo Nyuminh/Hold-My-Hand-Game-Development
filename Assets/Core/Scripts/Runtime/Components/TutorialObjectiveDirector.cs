@@ -20,52 +20,42 @@ namespace Blocks.Gameplay.Core
     public enum ChapterProbe
     {
         /// <summary>Chương tự hoàn thành khi có người chơi bước vào vùng mục tiêu.</summary>
-        RegionEntered,
+        RegionEntered = 0,
 
         /// <summary>Chương hoàn thành khi TẤT CẢ người chơi cùng ở trong vùng mục tiêu.</summary>
-        AllPlayersInRegion,
+        AllPlayersInRegion = 1,
 
         /// <summary>Thang dây đã được Con thả xuống bờ tường (Màn 2: Đôi Cánh Của Cha).</summary>
-        LadderDropped,
+        LadderDropped = 2,
 
         /// <summary>Cầu rút Zone1 đã hạ phẳng (cả 2 cần gạt).</summary>
-        DrawbridgeZone1Lowered,
+        DrawbridgeZone1Lowered = 3,
 
         /// <summary>Thang cẩu Zone3 đã đưa được cả 2 người sang bên kia.</summary>
-        CraneElevatorCompleted,
+        CraneElevatorCompleted = 4,
 
         /// <summary>Bàn xoay bánh răng đá đã xoay xong.</summary>
-        GearTurntableCompleted,
+        GearTurntableCompleted = 5,
 
         /// <summary>Cầu rút khu Vịnh đã hạ phẳng (nhổ chốt + quay tời).</summary>
-        CoveDrawbridgeOpened,
+        CoveDrawbridgeOpened = 6,
 
         /// <summary>Đã đi Zipline từ Mỏ sang Tàu Đắm (hoặc ngược lại).</summary>
-        ZiplineRidden,
+        ZiplineRidden = 7,
 
         /// <summary>Rương thuyền trưởng đã mở (đã lấy được chìa khóa).</summary>
-        ShipwreckChestOpened,
+        ShipwreckChestOpened = 8,
 
         /// <summary>Cầu tàu (gangplank) đã hạ xuống bến.</summary>
-        ShipwreckGangplankLowered,
-
-        /// <summary>Cả 2 người chơi đứng đồng thời lên 2 bàn đạp (cổng trời / đèn hải đăng).</summary>
-        /// <summary>Bập bênh đối trọng đã bắn tung Con lên đỉnh vách đá.</summary>
-        SeesawCatapultCompleted,
-
-        /// <summary>Con đã đu dây thừng xuống đáy vực nhổ then chốt và được Ba kéo lên.</summary>
-        TetherAbyssCompleted,
-
-        /// <summary>Hai cha con đã cùng trượt khiên vượt dốc đáp xuống vịnh.</summary>
-        ShieldSledCompleted,
+        ShipwreckGangplankLowered = 9,
 
         /// <summary>Hai cha con cùng đứng lên 2 bệ đá và nắm tay nhau kích hoạt Cổng sang Màn tiếp theo.</summary>
-        NextLevelPortalActivated,
+        NextLevelPortalActivated = 13,
 
-        PlatesPowered,
+        PlatesPowered = 14,
 
         /// <summary>Chương được đánh dấu hoàn thành từ bên ngoài qua Director API.</summary>
-        Manual
+        Manual = 15
     }
 
     /// <summary>
@@ -148,9 +138,6 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private CoveDrawbridgeCoopController  coveDrawbridgeCtrl;
         [SerializeField] private Stage3ZiplineCoopController   ziplineCtrl;
         [SerializeField] private ShipwreckCoopController       shipwreckCtrl;
-        [SerializeField] private CoopSeesawCatapult            seesawCatapultCtrl;
-        [SerializeField] private CoopTetherAbyssBelay          tetherAbyssCtrl;
-        [SerializeField] private CoopShieldSledRide            shieldSledCtrl;
         [SerializeField] private CoopLevelExitPortal           nextLevelPortalCtrl;
 
         [Header("Beacon 3D (tùy chọn)")]
@@ -328,22 +315,6 @@ namespace Blocks.Gameplay.Core
                 case ChapterProbe.ShipwreckGangplankLowered:
                     if (shipwreckCtrl == null) { LogMissing("shipwreckCtrl", chapter.id); return false; }
                     return shipwreckCtrl.IsGangplankLowered;
-
-                // ── Bàn đạp: cả 2 bàn đạp đang bị giẫm ──────────────────────
-                // ── Cơ cấu mới: Bập bênh hất tung ─────────────────────────
-                case ChapterProbe.SeesawCatapultCompleted:
-                    if (seesawCatapultCtrl == null) { LogMissing("seesawCatapultCtrl", chapter.id); return false; }
-                    return seesawCatapultCtrl.IsCompleted;
-
-                // ── Cơ cấu mới: Đu dây đáy vực ────────────────────────────
-                case ChapterProbe.TetherAbyssCompleted:
-                    if (tetherAbyssCtrl == null) { LogMissing("tetherAbyssCtrl", chapter.id); return false; }
-                    return tetherAbyssCtrl.IsCompleted;
-
-                // ── Cơ cấu mới: Xe trượt khiên ────────────────────────────
-                case ChapterProbe.ShieldSledCompleted:
-                    if (shieldSledCtrl == null) { LogMissing("shieldSledCtrl", chapter.id); return false; }
-                    return shieldSledCtrl.IsCompleted;
 
                 // ── Cơ cấu qua màn tiếp theo: Cổng Cổ Đại ──────────────────
                 case ChapterProbe.NextLevelPortalActivated:

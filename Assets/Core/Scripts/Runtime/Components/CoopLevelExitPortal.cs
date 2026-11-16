@@ -15,7 +15,7 @@ namespace Blocks.Gameplay.Core
     /// 1. Ba đứng lên Bệ Đá Trái (Dad's Pad).
     /// 2. Con đứng lên Bệ Đá Phải (Child's Pad).
     /// 3. Cả hai cùng NẮM CHẶT TAY NHAU [H] để truyền dẫn năng lượng tình thân,
-    ///    mở Cổng Ma Thuật và chuyển cảnh sang Màn 1 (PlayScene1)!
+    ///    mở Cổng Ma Thuật và chuyển cảnh sang Màn tiếp theo (TestScene)!
     /// </summary>
     public class CoopLevelExitPortal : MonoBehaviour
     {
@@ -24,7 +24,7 @@ namespace Blocks.Gameplay.Core
 
         [Header("Scene Transition Target")]
         [Tooltip("Tên Scene tiếp theo sẽ load khi qua màn thành công")]
-        [SerializeField] private string nextSceneName = "PlayScene1";
+        [SerializeField] private string nextSceneName = "TestScene";
 
         [Header("Pads Configuration")]
         [Tooltip("Vị trí bệ kích hoạt của Cha")]
