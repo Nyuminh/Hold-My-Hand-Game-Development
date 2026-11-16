@@ -79,6 +79,15 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private bool isLatchPressed = false;
         [SerializeField] private float crankProgress = 0f;
 
+        /// <summary>Con đã nhổ chốt trong khe hầm.</summary>
+        public bool IsPinReleased => isPinReleased;
+        /// <summary>Cầu rút đã hạ phẳng nối sang bờ Bắc.</summary>
+        public bool IsBridgeOpened => isBridgeOpened;
+        /// <summary>Con đã đạp chốt giữ trên tháp.</summary>
+        public bool IsLatchPressed => isLatchPressed;
+        /// <summary>Tiến độ quay tời 0..1.</summary>
+        public float CrankProgress => crankProgress;
+
         [Header("Thông số")]
         [Tooltip("Góc cầu lúc dựng (độ)")]
         [SerializeField] private float raisedAngle = 68f;

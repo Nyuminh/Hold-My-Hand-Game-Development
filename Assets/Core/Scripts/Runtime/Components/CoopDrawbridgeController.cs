@@ -70,6 +70,15 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private bool isRightPulled = false;
         [SerializeField] private float currentBridgeAngle = 0f;
 
+        /// <summary>Cha đã gạt cần trái (cầu hạ 45°).</summary>
+        public bool IsLeftPulled => isLeftPulled;
+        /// <summary>Con đã gạt cần phải (cầu hạ phẳng 0°).</summary>
+        public bool IsRightPulled => isRightPulled;
+        /// <summary>Cầu đã hạ phẳng tiếp đất (cả 2 cần đã gạt).</summary>
+        public bool IsFullyLowered => isLeftPulled && isRightPulled;
+        /// <summary>Góc cầu hiện tại (độ).</summary>
+        public float CurrentBridgeAngle => currentBridgeAngle;
+
         private Quaternion initialHingeRot;
         private Quaternion initialLeverLeftRot;
         private Quaternion initialLeverRightRot;

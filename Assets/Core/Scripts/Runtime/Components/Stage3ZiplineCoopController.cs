@@ -64,6 +64,17 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private bool hasCompletedRide = false;
         [SerializeField] private float winchProgress = 0f;
 
+        /// <summary>Cha đã quay tời thắng cáp (đã khoá được cáp zipline).</summary>
+        public bool IsWinchUnlocked => isWinchUnlocked;
+        /// <summary>Cáp đã sẵn sàng để đu.</summary>
+        public bool IsZiplineReady => isZiplineReady;
+        /// <summary>Đang đu zipline.</summary>
+        public bool IsRiding => isRiding;
+        /// <summary>Đã đu zipline qua vịnh ít nhất 1 lần (đã sang bờ bên kia).</summary>
+        public bool HasCompletedRide => hasCompletedRide;
+        /// <summary>Tiến độ quay tời thắng cáp 0..1.</summary>
+        public float WinchProgress => winchProgress;
+
         #endregion
 
         #region Physical Cable Path Spline (Đo đạc chính xác từ mô hình cáp 3D)

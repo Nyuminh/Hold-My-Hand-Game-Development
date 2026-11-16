@@ -51,6 +51,16 @@ public class PlayerRoleVisuals : NetworkBehaviour
         {
             gameObject.AddComponent<CoopBoostThrowAbility>();
         }
+
+        if (GetComponent<CoopHoldHandAuraVisual>() == null)
+        {
+            gameObject.AddComponent<CoopHoldHandAuraVisual>();
+        }
+
+        if (GetComponent<ChildFearHesitation>() == null)
+        {
+            gameObject.AddComponent<ChildFearHesitation>();
+        }
     }
 
     public override void OnNetworkSpawn()

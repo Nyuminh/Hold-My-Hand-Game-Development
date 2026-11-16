@@ -12,7 +12,7 @@ EditorBuildSettings:
     path: Assets/Core/Scenes/LoginScene.unity
     guid: 0312f248b50c43c48977c5e373959952
   - enabled: 1
-    path: Assets/Core/Scenes/Tutorial.unity
+    path: Assets/Core/Scenes/PlayScene3.unity
     guid: 05c679bdeb81e9f4c8d578f19b77212d
   - enabled: 1
     path: Assets/Core/Scenes/Lobby.unity

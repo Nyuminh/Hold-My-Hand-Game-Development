@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -527,6 +528,18 @@ namespace Blocks.Gameplay.Core
             {
                 if (NetworkManager.Singleton != null)
                 {
+                    if (NetworkManager.Singleton.IsServer && NetworkManager.Singleton.SpawnManager != null)
+                    {
+                        var spawned = new List<NetworkObject>(NetworkManager.Singleton.SpawnManager.SpawnedObjectsList);
+                        foreach (var no in spawned)
+                        {
+                            if (no != null && no.IsSpawned)
+                            {
+                                try { no.Despawn(true); } catch { }
+                            }
+                        }
+                    }
+
                     if (NetworkManager.Singleton.IsListening)
                     {
                         NetworkManager.Singleton.Shutdown();

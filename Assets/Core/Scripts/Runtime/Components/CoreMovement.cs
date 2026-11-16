@@ -284,6 +284,18 @@ namespace Blocks.Gameplay.Core
             base.OnNetworkDespawn();
         }
 
+        public override void OnDestroy()
+        {
+            try
+            {
+                base.OnDestroy();
+            }
+            catch (System.NullReferenceException)
+            {
+                // Suppress known Unity Netcode (NGO) bug where NetworkManagerOwner is destroyed before NetworkTransform during scene unload or exit
+            }
+        }
+
         private void OnNetworkCrouchChanged(bool previousValue, bool newValue)
         {
             if (!IsOwner)

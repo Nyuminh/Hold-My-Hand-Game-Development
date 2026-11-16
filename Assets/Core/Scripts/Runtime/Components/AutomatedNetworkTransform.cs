@@ -133,6 +133,18 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        public override void OnDestroy()
+        {
+            try
+            {
+                base.OnDestroy();
+            }
+            catch (System.NullReferenceException)
+            {
+                // Suppress known Unity Netcode (NGO) bug during scene unload / exit
+            }
+        }
+
         /// <summary>
         /// Executes the movement logic on the server/authority each frame.
         /// </summary>

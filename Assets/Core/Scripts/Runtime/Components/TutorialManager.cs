@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
@@ -126,8 +127,36 @@ namespace Blocks.Gameplay.Core
                         yield return new WaitForSecondsRealtime(0.2f);
                     }
 
-                    NetworkManager.Singleton.StartHost();
-                    Debug.Log("[TutorialManager] Khởi động Host cục bộ thành công!");
+                    bool hostStarted = false;
+                    var utp = NetworkManager.Singleton.NetworkConfig.NetworkTransport as Unity.Netcode.Transports.UTP.UnityTransport;
+
+                    // Thử khởi động Host với ServerListenAddress 0.0.0.0 và fallback port 7777 -> 7785 nếu port bị chiếm
+                    for (ushort port = 7777; port <= 7785; port++)
+                    {
+                        if (utp != null)
+                        {
+                            utp.SetConnectionData("127.0.0.1", port, "0.0.0.0");
+                        }
+
+                        if (NetworkManager.Singleton.StartHost())
+                        {
+                            hostStarted = true;
+                            Debug.Log($"[TutorialManager] Khởi động Host cục bộ thành công trên port {port}!");
+                            break;
+                        }
+
+                        Debug.LogWarning($"[TutorialManager] StartHost không thành công trên port {port}, đang thử port khác...");
+                        if (NetworkManager.Singleton.IsListening)
+                        {
+                            NetworkManager.Singleton.Shutdown();
+                        }
+                        yield return new WaitForSecondsRealtime(0.15f);
+                    }
+
+                    if (!hostStarted)
+                    {
+                        Debug.LogError("[TutorialManager] Không thể khởi động Host cục bộ trên bất kỳ port nào!");
+                    }
                 }
             }
             else
@@ -350,9 +379,24 @@ namespace Blocks.Gameplay.Core
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            if (NetworkManager.Singleton != null)
             {
-                NetworkManager.Singleton.Shutdown();
+                if (NetworkManager.Singleton.IsServer && NetworkManager.Singleton.SpawnManager != null)
+                {
+                    var spawned = new List<NetworkObject>(NetworkManager.Singleton.SpawnManager.SpawnedObjectsList);
+                    foreach (var no in spawned)
+                    {
+                        if (no != null && no.IsSpawned)
+                        {
+                            try { no.Despawn(true); } catch { }
+                        }
+                    }
+                }
+
+                if (NetworkManager.Singleton.IsListening)
+                {
+                    NetworkManager.Singleton.Shutdown();
+                }
             }
 
             SceneManager.LoadScene("Lobby");

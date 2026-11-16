@@ -141,6 +141,8 @@ namespace Blocks.Gameplay.Core
 
         private bool m_IsLocalHoldingHands = false;
 
+        public Transform PartnerTransform => m_PartnerTransform;
+
         public bool IsHoldingHands
         {
             get

@@ -202,7 +202,15 @@ namespace Blocks.Gameplay.Core
             lastHitTimes[other] = Time.time;
 
             // Tính hướng đẩy lùi (Knockback direction)
-            Vector3 hitPoint = other.ClosestPoint(spikedLogTransform != null ? spikedLogTransform.position : transform.position);
+            Vector3 hitPoint;
+            if (other is MeshCollider mc && !mc.convex)
+            {
+                hitPoint = other.bounds.ClosestPoint(spikedLogTransform != null ? spikedLogTransform.position : transform.position);
+            }
+            else
+            {
+                hitPoint = other.ClosestPoint(spikedLogTransform != null ? spikedLogTransform.position : transform.position);
+            }
             Vector3 pushDir = (other.bounds.center - hitPoint);
             pushDir.y = 0.35f; // Hất nhẹ lên trên
             if (pushDir.sqrMagnitude < 0.01f)

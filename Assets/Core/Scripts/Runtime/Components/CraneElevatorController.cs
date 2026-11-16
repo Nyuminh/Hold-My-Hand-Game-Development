@@ -661,16 +661,22 @@ namespace Blocks.Gameplay.Core
                     }
                 }
             }
-            // 2. GIAI ĐOẠN 2: Con sang Zone 3, Cần tời bị mất điện -> Con kiểm tra hộp điện Zone3_Electrical_Box
+            // 2. GIAI ĐOẠN 2: Con sang Zone 3 -> Con đẩy tảng đá đối trọng hoặc kiểm tra hộp điện Zone 3
             else if (currentStage == ElevatorStage.ConAtZone3_NeedsBoulder)
             {
+                Vector3 boulderP = pushableBoulder != null ? pushableBoulder.position : new Vector3(-3.5f, 15.4f, -54f);
                 Vector3 boxP = zone3ElectricalBox != null ? zone3ElectricalBox.position : new Vector3(1.50f, 14.50f, -46.20f);
                 Vector3 z3P = zone3LeverHandle != null ? zone3LeverHandle.position : zone3InteractPoint;
+                bool nearBoulder = false;
                 bool nearBox = false;
                 bool nearWinch = false;
 
                 foreach (var p in players)
                 {
+                    if (Vector3.Distance(p.position, boulderP) <= interactDistance + 1.5f)
+                    {
+                        nearBoulder = true;
+                    }
                     if (Vector3.Distance(p.position, boxP) <= interactDistance + 1.2f)
                     {
                         nearBox = true;
@@ -678,6 +684,16 @@ namespace Blocks.Gameplay.Core
                     if (Vector3.Distance(p.position, z3P) <= interactDistance)
                     {
                         nearWinch = true;
+                    }
+                }
+
+                if (nearBoulder)
+                {
+                    currentPrompt = "👉 [Con] Nhấn [F / E] ĐẨY TẢNG ĐÁ ĐỐI TRỌNG VÀO NÔI ĐỂ NÂNG THANG ĐÓN BA!";
+                    if (IsInteractPressed() || IsInteractHeld())
+                    {
+                        TriggerRollBoulder();
+                        return;
                     }
                 }
 

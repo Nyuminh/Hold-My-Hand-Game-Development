@@ -67,6 +67,19 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private bool isChestOpened = false;
         [SerializeField] private bool isGangplankLowered = false;
 
+        /// <summary>Cha đã xoay bánh lái đủ 360° (mở khoá trục nắp rương).</summary>
+        public bool IsWheelCompleted => isWheelCompleted;
+        /// <summary>Rương kho báu thuyền trưởng đã mở → đã có Chìa khóa vàng.</summary>
+        public bool IsChestOpened => isChestOpened;
+        /// <summary>Cầu nối 2 sàn tàu đã hạ phẳng (Con đã tháo dây neo ở CrowsNest).</summary>
+        public bool IsBridgeLowered => isBridgeLowered;
+        /// <summary>Tiến độ xoay bánh lái 0..1.</summary>
+        public float WheelTurnProgress => wheelTurnProgress;
+        /// <summary>Cầu tàu (gangplank) đã hạ xuống bến cảng chưa.</summary>
+        public bool IsGangplankLowered => isGangplankLowered;
+        /// <summary>Đã nhận chìa khóa vàng của thuyền trưởng.</summary>
+        public bool HasCaptainKey => hasKey;
+
         #endregion
 
         #region Private Fields
@@ -549,9 +562,11 @@ namespace Blocks.Gameplay.Core
             }
 
             isChestOpened = true;
+            isGangplankLowered = true;
+            hasKey = true;
             UISoundManager.PlaySuccess();
-            ShowPrompt("🗝️ ĐÃ MỞ RƯƠNG KHO BÁU THUYỀN TRƯỞNG! Hai Cha Con hãy tiến về phía CẦU CỬA VỊNH để sang KHU MỎ!", Color.green, 7.0f);
-            Debug.Log("[ShipwreckCoop] Rương thuyền trưởng đã mở, kích hoạt đường dẫn sang Khu Mỏ!");
+            ShowPrompt("🗝️ ĐÃ MỞ RƯƠNG THUYỀN TRƯỞNG & HẠ CẦU TÀU! Hai Cha Con hãy xuống bến cảng đến ĐÀI HẢI ĐĂNG CỔ ĐẠI để sang Màn 1!", Color.green, 8.0f);
+            Debug.Log("[ShipwreckCoop] Rương thuyền trưởng đã mở, hạ cầu tàu dẫn lối sang Đài Hải Đăng Cổ Đại!");
         }
 
         /// <summary>
