@@ -18,8 +18,13 @@ EditorBuildSettings:
     path: Assets/Core/Scenes/Lobby.unity
     guid: 6e907ae890a838149afca46eb660d536
   - enabled: 1
+<<<<<<< HEAD
     path: Assets/Core/Scenes/TestScene.unity
     guid: e51f9a6c5c03e4afd816dfab25b341e2
+=======
+    path: Assets/Core/Scenes/PlayScene1.unity
+    guid: 14e5e7d67baa95048b30c06ab5f7e71d
+>>>>>>> 130abdaf97893a2fbc745936a900ab385df2258b
   - enabled: 1
     path: Assets/Core/Scenes/PlayScene2.unity
     guid: 26fcf4976c944d04b8168ff3a4816ba4
