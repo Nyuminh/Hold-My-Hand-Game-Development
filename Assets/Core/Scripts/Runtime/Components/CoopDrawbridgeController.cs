@@ -17,6 +17,7 @@ namespace Blocks.Gameplay.Core
     public class CoopDrawbridgeController : NetworkBehaviour
     {
         private static CoopDrawbridgeController instance;
+        public static CoopDrawbridgeController Instance => instance;
 
         private readonly NetworkVariable<bool> netIsLeftPulled = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<bool> netIsRightPulled = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
