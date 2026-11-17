@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 using Unity.Netcode;
 using Blocks.Gameplay.Core;
 
-namespace Blocks.Gameplay.Core.Editor
+namespace Blocks.Gameplay.Core
 {
     public static class PlayScene3NetcodeAndGuidanceSetup
     {
