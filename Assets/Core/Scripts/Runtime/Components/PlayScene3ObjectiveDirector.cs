@@ -116,54 +116,13 @@ namespace Blocks.Gameplay.Core
 
         private void EnsureBeaconCreated()
         {
-            if (beaconRoot == null)
+            // Bỏ hoàn toàn cột trụ 3D vật thể giữa cầu theo yêu cầu của người chơi
+            var existing = GameObject.Find("PlayScene3_Beacon_Pillar");
+            if (existing != null)
             {
-                beaconRoot = new GameObject("PlayScene3_Beacon_Pillar");
-
-                // Trụ ánh sáng thẳng đứng cao 28m
-                var beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                beam.name = "Beacon_LightBeam";
-                beam.transform.SetParent(beaconRoot.transform, false);
-                beam.transform.localPosition = new Vector3(0f, 14f, 0f);
-                beam.transform.localScale = new Vector3(0.45f, 14f, 0.45f);
-                var col = beam.GetComponent<Collider>();
-                if (col != null) Destroy(col);
-
-                var mr = beam.GetComponent<MeshRenderer>();
-                if (mr != null)
-                {
-                    var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
-                    var mat = new Material(shader);
-                    mat.color = beaconColor;
-                    mr.sharedMaterial = mat;
-                }
-
-                // Vòng hào quang ở gốc
-                var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                ring.name = "Beacon_GroundRing";
-                ring.transform.SetParent(beaconRoot.transform, false);
-                ring.transform.localPosition = new Vector3(0f, 0.15f, 0f);
-                ring.transform.localScale = new Vector3(2.8f, 0.05f, 2.8f);
-                var ringCol = ring.GetComponent<Collider>();
-                if (ringCol != null) Destroy(ringCol);
-                var ringMr = ring.GetComponent<MeshRenderer>();
-                if (ringMr != null)
-                {
-                    var mat2 = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color"));
-                    mat2.color = new Color(beaconColor.r, beaconColor.g, beaconColor.b, 0.9f);
-                    ringMr.sharedMaterial = mat2;
-                }
-
-                // Điểm sáng
-                var lightGo = new GameObject("Beacon_PointLight");
-                lightGo.transform.SetParent(beaconRoot.transform, false);
-                lightGo.transform.localPosition = new Vector3(0f, 2.5f, 0f);
-                var lightComp = lightGo.AddComponent<Light>();
-                lightComp.type = LightType.Point;
-                lightComp.color = beaconColor;
-                lightComp.range = 18f;
-                lightComp.intensity = 3.5f;
+                Destroy(existing);
             }
+            beaconRoot = null;
         }
 
         private void BindUIDocument()
@@ -247,8 +206,8 @@ namespace Blocks.Gameplay.Core
             {
                 if (beaconRoot != null)
                 {
-                    beaconRoot.SetActive(true);
-                    beaconRoot.transform.position = objectives[currentStageIndex].targetPosition;
+                    Destroy(beaconRoot);
+                    beaconRoot = null;
                 }
 
                 if (titleLabelElement != null)

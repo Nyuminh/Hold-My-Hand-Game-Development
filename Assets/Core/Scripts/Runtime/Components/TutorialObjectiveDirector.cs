@@ -300,33 +300,9 @@ namespace Blocks.Gameplay.Core
 
         private void CreateDefaultBeacon()
         {
-            var beaconGo = new GameObject("Objective_Beacon_Root");
-            var beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            beam.name = "Beacon_Pillar_Beam";
-            beam.transform.SetParent(beaconGo.transform, false);
-            beam.transform.localPosition = new Vector3(0f, 12f, 0f);
-            beam.transform.localScale = new Vector3(0.5f, 12f, 0.5f);
-            var col = beam.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-
-            var mr = beam.GetComponent<MeshRenderer>();
-            if (mr != null)
-            {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color"));
-                mat.color = new Color(1f, 0.85f, 0.2f, 0.75f);
-                mr.sharedMaterial = mat;
-            }
-
-            var lightGo = new GameObject("Beacon_PointLight");
-            lightGo.transform.SetParent(beaconGo.transform, false);
-            lightGo.transform.localPosition = new Vector3(0f, 2.5f, 0f);
-            var lightComp = lightGo.AddComponent<Light>();
-            lightComp.type = LightType.Point;
-            lightComp.color = new Color(1f, 0.85f, 0.2f);
-            lightComp.range = 15f;
-            lightComp.intensity = 3.5f;
-
-            beaconObject = beaconGo;
+            var existing = GameObject.Find("Objective_Beacon_Root");
+            if (existing != null) Destroy(existing);
+            beaconObject = null;
         }
 
         private void Update()
