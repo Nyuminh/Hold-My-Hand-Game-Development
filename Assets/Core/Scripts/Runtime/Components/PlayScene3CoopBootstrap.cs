@@ -65,6 +65,13 @@ namespace Blocks.Gameplay.Core
                     sphereCol.radius = 0.55f;
                 }
             }
+
+            // 4. Khớp thang máy cáp treo (Crane_Lift_Platform & Safety_Enclosure) vào đúng cao độ dây cáp
+            var liftPlatform = GameObject.Find("Crane_Lift_Platform");
+            if (liftPlatform != null)
+            {
+                liftPlatform.transform.position = new Vector3(-1.00f, 10.66f, -24.80f);
+            }
         }
 
         private void EnsureObjectiveDirector()
