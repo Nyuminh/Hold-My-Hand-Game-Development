@@ -315,6 +315,10 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 directorObj = new GameObject("LVL2_GuidingDirector");
                 directorObj.transform.position = Vector3.zero;
             }
+            // Dọn sạch vòng tròn dưới đất cũ nếu có
+            var oldRing = GameObject.Find("LVL2_WaypointPulseRing");
+            if (oldRing != null) Object.DestroyImmediate(oldRing);
+
             var director = Ensure<LevelTwoGuidingDirector>(directorObj);
             director.AutoFindReferences();
             director.EnsureWaypointVisuals();
@@ -355,6 +359,125 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             obj.transform.localScale = size;
             if (material != null) obj.GetComponent<Renderer>().sharedMaterial = material;
             return obj;
+        }
+
+        /// <summary>
+        /// Tạo Tảng đá Tự Nhiên từ 3D Asset Prefab có sẵn trong project thay cho hình hộp vuông
+        /// </summary>
+        public static GameObject SpawnRock(string name, Transform parent, Vector3 localPosition, Vector3 localScale, Vector3 rotation, string rockPrefab = "Rock_1")
+        {
+            GameObject prefab = null;
+            if (rockPrefab.StartsWith("Rocks_Pile") || rockPrefab.StartsWith("Road_Rocks"))
+            {
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Map Material/FlipGameDev/Terrain&GrassPack/Prefabs/Rocks_Variation/" + rockPrefab + ".prefab");
+            }
+            else if (rockPrefab.StartsWith("Rock_Small"))
+            {
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Map Material/FlipGameDev/Terrain&GrassPack/Prefabs/Rocks_Small/" + rockPrefab + ".prefab");
+            }
+            else
+            {
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Map Material/FlipGameDev/Terrain&GrassPack/Prefabs/Rocks/" + rockPrefab + ".prefab");
+            }
+
+            GameObject obj = null;
+            if (prefab != null)
+            {
+                obj = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+                obj.name = name;
+                obj.transform.localPosition = localPosition;
+                obj.transform.localScale = localScale;
+                obj.transform.localRotation = Quaternion.Euler(rotation);
+            }
+            else
+            {
+                obj = Box(name, parent, localPosition, localScale, Material("Stone", new Color(0.48f, 0.50f, 0.52f)));
+                obj.transform.localRotation = Quaternion.Euler(rotation);
+            }
+
+            // Đảm bảo có Collider chuẩn
+            var cols = obj.GetComponentsInChildren<Collider>();
+            if (cols.Length == 0)
+            {
+                var mf = obj.GetComponentInChildren<MeshFilter>();
+                if (mf != null && mf.sharedMesh != null)
+                {
+                    var mc = obj.AddComponent<MeshCollider>();
+                    mc.sharedMesh = mf.sharedMesh;
+                    mc.convex = true;
+                }
+                else
+                {
+                    obj.AddComponent<BoxCollider>();
+                }
+            }
+            Ensure<RiverRockHazard>(obj);
+            return obj;
+        }
+
+        /// <summary>
+        /// Tạo Cụm Hoa Sen & Lá Sen Tự Nhiên trên mặt nước thay cho hình trụ tròn
+        /// </summary>
+        public static GameObject SpawnWaterLily(string name, Transform parent, Vector3 localPosition, Vector3 localScale, bool withFlower = true)
+        {
+            var root = Marker(name, parent, localPosition).gameObject;
+            var liefPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Map Material/FlipGameDev/Terrain&GrassPack/Prefabs/WaterLily/WaterLily_Lief.prefab");
+            if (liefPrefab != null)
+            {
+                var lief = (GameObject)PrefabUtility.InstantiatePrefab(liefPrefab, root.transform);
+                lief.name = "LilyLeaf";
+                lief.transform.localPosition = Vector3.zero;
+                lief.transform.localScale = localScale;
+                
+                var mf = lief.GetComponentInChildren<MeshFilter>();
+                if (mf != null && mf.sharedMesh != null)
+                {
+                    var mc = lief.GetComponentInChildren<MeshCollider>();
+                    if (mc == null) mc = lief.AddComponent<MeshCollider>();
+                    mc.sharedMesh = mf.sharedMesh;
+                }
+                else
+                {
+                    var col = lief.AddComponent<BoxCollider>();
+                    col.size = new Vector3(3f, 0.1f, 3f);
+                }
+            }
+            else
+            {
+                Cylinder("LilyPad_Fallback", root.transform, Vector3.zero, localScale, Material("BuoyGreen", new Color(0.12f, 0.78f, 0.28f)));
+            }
+
+            if (withFlower)
+            {
+                var flowerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Map Material/FlipGameDev/Terrain&GrassPack/Prefabs/WaterLily/WaterLily_Flower_Opened.prefab");
+                if (flowerPrefab != null)
+                {
+                    var flower = (GameObject)PrefabUtility.InstantiatePrefab(flowerPrefab, root.transform);
+                    flower.name = "LilyFlower";
+                    flower.transform.localPosition = new Vector3(0.5f * localScale.x, 0.08f, -0.4f * localScale.z);
+                    flower.transform.localScale = localScale * 0.65f;
+                }
+            }
+            return root;
+        }
+
+        /// <summary>
+        /// Tạo Cầu gỗ cổ điển / bến đỗ gỗ với lan can
+        /// </summary>
+        public static GameObject SpawnWoodenBridge(string name, Transform parent, Vector3 localPosition, Vector3 localScale, Vector3 rotation)
+        {
+            var bridgePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CastlePack/Prefabs/WoodenBridgeHanddrails.prefab");
+            if (bridgePrefab == null) bridgePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CastlePack/Prefabs/WoodenBridge.prefab");
+            if (bridgePrefab != null)
+            {
+                var obj = (GameObject)PrefabUtility.InstantiatePrefab(bridgePrefab, parent);
+                obj.name = name;
+                obj.transform.localPosition = localPosition;
+                obj.transform.localScale = localScale;
+                obj.transform.localRotation = Quaternion.Euler(rotation);
+                return obj;
+            }
+            return null;
         }
 
         /// <summary>
@@ -493,6 +616,8 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             // Lan can bảo vệ hai bên mép dock (Railings)
             Box("StartDock_Railing_Left", startArea, new Vector3(91.2f, 1.45f, 30.0f), new Vector3(0.18f, 0.85f, 8.8f), woodMat);
             Box("StartDock_Railing_Right_Back", startArea, new Vector3(95.8f, 1.45f, 27.5f), new Vector3(0.18f, 0.85f, 3.8f), woodMat);
+            // Cầu gỗ cổ điển nối dài bến tàu
+            SpawnWoodenBridge("StartDock_WoodenPier", startArea, new Vector3(93.5f, 0.95f, 30.0f), new Vector3(1.1f, 1.0f, 1.2f), new Vector3(0, 90f, 0));
             // Cầu ván nhảy áp sát mạn thuyền (Gangway leading to boat - trigger để không kẹt thuyền)
             var gangway = Box("StartDock_Gangway", startArea, new Vector3(96.0f, 0.85f, 33.5f), new Vector3(1.2f, 0.15f, 2.0f), woodMat);
             gangway.transform.localRotation = Quaternion.Euler(0, 5f, -6f);
@@ -578,14 +703,15 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             g3Trigger.GetComponent<BoxCollider>().isTrigger = true;
             Object.DestroyImmediate(g3Trigger.GetComponent<MeshRenderer>());
 
-            // Channel Hazard Rocks với các tảng phụ điêu khắc tự nhiên
-            Box("HazardRock_Left_1", stage1, new Vector3(88.0f, 1.2f, 48.0f), new Vector3(4.0f, 2.2f, 6.0f), stoneMat);
-            Box("HazardRock_Left_1_Sub", stage1, new Vector3(89.5f, 0.9f, 49.5f), new Vector3(2.5f, 1.6f, 3.0f), stoneMat);
+            // Channel Hazard Rocks - Tảng đá tự nhiên 3D chân thực thay thế hình hộp vuông
+            SpawnRock("HazardRock_Left_1", stage1, new Vector3(88.0f, 0.4f, 48.0f), new Vector3(3.8f, 3.2f, 3.8f), new Vector3(0, 40, 10), "Rock_1");
+            SpawnRock("HazardRock_Left_1_Sub", stage1, new Vector3(89.5f, 0.25f, 49.5f), new Vector3(2.2f, 1.8f, 2.2f), new Vector3(15, -30, 0), "Rock_Small_1");
 
-            Box("HazardRock_Right_1", stage1, new Vector3(109.0f, 1.2f, 52.0f), new Vector3(4.5f, 2.4f, 7.0f), stoneMat);
-            Box("HazardRock_Right_1_Sub", stage1, new Vector3(107.5f, 0.8f, 53.5f), new Vector3(2.2f, 1.5f, 3.5f), stoneMat);
+            SpawnRock("HazardRock_Right_1", stage1, new Vector3(109.0f, 0.4f, 52.0f), new Vector3(4.2f, 3.5f, 4.2f), new Vector3(-10, 85, 0), "Rock_3");
+            SpawnRock("HazardRock_Right_1_Sub", stage1, new Vector3(107.5f, 0.25f, 53.5f), new Vector3(2.2f, 1.6f, 2.2f), new Vector3(0, 120, 0), "Rock_Small_2");
 
-            Box("HazardRock_Left_2", stage1, new Vector3(89.5f, 1.2f, 62.0f), new Vector3(3.5f, 2.0f, 5.0f), stoneMat);
+            SpawnRock("HazardRock_Left_2", stage1, new Vector3(89.2f, 0.4f, 62.0f), new Vector3(3.6f, 3.0f, 3.6f), new Vector3(20, 50, 0), "Rock_7");
+            SpawnRock("HazardRock_Mid_Shallow", stage1, new Vector3(98.5f, 0.15f, 50.0f), new Vector3(1.8f, 1.2f, 1.8f), new Vector3(0, 35, 0), "Rock_Small_3");
 
             // Phao Mũi tên dẫn luồng nổi trên sông (Floating Waypoint Arrows) chỉ hướng lượn qua 3 cổng
             FloatingRiverArrow("Slalom_FlowArrow_1", stage1, new Vector3(97.8f, 0.48f, 40.0f), 5f, woodMat, goldMat);
@@ -674,20 +800,29 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var wp1 = Cylinder("Whirlpool_1_Vortex", stage3, new Vector3(97.0f, 0.45f, 102.0f), new Vector3(9.0f, 0.1f, 9.0f), ironMat);
             wp1.GetComponent<Collider>().isTrigger = true;
             Cylinder("Whirlpool_1_Ring", stage3, new Vector3(97.0f, 0.48f, 102.0f), new Vector3(13.0f, 0.05f, 13.0f), buoyRedMat);
-            Box("Whirlpool_1_Rock1", stage3, new Vector3(91.0f, 1.5f, 102.0f), new Vector3(2.5f, 3.0f, 3.0f), stoneMat);
-            Box("Whirlpool_1_Rock2", stage3, new Vector3(103.0f, 1.5f, 102.0f), new Vector3(2.5f, 3.0f, 3.0f), stoneMat);
+            SpawnRock("Whirlpool_1_Rock1", stage3, new Vector3(91.0f, 0.5f, 102.0f), new Vector3(3.2f, 3.6f, 3.2f), new Vector3(10, 20, 5), "Rock_8");
+            SpawnRock("Whirlpool_1_Rock2", stage3, new Vector3(103.0f, 0.5f, 102.0f), new Vector3(3.0f, 3.4f, 3.0f), new Vector3(-15, 60, 0), "Rock_9");
 
             // Whirlpool 2 (Z: 128)
             var wp2 = Cylinder("Whirlpool_2_Vortex", stage3, new Vector3(104.0f, 0.45f, 128.0f), new Vector3(9.5f, 0.1f, 9.5f), ironMat);
             wp2.GetComponent<Collider>().isTrigger = true;
             Cylinder("Whirlpool_2_Ring", stage3, new Vector3(104.0f, 0.48f, 128.0f), new Vector3(13.5f, 0.05f, 13.5f), buoyRedMat);
-            Box("Whirlpool_2_Rock1", stage3, new Vector3(98.0f, 1.5f, 128.0f), new Vector3(2.5f, 3.0f, 3.0f), stoneMat);
-            Box("Whirlpool_2_Rock2", stage3, new Vector3(110.0f, 1.5f, 128.0f), new Vector3(2.5f, 3.0f, 3.0f), stoneMat);
+            SpawnRock("Whirlpool_2_Rock1", stage3, new Vector3(98.0f, 0.5f, 128.0f), new Vector3(3.0f, 3.5f, 3.0f), new Vector3(5, -45, 10), "Rock_11");
+            SpawnRock("Whirlpool_2_Rock2", stage3, new Vector3(110.0f, 0.5f, 128.0f), new Vector3(3.2f, 3.6f, 3.2f), new Vector3(0, 110, -5), "Rock_12");
 
-            // Canyon Gorge Clifflines & Rock Formations
-            Box("Canyon_Cliff_Left", stage3, new Vector3(85.0f, 3.0f, 115.0f), new Vector3(4.0f, 6.0f, 65.0f), stoneMat);
-            Box("Canyon_Cliff_Right", stage3, new Vector3(116.0f, 3.0f, 115.0f), new Vector3(4.0f, 6.0f, 65.0f), stoneMat);
-            // Các bậc đá nhô ra tạo cảm giác hẻm vực hiểm trở
+            // Canyon Gorge Clifflines & Rặng đá thiên nhiên xếp lớp hùng vĩ
+            SpawnRock("Cliff_Rock_L1", stage3, new Vector3(84.0f, 0.5f, 95.0f), new Vector3(5.0f, 5.5f, 5.0f), new Vector3(0, 15, 0), "Rocks_Pile");
+            SpawnRock("Cliff_Rock_L2", stage3, new Vector3(83.5f, 0.5f, 115.0f), new Vector3(5.5f, 6.0f, 5.5f), new Vector3(0, 75, 0), "Rocks_Pile_2");
+            SpawnRock("Cliff_Rock_L3", stage3, new Vector3(84.5f, 0.5f, 135.0f), new Vector3(5.0f, 5.5f, 5.0f), new Vector3(0, -30, 0), "Rocks_Pile");
+
+            SpawnRock("Cliff_Rock_R1", stage3, new Vector3(116.0f, 0.5f, 95.0f), new Vector3(5.0f, 5.5f, 5.0f), new Vector3(0, 110, 0), "Rocks_Pile");
+            SpawnRock("Cliff_Rock_R2", stage3, new Vector3(116.5f, 0.5f, 115.0f), new Vector3(5.5f, 6.0f, 5.5f), new Vector3(0, -60, 0), "Rocks_Pile_2");
+            SpawnRock("Cliff_Rock_R3", stage3, new Vector3(115.5f, 0.5f, 135.0f), new Vector3(5.0f, 5.5f, 5.0f), new Vector3(0, 140, 0), "Rocks_Pile");
+
+            var cliffL = Box("Canyon_Cliff_Left", stage3, new Vector3(82.0f, 3.0f, 115.0f), new Vector3(2.0f, 6.0f, 65.0f), stoneMat);
+            var cliffR = Box("Canyon_Cliff_Right", stage3, new Vector3(118.0f, 3.0f, 115.0f), new Vector3(2.0f, 6.0f, 65.0f), stoneMat);
+            Object.DestroyImmediate(cliffL.GetComponent<MeshRenderer>());
+            Object.DestroyImmediate(cliffR.GetComponent<MeshRenderer>());
             Box("Canyon_Ledge_1", stage3, new Vector3(87.5f, 2.5f, 102.0f), new Vector3(3.0f, 4.0f, 12.0f), stoneMat);
             Box("Canyon_Ledge_2", stage3, new Vector3(113.5f, 2.5f, 128.0f), new Vector3(3.0f, 4.0f, 12.0f), stoneMat);
 
@@ -778,25 +913,31 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             marshWater.transform.localScale = new Vector3(5.0f, 1.0f, 5.0f);
             marshWater.GetComponent<Renderer>().sharedMaterial = waterMat;
 
-            // West Beacon Tower & Island (Left)
+            // West Beacon Tower & Island (Left) với đế đá tự nhiên
+            SpawnRock("WestBeacon_RockBase", stage4, new Vector3(83.0f, 0.5f, 175.0f), new Vector3(4.5f, 2.5f, 4.5f), new Vector3(0, 45, 0), "Rocks_Pile");
             var westIsland = Cylinder("WestBeacon_Island", stage4, new Vector3(83.0f, 0.9f, 175.0f), new Vector3(9.0f, 0.8f, 9.0f), stoneMat);
             Cylinder("WestBeacon_Tower", stage4, new Vector3(83.0f, 3.5f, 175.0f), new Vector3(2.5f, 5.0f, 2.5f), stoneMat);
             Cylinder("WestBeacon_Brazier", stage4, new Vector3(83.0f, 6.2f, 175.0f), new Vector3(1.4f, 0.8f, 1.4f), ironMat);
             var westLight = Box("WestBeacon_Flame", stage4, new Vector3(83.0f, 6.8f, 175.0f), new Vector3(0.8f, 0.8f, 0.8f), goldMat);
-
-            // Bệ đá chân tháp Hải đăng Tây (Tiered Base)
             Cylinder("WestBeacon_Base_Step", stage4, new Vector3(83.0f, 1.4f, 175.0f), new Vector3(5.0f, 0.4f, 5.0f), stoneMat);
 
-            // East Beacon Tower & Island (Right)
+            // East Beacon Tower & Island (Right) với đế đá tự nhiên
+            SpawnRock("EastBeacon_RockBase", stage4, new Vector3(117.0f, 0.5f, 190.0f), new Vector3(4.5f, 2.5f, 4.5f), new Vector3(0, 120, 0), "Rocks_Pile");
             var eastIsland = Cylinder("EastBeacon_Island", stage4, new Vector3(117.0f, 0.9f, 190.0f), new Vector3(9.0f, 0.8f, 9.0f), stoneMat);
             Cylinder("EastBeacon_Tower", stage4, new Vector3(117.0f, 3.5f, 190.0f), new Vector3(2.5f, 5.0f, 2.5f), stoneMat);
             Cylinder("EastBeacon_Brazier", stage4, new Vector3(117.0f, 6.2f, 190.0f), new Vector3(1.4f, 0.8f, 1.4f), ironMat);
             var eastLight = Box("EastBeacon_Flame", stage4, new Vector3(117.0f, 6.8f, 190.0f), new Vector3(0.8f, 0.8f, 0.8f), goldMat);
             Cylinder("EastBeacon_Base_Step", stage4, new Vector3(117.0f, 1.4f, 190.0f), new Vector3(5.0f, 0.4f, 5.0f), stoneMat);
 
-            // Giant Lily Stepping Stones (BoostThrow landing area for Child)
-            var lily1 = Cylinder("GiantLilyPad_1", stage4, new Vector3(90.0f, 0.55f, 175.0f), new Vector3(3.2f, 0.1f, 3.2f), buoyGreenMat);
-            var lily2 = Cylinder("GiantLilyPad_2", stage4, new Vector3(110.0f, 0.55f, 190.0f), new Vector3(3.2f, 0.1f, 3.2f), buoyGreenMat);
+            // Giant Lily Stepping Stones (Lá sen & Hoa sen tự nhiên 3D cho Con đáp xuống)
+            var lily1 = SpawnWaterLily("GiantLilyPad_1", stage4, new Vector3(90.0f, 0.52f, 175.0f), new Vector3(3.8f, 1.2f, 3.8f), true);
+            var lily2 = SpawnWaterLily("GiantLilyPad_2", stage4, new Vector3(110.0f, 0.52f, 190.0f), new Vector3(3.8f, 1.2f, 3.8f), true);
+
+            // Cụm hoa sen & lá sen trang trí điểm xuyết đầm lầy
+            SpawnWaterLily("LilyDeco_1", stage4, new Vector3(86.0f, 0.50f, 182.0f), new Vector3(2.4f, 0.8f, 2.4f), true);
+            SpawnWaterLily("LilyDeco_2", stage4, new Vector3(114.0f, 0.50f, 182.0f), new Vector3(2.6f, 0.9f, 2.6f), false);
+            SpawnWaterLily("LilyDeco_3", stage4, new Vector3(98.0f, 0.50f, 168.0f), new Vector3(2.0f, 0.8f, 2.0f), true);
+            SpawnWaterLily("LilyDeco_4", stage4, new Vector3(104.0f, 0.50f, 198.0f), new Vector3(2.5f, 0.9f, 2.5f), false);
 
             // Lumina Crystal Pedestal on West Island
             Box("LuminaCrystal_Pedestal", stage4, new Vector3(83.0f, 1.6f, 172.5f), new Vector3(0.8f, 1.2f, 0.8f), stoneMat);
@@ -810,7 +951,9 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             // 6. STAGE 5: GIANT WATERMILL CLIMAX & HAVEN (Z: 216 - 265)
             // ==========================================
             var stage5 = Marker("06_WatermillHaven_Stage5", Root.transform, Vector3.zero);
-            // Gorge Archway before Watermill
+            // Gorge Archway before Watermill với vách đá tự nhiên
+            SpawnRock("Haven_GorgeRock_L", stage5, new Vector3(88.0f, 0.5f, 225.0f), new Vector3(5.0f, 6.5f, 5.0f), new Vector3(0, 30, 0), "Rocks_Pile");
+            SpawnRock("Haven_GorgeRock_R", stage5, new Vector3(112.0f, 0.5f, 225.0f), new Vector3(5.0f, 6.5f, 5.0f), new Vector3(0, -45, 0), "Rocks_Pile");
             Box("Watermill_LeftGorge", stage5, new Vector3(89.0f, 5.0f, 225.0f), new Vector3(5.0f, 10.0f, 4.0f), stoneMat);
             Box("Watermill_RightGorge", stage5, new Vector3(111.0f, 5.0f, 225.0f), new Vector3(5.0f, 10.0f, 4.0f), stoneMat);
             // Vòm đá vươn ngang hẻm núi nối hai trụ
@@ -837,6 +980,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
 
             // Docking platform
             Box("HavenHarbor_Dock", stage5, new Vector3(100.0f, 1.0f, 248.0f), new Vector3(8.0f, 0.3f, 6.0f), woodMat);
+            SpawnWoodenBridge("HavenHarbor_PierBridge", stage5, new Vector3(100.0f, 0.95f, 245.0f), new Vector3(1.2f, 1.0f, 1.2f), Vector3.zero);
             Cylinder("HavenHarbor_Post_L", stage5, new Vector3(96.5f, 1.3f, 246.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat);
             Cylinder("HavenHarbor_Post_R", stage5, new Vector3(103.5f, 1.3f, 246.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat);
 
