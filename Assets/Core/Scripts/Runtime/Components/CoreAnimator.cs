@@ -28,6 +28,7 @@ namespace Blocks.Gameplay.Core
         private readonly int m_AnimIDFreeFall = Animator.StringToHash("FreeFall");
         private readonly int m_AnimIDMotionSpeed = Animator.StringToHash("MotionSpeed");
         private readonly int m_AnimIDIsSitting = Animator.StringToHash("IsSitting");
+        private readonly int m_AnimIDIsPiggybacking = Animator.StringToHash("IsPiggybacking");
         private readonly int m_AnimIDIsCrouching = Animator.StringToHash("IsCrouching");
 
         private CoopHoldHandAbility m_HoldHandAbility;
@@ -232,8 +233,17 @@ namespace Blocks.Gameplay.Core
 
             // 5. Trạng thái chạm đất & rơi tự do:
             // Đảm bảo không bị kẹt ở trạng thái InAir khi là Dummy bot hoặc khi bị kéo trên mặt đất
+            // Kiểm tra trạng thái ngồi trên thuyền hoặc gắn vào phương tiện
+            bool isSeatedOrMounted = (coreMovement != null && !coreMovement.IsMovementEnabled) || 
+                                     Animator.GetBool(m_AnimIDIsSitting) || 
+                                     Animator.GetBool(m_AnimIDIsPiggybacking);
+
             bool isGrounded = true;
-            if (coreMovement != null && coreMovement.IsGrounded)
+            if (isSeatedOrMounted)
+            {
+                isGrounded = true;
+            }
+            else if (coreMovement != null && coreMovement.IsGrounded)
             {
                 isGrounded = true;
             }
@@ -252,13 +262,14 @@ namespace Blocks.Gameplay.Core
                 isGrounded = coreMovement.IsGrounded;
             }
 
-            float verticalVelocity = coreMovement != null ? coreMovement.VerticalVelocity : 0f;
+            float verticalVelocity = (coreMovement != null && !isSeatedOrMounted) ? coreMovement.VerticalVelocity : 0f;
 
             Animator.SetBool(m_AnimIDGrounded, isGrounded);
             Animator.SetBool(m_AnimIDJump, !isGrounded && verticalVelocity > 0.1f);
             Animator.SetBool(m_AnimIDFreeFall, !isGrounded && verticalVelocity <= -0.1f);
 
             // 6. Gửi Speed & MotionSpeed sang Animator Blend Tree
+            if (isSeatedOrMounted) m_SmoothedSpeed = 0f;
             Animator.SetFloat(m_AnimIDSpeed, m_SmoothedSpeed);
             Animator.SetFloat(m_AnimIDMotionSpeed, 1.0f);
 

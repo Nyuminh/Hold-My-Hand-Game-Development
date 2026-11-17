@@ -68,7 +68,7 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
-            // Mượt mà điều chỉnh tỷ lệ cơ thể khi bò qua khe
+            // Duy trì trạng thái bò tự nhiên bằng animation (không bóp méo scale của model)
             for (int i = m_ActiveCrawlers.Count - 1; i >= 0; i--)
             {
                 var crawler = m_ActiveCrawlers[i];
@@ -78,10 +78,10 @@ namespace Blocks.Gameplay.Core
                     continue;
                 }
 
+                // Luôn giữ tỉ lệ cơ thể gốc, không bóp dẹt hình dạng
                 if (m_OriginalModelScales.TryGetValue(crawler, out Vector3 origScale))
                 {
-                    Vector3 targetScale = new Vector3(origScale.x * 1.05f, origScale.y * 0.58f, origScale.z * 1.15f);
-                    crawler.localScale = Vector3.Lerp(crawler.localScale, targetScale, Time.deltaTime * 10f);
+                    crawler.localScale = origScale;
                 }
             }
         }
@@ -170,6 +170,12 @@ namespace Blocks.Gameplay.Core
                     }
                 }
 
+                // Kích hoạt trạng thái khom người / bò chuẩn của động cơ nhân vật
+                if (motor != null)
+                {
+                    motor.SetCrouchState(true);
+                }
+
                 Debug.Log($"[CoopCrawlVolume] 👶 Con đang khom người bò qua khe hẹp '{gameObject.name}'!");
             }
         }
@@ -180,6 +186,13 @@ namespace Blocks.Gameplay.Core
             if (controller == null) return;
 
             m_ChildIsCrawling = false;
+
+            // Khôi phục trạng thái đứng thẳng
+            var motor = controller.GetComponent<CoreMovement>();
+            if (motor != null)
+            {
+                motor.SetCrouchState(false);
+            }
 
             // Khôi phục chiều cao ban đầu khi ra khỏi khe hẹp
             if (m_OriginalHeights.TryGetValue(controller, out float originalHeight))

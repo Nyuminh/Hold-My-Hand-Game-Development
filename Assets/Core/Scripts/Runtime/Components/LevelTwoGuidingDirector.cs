@@ -30,12 +30,13 @@ namespace Blocks.Gameplay.Core
             DockAtSluice = 4,      // Bước 5: Ghé bến Cửa Cống Thủy Lợi
             SluicePuzzle = 6,      // Bước 6: Ba giữ Tời [E], Con chui hầm gạt Van xả [E]
             NavigateRapids = 7,    // Bước 7: Chèo qua Cửa Cống & Vượt Xoáy Nước
-            WestBeacon = 8,        // Bước 8: Ghé Bến Tây - Ba ném Con [F] thắp Hải Đăng Tây
-            EastBeacon = 9,        // Bước 9: Ghé Bến Đông - Ba ném Con [F] thắp Hải Đăng Đông
-            PassWatermill = 10,    // Bước 10: Canh nhịp Cối Xay Dừng - Tăng tốc chèo qua
-            DockAtHaven = 11,      // Bước 11: Cập bến Haven Harbor
-            AltarHandHold = 12,    // Bước 12: Lên Bàn Thờ Ký Ức - Nắm Tay Nhau [H] hoàn thành
-            Completed = 13
+            GlowstoneCavern = 8,   // Bước 8: Khám phá Hang Động Nhũ Đá Huyền Bí (Glowstone Cavern)
+            WestBeacon = 9,        // Bước 9: Ghé Bến Tây - Ba ném Con [F] thắp Hải Đăng Tây
+            EastBeacon = 10,       // Bước 10: Ghé Bến Đông - Ba ném Con [F] thắp Hải Đăng Đông
+            PassWatermill = 11,    // Bước 11: Canh nhịp Cối Xay Dừng - Tăng tốc chèo qua
+            DockAtHaven = 12,      // Bước 12: Cập bến Haven Harbor
+            AltarHandHold = 13,    // Bước 13: Lên Bàn Thờ Ký Ức - Nắm Tay Nhau [H] hoàn thành
+            Completed = 14
         }
 
         [Header("State")]
@@ -345,7 +346,16 @@ namespace Blocks.Gameplay.Core
 
                 case StageStep.NavigateRapids:
                     // Khi thuyền vượt qua hẻm ghềnh thác và 2 xoáy nước
-                    if (boat != null && boat.transform.position.z >= 150f)
+                    if (boat != null && boat.transform.position.z >= 145f)
+                    {
+                        currentStep = StageStep.GlowstoneCavern;
+                        UpdateWaypointTarget(false);
+                    }
+                    break;
+
+                case StageStep.GlowstoneCavern:
+                    // Khi thuyền xuyên qua Hang Động Nhũ Đá Huyền Bí
+                    if (boat != null && boat.transform.position.z >= 170f)
                     {
                         currentStep = (westBeacon != null && westBeacon.Lit) ? StageStep.EastBeacon : StageStep.WestBeacon;
                         UpdateWaypointTarget(false);
@@ -442,7 +452,11 @@ namespace Blocks.Gameplay.Core
                     break;
 
                 case StageStep.NavigateRapids:
-                    target = new Vector3(100.0f, 0.52f, 135.0f); // Cuối hẻm ghềnh thác
+                    target = new Vector3(100.0f, 0.52f, 140.0f); // Cuối hẻm ghềnh thác
+                    break;
+
+                case StageStep.GlowstoneCavern:
+                    target = new Vector3(100.0f, 0.52f, 168.0f); // Cửa ra Hang Động Nhũ Đá
                     break;
 
                 case StageStep.WestBeacon:
@@ -571,17 +585,20 @@ namespace Blocks.Gameplay.Core
                 case StageStep.NavigateRapids:
                     return ("CHẶNG 3: HẺM GHỀNH THÁC & XOÁY NƯỚC", "Cửa cống đã mở! Mau lên thuyền, giữ chắc tay chèo né 2 tâm xoáy nước hung dữ", "[A/D] Bẻ lái né tâm xoáy nước! | [W/SPACE] Chèo tiến");
 
+                case StageStep.GlowstoneCavern:
+                    return ("CHẶNG 4: HANG ĐỘNG NHŨ ĐÁ HUYỀN BÍ", "Chiêm ngưỡng vẻ đẹp huyền ảo của nhũ đá dạ quang phát sáng trong lòng hang", "[W/SPACE] Chèo thuyền theo luồng sáng dạ quang");
+
                 case StageStep.WestBeacon:
-                    return ("CHẶNG 4: ĐẦM LẦY SƯƠNG MÙ - HẢI ĐĂNG TÂY", "Ghé thuyền vào Đảo Tây. Ba đứng Bục ném -> Ném Con [F] lên đài sen thắp sáng Hải Đăng!", "BA: [F] NÉM ĐỒNG ĐỘI | CON: THẮP ĐÀI LỬA");
+                    return ("CHẶNG 5: ĐẦM LẦY SƯƠNG MÙ - HẢI ĐĂNG TÂY", "Ghé thuyền vào Đảo Tây. Ba đứng Bục ném -> Ném Con [F] lên đài sen thắp sáng Hải Đăng!", "BA: [F] NÉM ĐỒNG ĐỘI | CON: THẮP ĐÀI LỬA");
 
                 case StageStep.EastBeacon:
-                    return ("CHẶNG 4: ĐẦM LẦY SƯƠNG MÙ - HẢI ĐĂNG ĐÔNG", "Tiếp tục sang Đảo Đông. Ba ném Con [F] lên đài sen để thắp sáng ngọn Hải Đăng còn lại!", "BA: [F] NÉM ĐỒNG ĐỘI LÊN ĐÀI SEN");
+                    return ("CHẶNG 5: ĐẦM LẦY SƯƠNG MÙ - HẢI ĐĂNG ĐÔNG", "Tiếp tục sang Đảo Đông. Ba ném Con [F] lên đài sen để thắp sáng ngọn Hải Đăng còn lại!", "BA: [F] NÉM ĐỒNG ĐỘI LÊN ĐÀI SEN");
 
                 case StageStep.PassWatermill:
-                    return ("CHẶNG 5: CỐI XAY NƯỚC KHỔNG LỒ", "Hai ngọn hải đăng đã mở lối! Canh nhịp cối xay dừng ở góc chéo (2.5s) -> Đồng lòng chèo vọt qua!", "CẢ HAI: [W] / [SPACE] BỨT TỐC QUA KHE CỐI XAY");
+                    return ("CHẶNG 6: CỐI XAY NƯỚC KHỔNG LỒ", "Hai ngọn hải đăng đã mở lối! Canh nhịp cối xay dừng ở góc chéo (2.5s) -> Đồng lòng chèo vọt qua!", "CẢ HAI: [W] / [SPACE] BỨT TỐC QUA KHE CỐI XAY");
 
                 case StageStep.DockAtHaven:
-                    return ("CHẶNG 5: BẾN BỜ BÌNH MINH (HAVEN HARBOR)", "Đã vượt qua cối xay! Cập thuyền vào cầu cảng Haven Harbor và bước lên bậc tam cấp", "[E] Lên bờ tiến về Bàn Thờ Ký Ức");
+                    return ("CHẶNG 6: BẾN BỜ BÌNH MINH (HAVEN HARBOR)", "Đã vượt qua cối xay! Cập thuyền vào cầu cảng Haven Harbor và bước lên bậc tam cấp", "[E] Lên bờ tiến về Bàn Thờ Ký Ức");
 
                 case StageStep.AltarHandHold:
                     return ("CHẶNG CUỐI: BÀN THỜ KÝ ỨC", "Cùng đứng lên Bàn Thờ Ký Ức, đứng sát bên nhau và GIỮ [H] NẮM TAY NHAU!", "GIỮ [H] NẮM TAY NHAU ĐỂ CHIẾN THẮNG!");

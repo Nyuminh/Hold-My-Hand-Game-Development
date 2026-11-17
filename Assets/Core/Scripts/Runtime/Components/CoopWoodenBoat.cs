@@ -674,12 +674,12 @@ namespace Blocks.Gameplay.Core
                 motor.SetPosition(seatPos, false);
             }
 
-            // Kích hoạt tư thế ngồi
+            // Kích hoạt tư thế ngồi thẳng tự nhiên trên thuyền (Sit_Idle)
             if (anim != null)
             {
-                anim.SetBool(s_PiggybackingHash, true);
+                anim.SetBool(s_PiggybackingHash, false);
                 anim.SetBool(s_SittingHash, true);
-                anim.CrossFadeInFixedTime("Piggyback_Sit", 0.15f);
+                anim.CrossFadeInFixedTime("Sit_Idle", 0.2f);
             }
 
             Debug.Log($"[CoopWoodenBoat] 🪑 Đã cố định nhân vật '{player.name}' vào ghế {(asDad ? "🧔 Ba" : "👶 Con")}!");
@@ -723,7 +723,7 @@ namespace Blocks.Gameplay.Core
             {
                 anim.SetBool(s_PiggybackingHash, false);
                 anim.SetBool(s_SittingHash, false);
-                anim.CrossFadeInFixedTime("Idle Walk Run Blend", 0.15f);
+                anim.CrossFadeInFixedTime("Idle Walk Run Blend", 0.2f);
             }
 
             if (isDad)

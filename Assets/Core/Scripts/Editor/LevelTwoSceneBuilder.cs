@@ -105,6 +105,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
 
             // Attach runtime river carver so terrain is carved in-memory without a 125MB binary asset in Git
             Ensure<LevelTwoRiverCarver>(Root);
+            ClearRiverVegetation();
             // Continuous visible water covers gaps between the original stage planes.
             if (Root.transform.Find("Water_RiverContinuous") == null)
             {
@@ -130,7 +131,17 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
 
         public static void ClearRiverVegetation()
         {
-            // Handled dynamically in-memory at runtime by LevelTwoRiverCarver
+            var colliders = Object.FindObjectsByType<Collider>(FindObjectsSortMode.None);
+            foreach (var c in colliders)
+            {
+                if (c is TerrainCollider) continue;
+                if (Root != null && c.transform.IsChildOf(Root.transform)) continue;
+                var p = c.transform.position;
+                if (p.z >= 24f && p.z <= 265f && Mathf.Abs(p.x - 100f) <= 7.0f && p.y <= 1.8f)
+                {
+                    c.enabled = false;
+                }
+            }
         }
 
         public static void Dock(string name, Vector3 position, Vector3 dad, Vector3 child)
@@ -450,6 +461,12 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var buoyRedMat = Material("BuoyRed", new Color(0.88f, 0.18f, 0.14f), 0.2f, 0.7f);
             var buoyGreenMat = Material("BuoyGreen", new Color(0.12f, 0.78f, 0.28f), 0.2f, 0.7f);
             var goldMat = Material("Gold", new Color(0.95f, 0.76f, 0.15f), 0.7f, 0.8f);
+            var glowstoneMat = Material("Glowstone", new Color(0.2f, 0.85f, 0.95f), 0.2f, 0.8f);
+            if (glowstoneMat.HasProperty("_EmissionColor"))
+            {
+                glowstoneMat.EnableKeyword("_EMISSION");
+                glowstoneMat.SetColor("_EmissionColor", new Color(0.2f, 0.85f, 0.95f) * 2.2f);
+            }
             var waterMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Map Material/FlipGameDev/Terrain&GrassPack/Art/Materials/Water/WaterBasic.mat");
             if (waterMat == null) waterMat = Material("RiverWater", new Color(0.18f, 0.45f, 0.62f, 0.85f), 0.1f, 0.9f);
 
@@ -678,6 +695,77 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             FloatingRiverArrow("Rapids_Arrow_1", stage3, new Vector3(103.5f, 0.48f, 96.0f), 15f, woodMat, goldMat); // Né xoáy 1 qua phải
             FloatingRiverArrow("Rapids_Arrow_2", stage3, new Vector3(98.5f, 0.48f, 116.0f), -15f, woodMat, goldMat); // Lách qua trái né xoáy 2
             FloatingRiverArrow("Rapids_Arrow_3", stage3, new Vector3(100.0f, 0.48f, 142.0f), 0f, woodMat, goldMat); // Ra khỏi hẻm ghềnh thác
+
+            // ==========================================
+            // 4B. STAGE 3B: GLOWSTONE CAVERN (Z: 145 - 172)
+            // Hang Động Nhũ Đá Huyền Bí phát sáng dạ quang
+            // ==========================================
+            var stage3B = Marker("04B_GlowstoneCavern_Stage3B", Root.transform, Vector3.zero);
+
+            // Cổng vòm đá vào hang động (Entrance Portal - Z: 146)
+            Box("Cavern_Portal_L", stage3B, new Vector3(88.0f, 4.5f, 146.0f), new Vector3(4.0f, 9.0f, 4.0f), stoneMat);
+            Box("Cavern_Portal_R", stage3B, new Vector3(112.0f, 4.5f, 146.0f), new Vector3(4.0f, 9.0f, 4.0f), stoneMat);
+            var entranceArch = Box("Cavern_Portal_Arch", stage3B, new Vector3(100.0f, 8.8f, 146.0f), new Vector3(22.0f, 1.8f, 3.5f), stoneMat);
+            if (entranceArch.TryGetComponent<Collider>(out var arcCol)) arcCol.isTrigger = true;
+
+            // Vòm mái hang động (Vaulted Cavern Roof - Z: 148 - 170)
+            var roof1 = Box("Cavern_Roof_1", stage3B, new Vector3(100.0f, 9.2f, 154.0f), new Vector3(25.0f, 1.5f, 14.0f), stoneMat);
+            if (roof1.TryGetComponent<Collider>(out var r1Col)) r1Col.isTrigger = true;
+            var roof2 = Box("Cavern_Roof_2", stage3B, new Vector3(100.0f, 9.2f, 166.0f), new Vector3(25.0f, 1.5f, 14.0f), stoneMat);
+            if (roof2.TryGetComponent<Collider>(out var r2Col)) r2Col.isTrigger = true;
+
+            // Vách đá hai bên hang ngầm (Cavern Flank Cliffs)
+            Box("Cavern_Cliff_L1", stage3B, new Vector3(87.5f, 4.5f, 154.0f), new Vector3(4.5f, 8.0f, 15.0f), stoneMat);
+            Box("Cavern_Cliff_R1", stage3B, new Vector3(112.5f, 4.5f, 154.0f), new Vector3(4.5f, 8.0f, 15.0f), stoneMat);
+            Box("Cavern_Cliff_L2", stage3B, new Vector3(87.5f, 4.5f, 166.0f), new Vector3(4.5f, 8.0f, 15.0f), stoneMat);
+            Box("Cavern_Cliff_R2", stage3B, new Vector3(112.5f, 4.5f, 166.0f), new Vector3(4.5f, 8.0f, 15.0f), stoneMat);
+
+            // Cổng vòm đá ra khỏi hang mở sang Đầm lầy (Exit Portal - Z: 172)
+            Box("Cavern_Exit_L", stage3B, new Vector3(88.0f, 4.5f, 172.0f), new Vector3(4.0f, 9.0f, 3.5f), stoneMat);
+            Box("Cavern_Exit_R", stage3B, new Vector3(112.0f, 4.5f, 172.0f), new Vector3(4.0f, 9.0f, 3.5f), stoneMat);
+            var exitArch = Box("Cavern_Exit_Arch", stage3B, new Vector3(100.0f, 8.8f, 172.0f), new Vector3(22.0f, 1.8f, 3.5f), stoneMat);
+            if (exitArch.TryGetComponent<Collider>(out var exCol)) exCol.isTrigger = true;
+
+            // Thác nước ngầm đổ từ vách hang (Subterranean Waterfalls)
+            var wfL = Box("Cavern_Waterfall_L", stage3B, new Vector3(89.2f, 4.5f, 158.0f), new Vector3(0.4f, 7.5f, 5.0f), waterMat);
+            if (wfL.TryGetComponent<Collider>(out var wfLCol)) wfLCol.isTrigger = true;
+            var wfR = Box("Cavern_Waterfall_R", stage3B, new Vector3(110.8f, 4.5f, 162.0f), new Vector3(0.4f, 7.5f, 5.0f), waterMat);
+            if (wfR.TryGetComponent<Collider>(out var wfRCol)) wfRCol.isTrigger = true;
+
+            // Hàm tạo nhũ đá phát quang (Bioluminescent Stalactite with Cyan Glow)
+            System.Action<string, Vector3, Vector3> createStalactite = (stName, pos, size) =>
+            {
+                var s = Cylinder(stName, stage3B, pos, size, glowstoneMat);
+                if (s.TryGetComponent<Collider>(out var c)) c.isTrigger = true;
+                var crystal = Box(stName + "_Tip", stage3B, pos - Vector3.up * (size.y * 0.45f), new Vector3(size.x * 0.5f, 0.7f, size.z * 0.5f), glowstoneMat);
+                if (crystal.TryGetComponent<Collider>(out var cc)) cc.isTrigger = true;
+                var light = crystal.AddComponent<Light>();
+                light.type = LightType.Point;
+                light.color = new Color(0.2f, 0.85f, 0.95f);
+                light.range = 14f;
+                light.intensity = 2.2f;
+            };
+
+            createStalactite("Stalactite_L1", new Vector3(93.5f, 6.2f, 151.0f), new Vector3(1.3f, 3.8f, 1.3f));
+            createStalactite("Stalactite_R1", new Vector3(106.5f, 6.2f, 155.0f), new Vector3(1.4f, 4.0f, 1.4f));
+            createStalactite("Stalactite_L2", new Vector3(94.0f, 6.4f, 163.0f), new Vector3(1.5f, 3.6f, 1.5f));
+            createStalactite("Stalactite_R2", new Vector3(106.0f, 6.4f, 167.0f), new Vector3(1.4f, 3.8f, 1.4f));
+
+            // Măng đá dạ quang mọc hai bên bờ gờ hang (Stalagmites)
+            System.Action<string, Vector3, Vector3> createStalagmite = (smName, pos, size) =>
+            {
+                var sm = Cylinder(smName, stage3B, pos, size, glowstoneMat);
+                if (sm.TryGetComponent<Collider>(out var sc)) sc.isTrigger = true;
+            };
+
+            createStalagmite("Stalagmite_L1", new Vector3(89.8f, 1.6f, 150.0f), new Vector3(1.6f, 2.4f, 1.6f));
+            createStalagmite("Stalagmite_R1", new Vector3(110.2f, 1.6f, 153.0f), new Vector3(1.8f, 2.6f, 1.8f));
+            createStalagmite("Stalagmite_L2", new Vector3(89.8f, 1.8f, 161.0f), new Vector3(1.8f, 2.8f, 1.8f));
+            createStalagmite("Stalagmite_R2", new Vector3(110.2f, 1.8f, 165.0f), new Vector3(1.6f, 2.6f, 1.6f));
+
+            // Phao Mũi tên dạ quang chỉ luồng hang động ngầm (Cyan Flow Arrows)
+            FloatingRiverArrow("Cavern_FlowArrow_1", stage3B, new Vector3(100.0f, 0.48f, 151.0f), 0f, woodMat, glowstoneMat);
+            FloatingRiverArrow("Cavern_FlowArrow_2", stage3B, new Vector3(100.0f, 0.48f, 163.0f), 0f, woodMat, glowstoneMat);
 
             // ==========================================
             // 5. STAGE 4: MISTY MARSH & TWIN BEACONS (Z: 155 - 215)
