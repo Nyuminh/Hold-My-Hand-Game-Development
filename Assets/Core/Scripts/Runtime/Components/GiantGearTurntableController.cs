@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -17,7 +18,7 @@ namespace Blocks.Gameplay.Core
     /// 6. Răng đá ăn khớp chuẩn xác với mỏm Cầu Treo (SuspBridge), mở lối sang Zone 4!
     /// </summary>
     [SelectionBase]
-    public class GiantGearTurntableController : MonoBehaviour
+    public class GiantGearTurntableController : NetworkBehaviour
     {
         private static GiantGearTurntableController instance;
         public static GiantGearTurntableController Instance => instance;
@@ -71,6 +72,114 @@ namespace Blocks.Gameplay.Core
 
         [Tooltip("Khoảng cách tương tác với miệng hầm thân cây (mét)")]
         [SerializeField] private float crawlInteractDistance = 3.2f;
+
+        
+        [Header("Netcode Synchronization")]
+        private readonly NetworkVariable<bool> netIsVinesCleared = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<bool> netIsPinRemoved = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<float> netCrankProgress = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<bool> netIsCompleted = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        public bool IsNetworkActive => NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && IsSpawned;
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            netIsVinesCleared.OnValueChanged += (oldVal, newVal) => {
+                isVinesCleared = newVal;
+                if (newVal && vinesBarricade != null) vinesBarricade.gameObject.SetActive(false);
+            };
+            netIsPinRemoved.OnValueChanged += (oldVal, newVal) => {
+                isPinRemoved = newVal;
+                if (newVal && lockPin != null && lockPin.gameObject.activeSelf) StartCoroutine(AnimatePinEject());
+            };
+            netCrankProgress.OnValueChanged += (oldVal, newVal) => {
+                ApplyRotationToProgress(newVal);
+            };
+            netIsCompleted.OnValueChanged += (oldVal, newVal) => {
+                isCompleted = newVal;
+            };
+
+            if (IsServer)
+            {
+                netIsVinesCleared.Value = isVinesCleared;
+                netIsPinRemoved.Value = isPinRemoved;
+                netCrankProgress.Value = crankProgress;
+                netIsCompleted.Value = isCompleted;
+            }
+            else
+            {
+                isVinesCleared = netIsVinesCleared.Value;
+                isPinRemoved = netIsPinRemoved.Value;
+                if (isVinesCleared && vinesBarricade != null) vinesBarricade.gameObject.SetActive(false);
+                if (isPinRemoved && lockPin != null) lockPin.gameObject.SetActive(false);
+                ApplyRotationToProgress(netCrankProgress.Value);
+                isCompleted = netIsCompleted.Value;
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            base.OnNetworkDespawn();
+        }
+
+        public void ApplyRotationToProgress(float newProg)
+        {
+            crankProgress = newProg;
+            float targetAngle = crankProgress * targetRotationAngle;
+            float deltaAngle = targetAngle - currentRotationAngle;
+
+            if (Mathf.Abs(deltaAngle) > 0.001f && gearTurntablePivot != null)
+            {
+                gearTurntablePivot.Rotate(Vector3.up, deltaAngle, Space.World);
+                currentRotationAngle = targetAngle;
+                RotatePlayersOnTurntable(deltaAngle);
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void RemoveLockPinServerRpc()
+        {
+            netIsPinRemoved.Value = true;
+            RemoveLockPinClientRpc();
+        }
+
+        [ClientRpc]
+        private void RemoveLockPinClientRpc()
+        {
+            isPinRemoved = true;
+            UISoundManager.PlayClick();
+            if (lockPin != null && lockPin.gameObject.activeSelf)
+            {
+                StartCoroutine(AnimatePinEject());
+            }
+            ShowPrompt("✨ ĐÃ NHẢ CHỐT KHÓA! 🧔 Ba hãy quay cần tời bên bờ để xoay bánh răng đá!", Color.cyan, 4.0f);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void UpdateCrankProgressServerRpc(float delta)
+        {
+            float newProg = Mathf.Clamp01(netCrankProgress.Value + delta);
+            netCrankProgress.Value = newProg;
+            if (newProg >= 1f && !netIsCompleted.Value)
+            {
+                netIsCompleted.Value = true;
+                CompleteTurntableClientRpc();
+            }
+        }
+
+        [ClientRpc]
+        private void CompleteTurntableClientRpc()
+        {
+            if (!isCompleted) CompleteTurntablePuzzle();
+        }
 
         [Header("State Status")]
         [SerializeField] private bool isVinesCleared = false;
@@ -399,14 +508,20 @@ namespace Blocks.Gameplay.Core
 
         private void RemoveLockPin()
         {
-            isPinRemoved = true;
-            UISoundManager.PlayClick();
+            if (IsNetworkActive)
+            {
+                RemoveLockPinServerRpc();
+            }
+            else
+            {
+                isPinRemoved = true;
+                UISoundManager.PlayClick();
 
-            // Hiệu ứng nhổ chốt: bay lên và biến mất
-            StartCoroutine(AnimatePinEject());
+                StartCoroutine(AnimatePinEject());
 
-            ShowPrompt("✨ ĐÃ NHẢ CHỐT KHÓA! 🧔 Ba hãy quay cần tời bên bờ để xoay bánh răng đá!", Color.cyan, 4.0f);
-            Debug.Log("[GiantGearTurntable] 👶 Con đã gỡ chốt kẹt bánh răng thành công!");
+                ShowPrompt("✨ ĐÃ NHẢ CHỐT KHÓA! 🧔 Ba hãy quay cần tời bên bờ để xoay bánh răng đá!", Color.cyan, 4.0f);
+                Debug.Log("[GiantGearTurntable] 👶 Con đã gỡ chốt kẹt bánh răng thành công!");
+            }
         }
 
         private IEnumerator AnimatePinEject()
@@ -475,27 +590,29 @@ namespace Blocks.Gameplay.Core
                 crankHandle.Rotate(Vector3.forward, 360f * Time.deltaTime, Space.Self);
             }
 
-            // Tăng tiến độ
-            float deltaProgress = Time.deltaTime / crankDurationRequired;
-            crankProgress = Mathf.Clamp01(crankProgress + deltaProgress);
-
-            float targetAngle = crankProgress * targetRotationAngle;
-            float deltaAngle = targetAngle - currentRotationAngle;
-
-            if (Mathf.Abs(deltaAngle) > 0.001f && gearTurntablePivot != null)
+            if (IsNetworkActive)
             {
-                // Xoay bàn xoay
-                gearTurntablePivot.Rotate(Vector3.up, deltaAngle, Space.World);
-                currentRotationAngle = targetAngle;
-
-                // Xoay nhân vật đứng trên bàn xoay (Moving Platform Rotation)
-                RotatePlayersOnTurntable(deltaAngle);
+                UpdateCrankProgressServerRpc(Time.deltaTime / crankDurationRequired);
             }
-
-            // Kiểm tra hoàn thành
-            if (crankProgress >= 1f && !isCompleted)
+            else
             {
-                CompleteTurntablePuzzle();
+                float deltaProgress = Time.deltaTime / crankDurationRequired;
+                crankProgress = Mathf.Clamp01(crankProgress + deltaProgress);
+
+                float targetAngle = crankProgress * targetRotationAngle;
+                float deltaAngle = targetAngle - currentRotationAngle;
+
+                if (Mathf.Abs(deltaAngle) > 0.001f && gearTurntablePivot != null)
+                {
+                    gearTurntablePivot.Rotate(Vector3.up, deltaAngle, Space.World);
+                    currentRotationAngle = targetAngle;
+                    RotatePlayersOnTurntable(deltaAngle);
+                }
+
+                if (crankProgress >= 1f && !isCompleted)
+                {
+                    CompleteTurntablePuzzle();
+                }
             }
         }
 
@@ -526,6 +643,7 @@ namespace Blocks.Gameplay.Core
         private void CompleteTurntablePuzzle()
         {
             isCompleted = true;
+            if (IsNetworkActive && IsServer) netIsCompleted.Value = true;
             crankProgress = 1f;
 
             if (gearTurntablePivot != null)

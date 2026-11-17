@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Unity.Netcode;
 
 namespace Blocks.Gameplay.Core
 {
@@ -11,10 +12,14 @@ namespace Blocks.Gameplay.Core
     /// Khi người chơi gạt 1 cần: Cầu hạ xuống 45 độ (nửa đường).
     /// Khi gạt đủ 2 cần: Cầu hạ phẳng lì tiếp đất để 2 người chơi cùng chạy qua!
     /// Dây xích sắt bám dính chính xác 100% từ ròng rọc trên trụ tới mép cầu ở mọi góc độ.
+    /// Hỗ trợ NetworkBehaviour đồng bộ hoàn toàn giữa Host và Client qua NetworkVariable & ServerRpc.
     /// </summary>
-    public class CoopDrawbridgeController : MonoBehaviour
+    public class CoopDrawbridgeController : NetworkBehaviour
     {
         private static CoopDrawbridgeController instance;
+
+        private readonly NetworkVariable<bool> netIsLeftPulled = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly NetworkVariable<bool> netIsRightPulled = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         [Header("Target References")]
         [Tooltip("Bản lề xoay của cầu (Zone1_Drawbridge_Hinge)")]
@@ -108,6 +113,35 @@ namespace Blocks.Gameplay.Core
                 initialLeverLeftRot = leverLeft.localRotation;
             if (leverRight != null)
                 initialLeverRightRot = leverRight.localRotation;
+        }
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            netIsLeftPulled.OnValueChanged += OnNetworkLeftPulledChanged;
+            netIsRightPulled.OnValueChanged += OnNetworkRightPulledChanged;
+
+            if (netIsLeftPulled.Value != isLeftPulled)
+                ApplyLeverVisual(true, netIsLeftPulled.Value, false);
+            if (netIsRightPulled.Value != isRightPulled)
+                ApplyLeverVisual(false, netIsRightPulled.Value, false);
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            netIsLeftPulled.OnValueChanged -= OnNetworkLeftPulledChanged;
+            netIsRightPulled.OnValueChanged -= OnNetworkRightPulledChanged;
+            base.OnNetworkDespawn();
+        }
+
+        private void OnNetworkLeftPulledChanged(bool previousValue, bool newValue)
+        {
+            ApplyLeverVisual(true, newValue, true);
+        }
+
+        private void OnNetworkRightPulledChanged(bool previousValue, bool newValue)
+        {
+            ApplyLeverVisual(false, newValue, true);
         }
 
         private void Start()
@@ -244,21 +278,52 @@ namespace Blocks.Gameplay.Core
 
         public void ToggleLever(bool isLeft)
         {
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            {
+                if (IsServer)
+                {
+                    if (isLeft) netIsLeftPulled.Value = !netIsLeftPulled.Value;
+                    else netIsRightPulled.Value = !netIsRightPulled.Value;
+                }
+                else
+                {
+                    ToggleLeverServerRpc(isLeft);
+                }
+                return;
+            }
+
+            // Fallback khi chạy solo/offline không có Netcode active
+            ApplyLeverVisual(isLeft, isLeft ? !isLeftPulled : !isRightPulled, true);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void ToggleLeverServerRpc(bool isLeft)
+        {
+            if (isLeft) netIsLeftPulled.Value = !netIsLeftPulled.Value;
+            else netIsRightPulled.Value = !netIsRightPulled.Value;
+        }
+
+        private void ApplyLeverVisual(bool isLeft, bool pulled, bool animate)
+        {
             if (isLeft)
             {
-                isLeftPulled = !isLeftPulled;
-                if (leverLeft != null) StartCoroutine(AnimateLeverHandle(leverLeft, initialLeverLeftRot, isLeftPulled));
+                isLeftPulled = pulled;
+                if (leverLeft != null)
+                {
+                    if (animate && gameObject.activeInHierarchy) StartCoroutine(AnimateLeverHandle(leverLeft, initialLeverLeftRot, isLeftPulled));
+                    else leverLeft.localRotation = initialLeverLeftRot * Quaternion.Euler(0f, isLeftPulled ? 35f : 0f, 0f);
+                }
             }
             else
             {
-                isRightPulled = !isRightPulled;
-                if (leverRight != null) StartCoroutine(AnimateLeverHandle(leverRight, initialLeverRightRot, isRightPulled));
+                isRightPulled = pulled;
+                if (leverRight != null)
+                {
+                    if (animate && gameObject.activeInHierarchy) StartCoroutine(AnimateLeverHandle(leverRight, initialLeverRightRot, isRightPulled));
+                    else leverRight.localRotation = initialLeverRightRot * Quaternion.Euler(0f, isRightPulled ? 35f : 0f, 0f);
+                }
             }
 
-            // Tính góc cầu theo số lượng cần được gạt:
-            // 0 cần: Dựng đứng (upright)
-            // 1 cần: Hạ xuống 45 độ (nửa đường)
-            // 2 cần: Hạ xuống phẳng lì (0 độ tiếp đất)
             UpdateBridgeTargetFromLevers();
         }
 
@@ -269,10 +334,6 @@ namespace Blocks.Gameplay.Core
 
             if (startUpright)
             {
-                // Mặc định DỰNG ĐỨNG:
-                // 0 cần: Dựng đứng (0 độ)
-                // 1 cần: Hạ xuống nghiêng 45 độ
-                // 2 cần: Hạ phẳng lì tiếp đất
                 if (pulledCount == 0) targetAngle = uprightAngleOffset;
                 else if (pulledCount == 1) targetAngle = halfLowerAngleOffset;
                 else targetAngle = fullLowerAngleOffset;
@@ -366,7 +427,6 @@ namespace Blocks.Gameplay.Core
             Vector3 startP = pulley.position;
             Vector3 endP = ring.position;
 
-            // Đặt tâm xích chính xác giữa ròng rọc và vòng khuyên mép cầu
             chain.position = (startP + endP) * 0.5f;
 
             Vector3 dir = endP - startP;
@@ -375,7 +435,6 @@ namespace Blocks.Gameplay.Core
                 chain.rotation = Quaternion.LookRotation(dir);
             }
 
-            // Scale chuẩn 1:1 theo khoảng cách thực tế giữa ròng rọc và vòng khuyên
             float currentDist = dir.magnitude;
             if (initialDist > 0.1f)
             {

@@ -1,3 +1,4 @@
+using Unity.Netcode;
 ﻿using System.Collections;
 using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
@@ -26,7 +27,7 @@ namespace Blocks.Gameplay.Core
     ///   PHA 3 — Hai Cha Con bước qua cầu phẳng lên tháp đá, đi tiếp qua cầu treo sang KHU MỎ.
     /// </summary>
     [SelectionBase]
-    public class CoveDrawbridgeCoopController : MonoBehaviour
+    public class CoveDrawbridgeCoopController : NetworkBehaviour
     {
         private static CoveDrawbridgeCoopController instance;
         public static CoveDrawbridgeCoopController Instance => instance;
@@ -72,6 +73,117 @@ namespace Blocks.Gameplay.Core
 
         [Tooltip("Vị trí chốt giữ trên sàn tháp")]
         [SerializeField] private Vector3 latchPos = new Vector3(-11.00f, 13.95f, -72.90f);
+
+        
+        [Header("Netcode Synchronization")]
+        private readonly NetworkVariable<bool> netIsPinReleased = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<bool> netIsBridgeOpened = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<bool> netIsLatchPressed = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<float> netCrankProgress = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        public bool IsNetworkActive => NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && IsSpawned;
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            netIsPinReleased.OnValueChanged += (oldVal, newVal) => {
+                isPinReleased = newVal;
+                if (newVal && releasePin != null && releasePin.gameObject.activeSelf) StartCoroutine(ReleasePinRoutine());
+            };
+            netIsBridgeOpened.OnValueChanged += (oldVal, newVal) => {
+                isBridgeOpened = newVal;
+                if (newVal) LowerBridgeRoutine();
+            };
+            netIsLatchPressed.OnValueChanged += (oldVal, newVal) => {
+                isLatchPressed = newVal;
+                if (newVal && holdLatch != null) StartCoroutine(PressLatchRoutine());
+            };
+            netCrankProgress.OnValueChanged += (oldVal, newVal) => {
+                crankProgress = newVal;
+            };
+
+            if (IsServer)
+            {
+                netIsPinReleased.Value = isPinReleased;
+                netIsBridgeOpened.Value = isBridgeOpened;
+                netIsLatchPressed.Value = isLatchPressed;
+                netCrankProgress.Value = crankProgress;
+            }
+            else
+            {
+                isPinReleased = netIsPinReleased.Value;
+                isBridgeOpened = netIsBridgeOpened.Value;
+                isLatchPressed = netIsLatchPressed.Value;
+                crankProgress = netCrankProgress.Value;
+                if (isPinReleased && releasePin != null) releasePin.gameObject.SetActive(false);
+                if (isBridgeOpened) ApplyState(1f, openAngle);
+                if (isLatchPressed) ApplyState(1f, holdAngle);
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            base.OnNetworkDespawn();
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void ReleasePinServerRpc()
+        {
+            netIsPinReleased.Value = true;
+            ReleasePinClientRpc();
+        }
+
+        [ClientRpc]
+        private void ReleasePinClientRpc()
+        {
+            if (!isPinReleased) StartCoroutine(ReleasePinRoutine());
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void LowerBridgeServerRpc()
+        {
+            netIsBridgeOpened.Value = true;
+            LowerBridgeClientRpc();
+        }
+
+        [ClientRpc]
+        private void LowerBridgeClientRpc()
+        {
+            if (!isBridgeOpened) LowerBridgeRoutine();
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void PressLatchServerRpc()
+        {
+            netIsLatchPressed.Value = true;
+            netIsBridgeOpened.Value = true;
+            PressLatchClientRpc();
+        }
+
+        [ClientRpc]
+        private void PressLatchClientRpc()
+        {
+            if (!isLatchPressed) StartCoroutine(PressLatchRoutine());
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void UpdateCrankProgressServerRpc(float delta)
+        {
+            float newProg = Mathf.Clamp01(netCrankProgress.Value + delta);
+            netCrankProgress.Value = newProg;
+            if (newProg >= 1f && !netIsBridgeOpened.Value)
+            {
+                netIsBridgeOpened.Value = true;
+                LowerBridgeClientRpc();
+            }
+        }
 
         [Header("Trạng thái")]
         [SerializeField] private bool isPinReleased = false;
@@ -286,7 +398,11 @@ namespace Blocks.Gameplay.Core
                     else
                     {
                         ShowPrompt("👶 [E] Nhổ CHỐT CHIẾN khỏi lồng đá đối trọng", Color.cyan);
-                        if (IsInteractPressed()) StartCoroutine(ReleasePinRoutine());
+                        if (IsInteractPressed())
+                    {
+                        if (IsNetworkActive) ReleasePinServerRpc();
+                        else StartCoroutine(ReleasePinRoutine());
+                    }
                     }
                     return;
                 }
@@ -359,7 +475,11 @@ namespace Blocks.Gameplay.Core
                     else
                     {
                         ShowPrompt("👶 [E] Đạp CHỐT GIU trên tháp để ghim cầu vĩnh viễn!", Color.cyan);
-                        if (IsInteractPressed()) StartCoroutine(PressLatchRoutine());
+                        if (IsInteractPressed())
+                    {
+                        if (IsNetworkActive) PressLatchServerRpc();
+                        else StartCoroutine(PressLatchRoutine());
+                    }
                     }
                 }
             }

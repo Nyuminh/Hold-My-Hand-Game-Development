@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,7 +13,7 @@ namespace Blocks.Gameplay.Core
     /// Hỗ trợ Netcode for GameObjects (không dùng SetParent trên NetworkObject để tránh lỗi Invalid parenting).
     /// </summary>
     [SelectionBase]
-    public class CraneElevatorController : MonoBehaviour
+    public class CraneElevatorController : NetworkBehaviour
     {
         private static CraneElevatorController instance;
         public static CraneElevatorController Instance => instance;
@@ -163,6 +164,212 @@ namespace Blocks.Gameplay.Core
             BothCompleted = 9               // Cả hai Cha Con đã đoàn tụ trên Zone 3!
         }
 
+        
+        [Header("Netcode Synchronization")]
+        private readonly NetworkVariable<ElevatorStage> netStage = new NetworkVariable<ElevatorStage>(
+            ElevatorStage.ReadyForFirstRide,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<float> netCrankProgress = new NetworkVariable<float>(
+            0f,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
+
+        public bool IsNetworkActive => NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && IsSpawned;
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            netStage.OnValueChanged += OnStageNetworkChanged;
+            netCrankProgress.OnValueChanged += OnCrankProgressNetworkChanged;
+
+            if (IsServer)
+            {
+                netStage.Value = currentStage;
+                netCrankProgress.Value = currentCrankProgress;
+            }
+            else
+            {
+                currentStage = netStage.Value;
+                currentCrankProgress = netCrankProgress.Value;
+                ApplyStagePose(currentStage);
+                ApplyCrankVisuals(currentCrankProgress);
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            base.OnNetworkDespawn();
+            netStage.OnValueChanged -= OnStageNetworkChanged;
+            netCrankProgress.OnValueChanged -= OnCrankProgressNetworkChanged;
+        }
+
+        private void OnStageNetworkChanged(ElevatorStage oldVal, ElevatorStage newVal)
+        {
+            currentStage = newVal;
+            ApplyStagePose(newVal);
+        }
+
+        private void OnCrankProgressNetworkChanged(float oldVal, float newVal)
+        {
+            currentCrankProgress = newVal;
+            ApplyCrankVisuals(newVal);
+        }
+
+        public void ApplyCrankVisuals(float progress)
+        {
+            if (stoneBall != null)
+            {
+                Vector3 lp = stoneBall.localPosition;
+                lp.y = Mathf.Lerp(ballHighLocalY, ballLandedLocalY, progress);
+                stoneBall.localPosition = lp;
+            }
+
+            if (liftPlatform != null)
+            {
+                liftPlatform.position = Vector3.Lerp(liftLowPosition, liftHighPosition, progress);
+            }
+
+            if (progress >= 1f && pressurePlatePad != null)
+            {
+                Vector3 lp = pressurePlatePad.localPosition;
+                lp.y = padPressedLocalY;
+                pressurePlatePad.localPosition = lp;
+            }
+
+            UpdateCables();
+        }
+
+        public void ApplyStagePose(ElevatorStage stage)
+        {
+            switch (stage)
+            {
+                case ElevatorStage.ReadyForFirstRide:
+                    SetToInitialPose();
+                    break;
+                case ElevatorStage.ConAtZone3_NeedsBoulder:
+                    PreviewConAtZone3();
+                    break;
+                case ElevatorStage.BoulderPlaced_WaitingDad:
+                    if (pushableBoulder != null) pushableBoulder.position = cradleTargetWorldPos;
+                    if (seesawBeam != null) seesawBeam.localRotation = seesawInitialRot * Quaternion.Euler(6.5f, 0f, 0f);
+                    if (winchLockPin != null)
+                    {
+                        winchLockPin.localPosition = pinInitialPos + new Vector3(0f, 0.08f, 0f);
+                        SetLockPinMaterial(matYellowIndicator);
+                    }
+                    break;
+                case ElevatorStage.BothUnlocked_ReadyReturn:
+                    if (winchLockClamp != null) winchLockClamp.localPosition = clampInitialPos + new Vector3(0f, 0.16f, 0f);
+                    if (winchLockPin != null)
+                    {
+                        winchLockPin.localPosition = pinInitialPos + new Vector3(0f, 0.22f, 0f);
+                        SetLockPinMaterial(matGreenIndicator);
+                    }
+                    break;
+                case ElevatorStage.ThangAtIslet_ReadyDad:
+                    PreviewThangAtIslet();
+                    break;
+                case ElevatorStage.BothCompleted:
+                    PreviewBothCompleted();
+                    break;
+            }
+            UpdateCables();
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void UpdateCrankProgressServerRpc(float deltaProgress)
+        {
+            float newProg = Mathf.Clamp01(netCrankProgress.Value + deltaProgress);
+            netCrankProgress.Value = newProg;
+            if (newProg >= 1f && netStage.Value == ElevatorStage.ReadyForFirstRide)
+            {
+                netStage.Value = ElevatorStage.ConAtZone3_NeedsBoulder;
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void RequestRollBoulderServerRpc()
+        {
+            if (netStage.Value == ElevatorStage.ConAtZone3_NeedsBoulder && !IsMoving)
+            {
+                netStage.Value = ElevatorStage.BoulderMoving;
+                StartRollBoulderClientRpc();
+            }
+        }
+
+        [ClientRpc]
+        private void StartRollBoulderClientRpc()
+        {
+            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+            activeMotionRoutine = StartCoroutine(RollBoulderRoutine());
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void RequestDadReleaseClutchServerRpc()
+        {
+            if (netStage.Value == ElevatorStage.BoulderPlaced_WaitingDad && !IsMoving)
+            {
+                StartDadReleaseClutchClientRpc();
+            }
+        }
+
+        [ClientRpc]
+        private void StartDadReleaseClutchClientRpc()
+        {
+            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+            activeMotionRoutine = StartCoroutine(DadReleaseClutchRoutine());
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void RequestReturnToIsletServerRpc()
+        {
+            if (netStage.Value == ElevatorStage.BothUnlocked_ReadyReturn && !IsMoving)
+            {
+                netStage.Value = ElevatorStage.ReturningToIslet;
+                StartReturnToIsletClientRpc();
+            }
+        }
+
+        [ClientRpc]
+        private void StartReturnToIsletClientRpc()
+        {
+            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+            activeMotionRoutine = StartCoroutine(ReturnToIsletRoutine());
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void RequestSecondRideServerRpc()
+        {
+            if (netStage.Value == ElevatorStage.ThangAtIslet_ReadyDad && !IsMoving)
+            {
+                netStage.Value = ElevatorStage.MovingToZone3_Second;
+                StartSecondRideClientRpc();
+            }
+        }
+
+        [ClientRpc]
+        private void StartSecondRideClientRpc()
+        {
+            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+            activeMotionRoutine = StartCoroutine(SecondRideRoutine());
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void CompleteWirePuzzleServerRpc()
+        {
+            netStage.Value = ElevatorStage.BothUnlocked_ReadyReturn;
+            ApplyWirePuzzleCompleteClientRpc();
+        }
+
+        [ClientRpc]
+        private void ApplyWirePuzzleCompleteClientRpc()
+        {
+            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+            activeMotionRoutine = StartCoroutine(WirePuzzleSuccessRoutine());
+        }
+
         [Header("Co-op Elevator Progression")]
         [SerializeField] private ElevatorStage currentStage = ElevatorStage.ReadyForFirstRide;
         public ElevatorStage CurrentStage => currentStage;
@@ -217,6 +424,14 @@ namespace Blocks.Gameplay.Core
             if (isWirePuzzleOpen)
             {
                 HandleWirePuzzleKeyboardInput();
+            }
+            if (IsNetworkActive && !IsMoving && currentStage == ElevatorStage.ReadyForFirstRide)
+            {
+                if (Mathf.Abs(currentCrankProgress - netCrankProgress.Value) > 0.002f)
+                {
+                    currentCrankProgress = Mathf.MoveTowards(currentCrankProgress, netCrankProgress.Value, Time.deltaTime * 3f);
+                    ApplyCrankVisuals(currentCrankProgress);
+                }
             }
             CheckPlayerProximityAndInput();
             UpdateCables();
@@ -472,6 +687,7 @@ namespace Blocks.Gameplay.Core
         public void PreviewThangAtIslet()
         {
             currentStage = ElevatorStage.ThangAtIslet_ReadyDad;
+            if (IsNetworkActive && IsServer) netStage.Value = ElevatorStage.ThangAtIslet_ReadyDad;
 
             if (stoneBall != null)
             {
@@ -502,6 +718,7 @@ namespace Blocks.Gameplay.Core
         public void PreviewBothCompleted()
         {
             currentStage = ElevatorStage.BothCompleted;
+            if (IsNetworkActive && IsServer) netStage.Value = ElevatorStage.BothCompleted;
 
             if (stoneBall != null)
             {
@@ -607,43 +824,28 @@ namespace Blocks.Gameplay.Core
                                 cogwheel.Rotate(Vector3.forward, wheelSpinSpeed * Time.deltaTime, Space.Self);
                             }
 
-                            // Tăng tiến độ quay
-                            currentCrankProgress += Time.deltaTime / crankDuration;
-                            currentCrankProgress = Mathf.Clamp01(currentCrankProgress);
-
-                            // Hạ dần quả cầu đá xuống đĩa áp lực
-                            if (stoneBall != null)
+                            if (IsNetworkActive)
                             {
-                                Vector3 lp = stoneBall.localPosition;
-                                lp.y = Mathf.Lerp(ballHighLocalY, ballLandedLocalY, currentCrankProgress);
-                                stoneBall.localPosition = lp;
+                                UpdateCrankProgressServerRpc(Time.deltaTime / crankDuration);
+                                int pct = (int)(netCrankProgress.Value * 100f);
+                                currentPrompt = $"⚙️ <color=#FFDD44>👨 [Ba] [GIỮ SPACE / E] Đang quay ròng rọc: {pct}% (Hao tổn thể lực...)</color>";
                             }
-
-                            // Đồng bộ nâng buồng thang máy chở Con sang Zone 3
-                            if (liftPlatform != null)
+                            else
                             {
-                                liftPlatform.position = Vector3.Lerp(liftLowPosition, liftHighPosition, currentCrankProgress);
-                            }
+                                currentCrankProgress += Time.deltaTime / crankDuration;
+                                currentCrankProgress = Mathf.Clamp01(currentCrankProgress);
+                                ApplyCrankVisuals(currentCrankProgress);
 
-                            UpdateCables();
+                                int pct = (int)(currentCrankProgress * 100f);
+                                currentPrompt = $"⚙️ <color=#FFDD44>👨 [Ba] [GIỮ SPACE / E] Đang quay ròng rọc: {pct}% (Hao tổn thể lực...)</color>";
 
-                            int pct = (int)(currentCrankProgress * 100f);
-                            currentPrompt = $"⚙️ <color=#FFDD44>👨 [Ba] [GIỮ SPACE / E] Đang quay ròng rọc: {pct}% (Hao tổn thể lực...)</color>";
-
-                            // Đã quay tới đích (100%)
-                            if (currentCrankProgress >= 1f)
-                            {
-                                if (pressurePlatePad != null)
+                                if (currentCrankProgress >= 1f)
                                 {
-                                    Vector3 lp = pressurePlatePad.localPosition;
-                                    lp.y = padPressedLocalY;
-                                    pressurePlatePad.localPosition = lp;
+                                    currentStage = ElevatorStage.ConAtZone3_NeedsBoulder;
+                                    SetLockPinMaterial(matRedIndicator);
+                                    Debug.Log("<color=green>[CraneElevator] RẦM! CẠCH! Quả cầu đá đã đè chặt đĩa áp lực, Con đã sang bờ Zone 3 an toàn!</color>");
+                                    currentPrompt = "<color=#66FF66>✅ [HOÀN THÀNH] Đã đưa Con sang Zone 3! Máy tời mất điện, Con hãy kiểm tra hộp điện bên cạnh!</color>";
                                 }
-
-                                currentStage = ElevatorStage.ConAtZone3_NeedsBoulder;
-                                SetLockPinMaterial(matRedIndicator);
-                                Debug.Log("<color=green>[CraneElevator] RẦM! CẠCH! Quả cầu đá đã đè chặt đĩa áp lực, Con đã sang bờ Zone 3 an toàn!</color>");
-                                currentPrompt = "<color=#66FF66>✅ [HOÀN THÀNH] Đã đưa Con sang Zone 3! Máy tời mất điện, Con hãy kiểm tra hộp điện bên cạnh!</color>";
                             }
                         }
                     }
@@ -1011,8 +1213,15 @@ namespace Blocks.Gameplay.Core
         public void TriggerRollBoulder()
         {
             if (currentStage != ElevatorStage.ConAtZone3_NeedsBoulder || IsMoving) return;
-            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
-            activeMotionRoutine = StartCoroutine(RollBoulderRoutine());
+            if (IsNetworkActive)
+            {
+                RequestRollBoulderServerRpc();
+            }
+            else
+            {
+                if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+                activeMotionRoutine = StartCoroutine(RollBoulderRoutine());
+            }
         }
 
         private IEnumerator RollBoulderRoutine()
@@ -1066,6 +1275,7 @@ namespace Blocks.Gameplay.Core
             }
 
             currentStage = ElevatorStage.BoulderPlaced_WaitingDad;
+            if (IsNetworkActive && IsServer) netStage.Value = ElevatorStage.BoulderPlaced_WaitingDad;
             Debug.Log("<color=cyan>[CraneElevator] RẦM! Tảng đá đã lọt vào máng bập bênh, chốt sơ cấp bật mở (Đèn Vàng)! Hãy báo hiệu cho Cha bên Cần cẩu vặn nhả bánh răng để mở khóa 100%!</color>");
         }
 
@@ -1076,8 +1286,15 @@ namespace Blocks.Gameplay.Core
         public void TriggerDadReleaseClutch()
         {
             if (currentStage != ElevatorStage.BoulderPlaced_WaitingDad || IsMoving) return;
-            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
-            activeMotionRoutine = StartCoroutine(DadReleaseClutchRoutine());
+            if (IsNetworkActive)
+            {
+                RequestDadReleaseClutchServerRpc();
+            }
+            else
+            {
+                if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+                activeMotionRoutine = StartCoroutine(DadReleaseClutchRoutine());
+            }
         }
 
         private IEnumerator DadReleaseClutchRoutine()
@@ -1115,6 +1332,8 @@ namespace Blocks.Gameplay.Core
             }
 
             currentStage = ElevatorStage.BothUnlocked_ReadyReturn;
+            if (IsNetworkActive && IsServer) netStage.Value = ElevatorStage.BothUnlocked_ReadyReturn;
+            if (IsNetworkActive && IsServer) netStage.Value = ElevatorStage.BothUnlocked_ReadyReturn;
             Debug.Log("<color=green>[CraneElevator] TÁCH! Khóa hãm đã bung ra hoàn toàn (Đèn Xanh Lục)! Cần tời Zone 3 đã sẵn sàng. Con hãy kéo cần tời đón Cha!</color>");
         }
 
@@ -1125,8 +1344,15 @@ namespace Blocks.Gameplay.Core
         public void TriggerReturnToIslet()
         {
             if (currentStage != ElevatorStage.BothUnlocked_ReadyReturn || IsMoving) return;
-            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
-            activeMotionRoutine = StartCoroutine(ReturnToIsletRoutine());
+            if (IsNetworkActive)
+            {
+                RequestReturnToIsletServerRpc();
+            }
+            else
+            {
+                if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+                activeMotionRoutine = StartCoroutine(ReturnToIsletRoutine());
+            }
         }
 
         private IEnumerator ReturnToIsletRoutine()
@@ -1215,6 +1441,7 @@ namespace Blocks.Gameplay.Core
             }
 
             currentStage = ElevatorStage.ThangAtIslet_ReadyDad;
+            if (IsNetworkActive && IsServer) netStage.Value = ElevatorStage.ThangAtIslet_ReadyDad;
             UpdateCables();
 
             Debug.Log("<color=green>[CraneElevator] Thang máy đã cập bến Trụ Islet! Cha hãy bước lên thang và kích hoạt để sang Zone 3!</color>");
@@ -1227,8 +1454,15 @@ namespace Blocks.Gameplay.Core
         public void TriggerSecondRide()
         {
             if (currentStage != ElevatorStage.ThangAtIslet_ReadyDad || IsMoving) return;
-            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
-            activeMotionRoutine = StartCoroutine(SecondRideRoutine());
+            if (IsNetworkActive)
+            {
+                RequestSecondRideServerRpc();
+            }
+            else
+            {
+                if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+                activeMotionRoutine = StartCoroutine(SecondRideRoutine());
+            }
         }
 
         private IEnumerator SecondRideRoutine()
@@ -1309,6 +1543,7 @@ namespace Blocks.Gameplay.Core
             if (liftPlatform != null) liftPlatform.position = liftEnd;
 
             currentStage = ElevatorStage.BothCompleted;
+            if (IsNetworkActive && IsServer) netStage.Value = ElevatorStage.BothCompleted;
             UpdateCables();
 
             Debug.Log("<color=green>[CraneElevator] THÀNH CÔNG RỰC RỠ! Cả hai Cha Con đã đoàn tụ trên Cao Nguyên Zone 3!</color>");
@@ -1433,8 +1668,15 @@ namespace Blocks.Gameplay.Core
             }
 
             wirePuzzleMessage = "<color=#33FF55>🎉 TOÀN BỘ MẠCH ĐIỆN ĐÃ ĐƯỢC KẾT NỐI! NGUỒN CẦN TỜI ĐÃ PHỤC HỒI! 🎉</color>";
-            if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
-            activeMotionRoutine = StartCoroutine(WirePuzzleSuccessRoutine());
+            if (IsNetworkActive)
+            {
+                CompleteWirePuzzleServerRpc();
+            }
+            else
+            {
+                if (activeMotionRoutine != null) StopCoroutine(activeMotionRoutine);
+                activeMotionRoutine = StartCoroutine(WirePuzzleSuccessRoutine());
+            }
         }
 
         private IEnumerator WirePuzzleSuccessRoutine()
@@ -1491,6 +1733,8 @@ namespace Blocks.Gameplay.Core
             }
 
             currentStage = ElevatorStage.BothUnlocked_ReadyReturn;
+            if (IsNetworkActive && IsServer) netStage.Value = ElevatorStage.BothUnlocked_ReadyReturn;
+            if (IsNetworkActive && IsServer) netStage.Value = ElevatorStage.BothUnlocked_ReadyReturn;
             Debug.Log("<color=green>[CraneElevator] Cạch! Cửa tủ điện đã đóng kín, mạch điện đã thông! Con hãy gạt cần tời để gọi thang về đón Ba!</color>");
         }
 
