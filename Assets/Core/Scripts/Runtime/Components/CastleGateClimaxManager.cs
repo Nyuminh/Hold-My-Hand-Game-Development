@@ -65,7 +65,7 @@ namespace Blocks.Gameplay.Core
                     if (child != null && drain != null)
                     {
                         var pos = drain.transform.InverseTransformPoint(child.transform.position);
-                        if (Mathf.Abs(pos.x) < 1f && pos.z < -3 && pos.z > -7) enteredDrain.Value = true;
+                        if (Mathf.Abs(pos.x) < 1.35f && pos.z < -1.5f && pos.z > -8.5f) enteredDrain.Value = true;
                     }
                     break;
                 case GateClimaxPhase.Opening:
