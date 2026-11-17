@@ -363,6 +363,8 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             light.color = new Color(1.0f, 0.85f, 0.45f);
             light.range = 10f;
             light.intensity = 2.5f;
+
+            foreach (var c in root.GetComponentsInChildren<Collider>()) c.isTrigger = true;
             return root;
         }
 
@@ -381,6 +383,8 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var arrowShaft = Box("ArrowShaft", root.transform, new Vector3(0, 1.5f, 0.08f), new Vector3(0.5f, 0.12f, 0.06f), goldMat);
             var arrowHead = Box("ArrowHead", root.transform, new Vector3(arrowPointsForward ? 0.28f : -0.28f, 1.5f, 0.08f), new Vector3(0.2f, 0.25f, 0.06f), goldMat);
             arrowHead.transform.localRotation = Quaternion.Euler(0, 0, arrowPointsForward ? -45 : 45);
+
+            foreach (var c in root.GetComponentsInChildren<Collider>()) c.isTrigger = true;
             return root;
         }
 
@@ -397,6 +401,8 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             headL.transform.localRotation = Quaternion.Euler(0, -35, 0);
             var headR = Box("ArrowHead_R", root.transform, new Vector3(0.45f, 0.06f, 0.4f), new Vector3(0.35f, 0.16f, 0.9f), goldMat);
             headR.transform.localRotation = Quaternion.Euler(0, 35, 0);
+
+            foreach (var c in root.GetComponentsInChildren<Collider>()) c.isTrigger = true;
             return root;
         }
 
@@ -453,14 +459,14 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var startArea = Marker("01_StartDock_Area", Root.transform, Vector3.zero);
             // Wooden Pier
             var dockDeck = Box("StartDock_Pier", startArea, new Vector3(93.5f, 0.95f, 30.0f), new Vector3(4.5f, 0.25f, 9.0f), woodMat);
-            // Support pilings
-            Cylinder("Piling_1", startArea, new Vector3(91.5f, 0.3f, 26.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat);
-            Cylinder("Piling_2", startArea, new Vector3(95.5f, 0.3f, 26.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat);
-            Cylinder("Piling_3", startArea, new Vector3(91.5f, 0.3f, 34.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat);
-            Cylinder("Piling_4", startArea, new Vector3(95.5f, 0.3f, 34.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat);
+            // Support pilings (set isTrigger = true to prevent blocking boat BoxCast)
+            Cylinder("Piling_1", startArea, new Vector3(91.5f, 0.3f, 26.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat).GetComponent<Collider>().isTrigger = true;
+            Cylinder("Piling_2", startArea, new Vector3(95.5f, 0.3f, 26.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat).GetComponent<Collider>().isTrigger = true;
+            Cylinder("Piling_3", startArea, new Vector3(91.5f, 0.3f, 34.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat).GetComponent<Collider>().isTrigger = true;
+            Cylinder("Piling_4", startArea, new Vector3(95.5f, 0.3f, 34.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat).GetComponent<Collider>().isTrigger = true;
             // Mooring Bollards
-            Cylinder("Bollard_1", startArea, new Vector3(95.5f, 1.25f, 32.0f), new Vector3(0.25f, 0.4f, 0.25f), ironMat);
-            Cylinder("Bollard_2", startArea, new Vector3(95.5f, 1.25f, 34.0f), new Vector3(0.25f, 0.4f, 0.25f), ironMat);
+            Cylinder("Bollard_1", startArea, new Vector3(95.5f, 1.25f, 32.0f), new Vector3(0.25f, 0.4f, 0.25f), ironMat).GetComponent<Collider>().isTrigger = true;
+            Cylinder("Bollard_2", startArea, new Vector3(95.5f, 1.25f, 34.0f), new Vector3(0.25f, 0.4f, 0.25f), ironMat).GetComponent<Collider>().isTrigger = true;
 
             // NÂNG CẤP KIẾN TRÚC START DOCK:
             // Cầu dốc thoai thoải nối bờ cát với sàn cầu cảng (Ramp)
@@ -470,9 +476,10 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             // Lan can bảo vệ hai bên mép dock (Railings)
             Box("StartDock_Railing_Left", startArea, new Vector3(91.2f, 1.45f, 30.0f), new Vector3(0.18f, 0.85f, 8.8f), woodMat);
             Box("StartDock_Railing_Right_Back", startArea, new Vector3(95.8f, 1.45f, 27.5f), new Vector3(0.18f, 0.85f, 3.8f), woodMat);
-            // Cầu ván nhảy áp sát mạn thuyền (Gangway leading to boat)
-            var gangway = Box("StartDock_Gangway", startArea, new Vector3(96.2f, 0.85f, 33.5f), new Vector3(1.8f, 0.15f, 2.2f), woodMat);
-            gangway.transform.localRotation = Quaternion.Euler(0, 10f, -8f);
+            // Cầu ván nhảy áp sát mạn thuyền (Gangway leading to boat - trigger để không kẹt thuyền)
+            var gangway = Box("StartDock_Gangway", startArea, new Vector3(96.0f, 0.85f, 33.5f), new Vector3(1.2f, 0.15f, 2.0f), woodMat);
+            gangway.transform.localRotation = Quaternion.Euler(0, 5f, -6f);
+            gangway.GetComponent<Collider>().isTrigger = true;
 
             // 2 Cột đèn lồng ấm áp thắp sáng bến khởi hành
             LanternPost("StartDock_Lantern_1", startArea, new Vector3(91.5f, 0.95f, 25.5f), woodMat, goldMat);
@@ -504,12 +511,12 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var pad1 = GameObject.Find("Pfb_SpawnPad (1)");
             if (pad1 != null) pad1.transform.position = spawnChild.position;
 
-            // Ensure Boat is placed by dock
+            // Ensure Boat is placed in clear water by dock
             var boat = GameObject.Find("Coop_Wooden_Boat");
             if (boat != null)
             {
-                boat.transform.position = new Vector3(97.2f, 0.53f, 34.2f);
-                boat.transform.rotation = Quaternion.Euler(0, 5f, 0);
+                boat.transform.position = new Vector3(97.8f, 0.53f, 34.5f);
+                boat.transform.rotation = Quaternion.Euler(0, 0f, 0);
             }
 
             // ==========================================

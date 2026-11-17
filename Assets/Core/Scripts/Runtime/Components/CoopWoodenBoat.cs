@@ -868,10 +868,10 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            // 1. Nhận diện phím [SPACE] để chèo thuyền (Dad)
+            // 1. Nhận diện phím [SPACE] hoặc [W] / [Mũi tên lên] để chèo thuyền (Dad)
             bool spacePressed = false;
 #if ENABLE_INPUT_SYSTEM
-            if (Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.upArrowKey.wasPressedThisFrame))
+            if (Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.wKey.wasPressedThisFrame || Keyboard.current.upArrowKey.wasPressedThisFrame))
             {
                 spacePressed = true;
             }
@@ -880,7 +880,7 @@ namespace Blocks.Gameplay.Core
                 spacePressed = true;
             }
 #else
-            if (!spacePressed && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.UpArrow)))
+            if (!spacePressed && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)))
             {
                 spacePressed = true;
             }
