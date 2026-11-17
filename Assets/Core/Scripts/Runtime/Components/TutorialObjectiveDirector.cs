@@ -214,12 +214,12 @@ namespace Blocks.Gameplay.Core
 
         private void AutoFindControllers()
         {
-            if (zone1DrawbridgeCtrl == null) zone1DrawbridgeCtrl = FindAnyObjectByType<CoopDrawbridgeController>();
-            if (craneElevatorCtrl == null) craneElevatorCtrl = CraneElevatorController.Instance ?? FindAnyObjectByType<CraneElevatorController>();
-            if (gearTurntableCtrl == null) gearTurntableCtrl = GiantGearTurntableController.Instance ?? FindAnyObjectByType<GiantGearTurntableController>();
-            if (coveDrawbridgeCtrl == null) coveDrawbridgeCtrl = CoveDrawbridgeCoopController.Instance ?? FindAnyObjectByType<CoveDrawbridgeCoopController>();
-            if (ziplineCtrl == null) ziplineCtrl = Stage3ZiplineCoopController.Instance ?? FindAnyObjectByType<Stage3ZiplineCoopController>();
-            if (shipwreckCtrl == null) shipwreckCtrl = ShipwreckCoopController.Instance ?? FindAnyObjectByType<ShipwreckCoopController>();
+            if (zone1DrawbridgeCtrl == null) zone1DrawbridgeCtrl = CoopDrawbridgeController.Instance ?? FindAnyObjectByType<CoopDrawbridgeController>(FindObjectsInactive.Include);
+            if (craneElevatorCtrl == null) craneElevatorCtrl = CraneElevatorController.Instance ?? FindAnyObjectByType<CraneElevatorController>(FindObjectsInactive.Include);
+            if (gearTurntableCtrl == null) gearTurntableCtrl = GiantGearTurntableController.Instance ?? FindAnyObjectByType<GiantGearTurntableController>(FindObjectsInactive.Include);
+            if (coveDrawbridgeCtrl == null) coveDrawbridgeCtrl = CoveDrawbridgeCoopController.Instance ?? FindAnyObjectByType<CoveDrawbridgeCoopController>(FindObjectsInactive.Include);
+            if (ziplineCtrl == null) ziplineCtrl = Stage3ZiplineCoopController.Instance ?? FindAnyObjectByType<Stage3ZiplineCoopController>(FindObjectsInactive.Include);
+            if (shipwreckCtrl == null) shipwreckCtrl = ShipwreckCoopController.Instance ?? FindAnyObjectByType<ShipwreckCoopController>(FindObjectsInactive.Include);
         }
 
         private void CreateDefaultPlaySceneChapters()
@@ -406,6 +406,7 @@ namespace Blocks.Gameplay.Core
 
                 // ── Cầu rút Zone1: Cha gạt cần trái + Con gạt cần phải ─────────
                 case ChapterProbe.DrawbridgeZone1Lowered:
+                    if (zone1DrawbridgeCtrl == null) zone1DrawbridgeCtrl = CoopDrawbridgeController.Instance ?? FindAnyObjectByType<CoopDrawbridgeController>(FindObjectsInactive.Include);
                     if (zone1DrawbridgeCtrl == null) { LogMissing("zone1DrawbridgeCtrl", chapter.id); return false; }
                     return zone1DrawbridgeCtrl.IsLeftPulled && zone1DrawbridgeCtrl.IsRightPulled;
 
@@ -654,10 +655,15 @@ namespace Blocks.Gameplay.Core
             return Camera.main != null ? Camera.main.transform : null;
         }
 
+        private static readonly HashSet<string> loggedMissing = new HashSet<string>();
         private static void LogMissing(string fieldName, string chapterId)
         {
-            Debug.LogWarning($"[TutorialObjectiveDirector] Chapter '{chapterId}': " +
-                             $"controller '{fieldName}' is not assigned. Probe will never fire.");
+            string key = $"{chapterId}_{fieldName}";
+            if (loggedMissing.Add(key))
+            {
+                Debug.LogWarning($"[TutorialObjectiveDirector] Chapter '{chapterId}': " +
+                                 $"controller '{fieldName}' is not assigned. Probe will never fire.");
+            }
         }
 
         private void OnAllChaptersComplete()
