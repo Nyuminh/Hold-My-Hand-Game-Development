@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace Blocks.Gameplay.Core
 {
@@ -38,74 +41,60 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float tiltAngleInitial = -15f;
 
         [Tooltip("Góc nghiêng sau khi Ba dộng xuống")]
-        [SerializeField] private float tiltAngleSlammed = 18f;
+        [SerializeField] private float tiltAngleSlammed = 22f;
 
-        [Header("State Status")]
-        [SerializeField] private bool isChildSeated = false;
-        [SerializeField] private bool isLaunched = false;
-        [SerializeField] private bool isCompleted = false;
+        [Header("Visual & Light")]
+        [SerializeField] private Light m_GuideLight;
 
+        private bool isLaunched = false;
+        private bool isCompleted = false;
         public bool IsCompleted => isCompleted;
-        public bool IsChildSeated => isChildSeated;
-
         private CharacterController m_SeatedChild;
-        private Light m_GuideLight;
 
-        private void Awake()
+        private void Start()
         {
             if (seesawBeam != null)
             {
                 seesawBeam.localRotation = Quaternion.Euler(tiltAngleInitial, 0f, 0f);
             }
-            SetupVisualAffordance();
-        }
-
-        private void SetupVisualAffordance()
-        {
-            GameObject lightObj = new GameObject("Catapult_Affordance_Light");
-            lightObj.transform.SetParent(transform);
-            lightObj.transform.position = (childSeatPoint != null ? childSeatPoint.position : transform.position) + Vector3.up * 2.5f;
-            m_GuideLight = lightObj.AddComponent<Light>();
-            m_GuideLight.type = LightType.Point;
-            m_GuideLight.color = new Color(1.0f, 0.75f, 0.3f);
-            m_GuideLight.range = 6f;
-            m_GuideLight.intensity = 1.8f;
+            if (m_GuideLight != null)
+            {
+                m_GuideLight.color = new Color(1f, 0.85f, 0.4f);
+            }
         }
 
         private void Update()
         {
-            if (isCompleted || isLaunched) return;
+            if (isLaunched || isCompleted) return;
 
-            // 1. Kiểm tra Con bước vào vị trí ngồi trên bập bênh
-            if (!isChildSeated)
+            // 1. Kiểm tra Con đã đứng vào điểm ngồi chưa
+            CheckChildInSeat();
+
+            // 2. Nếu Con đã ngồi, kiểm tra Ba dộng bập bênh
+            if (m_SeatedChild != null)
             {
-                CheckChildEnteringSeat();
-            }
-            else
-            {
-                // Khi Con đã ngồi, kiểm tra Ba dộng xuống đầu bên kia
                 CheckDadSlamAction();
             }
         }
 
-        private void CheckChildEnteringSeat()
+        private void CheckChildInSeat()
         {
             if (childSeatPoint == null) return;
 
             var players = GameObject.FindGameObjectsWithTag("Player");
             foreach (var p in players)
             {
-                if (Vector3.Distance(p.transform.position, childSeatPoint.position) <= 2.2f)
+                bool isChild = p.name.ToLower().Contains("child");
+                if (p.TryGetComponent<PlayerRoleVisuals>(out var visuals))
                 {
-                    bool isDad = p.name.ToLower().Contains("dad");
-                    if (p.TryGetComponent<PlayerRoleVisuals>(out var visuals))
-                    {
-                        isDad = visuals.IsDad;
-                    }
+                    isChild = !visuals.IsDad;
+                }
 
-                    if (!isDad) // Là Con
+                if (isChild)
+                {
+                    float dist = Vector3.Distance(p.transform.position, childSeatPoint.position);
+                    if (dist <= 1.8f)
                     {
-                        isChildSeated = true;
                         m_SeatedChild = p.GetComponent<CharacterController>();
                         Debug.Log("<color=cyan>[Catapult] Con đã đứng vào bập bênh! Ba hãy nhảy dộng từ mỏm đá cao xuống!</color>");
                         break;
@@ -132,8 +121,21 @@ namespace Blocks.Gameplay.Core
                     float dist = Vector3.Distance(p.transform.position, dadSlamPoint.position);
                     if (dist <= 2.5f)
                     {
-                        // Ba nhấn [Space] hoặc [F] khi ở điểm dộng bập bênh
-                        if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E))
+                        // Ba nhấn [Space] hoặc [F] hoặc [E] khi ở điểm dộng bập bênh
+                        bool isInteract = false;
+#if ENABLE_INPUT_SYSTEM
+                        if (Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.eKey.wasPressedThisFrame))
+                        {
+                            isInteract = true;
+                        }
+                        if (Gamepad.current != null && (Gamepad.current.buttonSouth.wasPressedThisFrame || Gamepad.current.buttonWest.wasPressedThisFrame))
+                        {
+                            isInteract = true;
+                        }
+#else
+                        isInteract = Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E);
+#endif
+                        if (isInteract)
                         {
                             TriggerCatapultLaunch();
                             break;

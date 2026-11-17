@@ -10668,41 +10668,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: -6613787865663533827, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
---- !u!1 &119998905 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2713864466427923706, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
-  m_PrefabInstance: {fileID: 351629602}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &119998910
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 119998905}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 389e2db4e6f53954a9e61ea88b945c27, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopDrawbridgeController
-  bridgeHinge: {fileID: 0}
-  leverLeft: {fileID: 0}
-  leverRight: {fileID: 0}
-  pulleyLeft: {fileID: 0}
-  pulleyRight: {fileID: 0}
-  ringLeft: {fileID: 0}
-  ringRight: {fileID: 0}
-  chainLeft: {fileID: 0}
-  chainRight: {fileID: 0}
-  startUpright: 1
-  interactDistance: 3
-  uprightAngleOffset: 0
-  halfLowerAngleOffset: 38
-  fullLowerAngleOffset: 78
-  transitionDuration: 2
-  isLeftPulled: 0
-  isRightPulled: 0
-  currentBridgeAngle: 0
 --- !u!1 &123480602 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -2144311580169570396, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -27211,6 +27176,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2349998364037299598, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
       insertIndex: -1
       addedObject: {fileID: 525501098}
+    - targetCorrespondingSourceObject: {fileID: 2349998364037299598, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 525501099}
     - targetCorrespondingSourceObject: {fileID: -139854345239111167, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1001058598}
@@ -28063,21 +28031,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1472096651959882820, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
       insertIndex: -1
       addedObject: {fileID: 438501097}
-    - targetCorrespondingSourceObject: {fileID: 1472096651959882820, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 438501099}
     - targetCorrespondingSourceObject: {fileID: -999440292356216675, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
       insertIndex: -1
       addedObject: {fileID: 261503238}
-    - targetCorrespondingSourceObject: {fileID: 2695151881244732004, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 938171510}
     - targetCorrespondingSourceObject: {fileID: 8674454443912458027, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
       insertIndex: -1
       addedObject: {fileID: 351629604}
-    - targetCorrespondingSourceObject: {fileID: 2713864466427923706, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 119998910}
     - targetCorrespondingSourceObject: {fileID: 7261241114126030793, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
       insertIndex: -1
       addedObject: {fileID: 920093680}
@@ -29761,6 +29720,51 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.7399998, y: 0.5399999, z: 1.4}
   m_Center: {x: 0, y: -0.000000059604645, z: 0.44999978}
+--- !u!4 &351629605 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 9193798113877823283, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+  m_PrefabInstance: {fileID: 351629602}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &351629606 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -3300135755409251954, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+  m_PrefabInstance: {fileID: 351629602}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &351629607 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 6042174691363396113, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+  m_PrefabInstance: {fileID: 351629602}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &351629608 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -5968436608773605305, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+  m_PrefabInstance: {fileID: 351629602}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &351629609 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4725085632669291115, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+  m_PrefabInstance: {fileID: 351629602}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &351629610 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5314393324350261754, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+  m_PrefabInstance: {fileID: 351629602}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &351629611 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5914718748229657493, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+  m_PrefabInstance: {fileID: 351629602}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &351629612 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -6749725580710486098, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+  m_PrefabInstance: {fileID: 351629602}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &351629613 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -4286405671277214984, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+  m_PrefabInstance: {fileID: 351629602}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &352719293 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -2276966804438789167, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -33950,6 +33954,7 @@ GameObject:
   m_Component:
   - component: {fileID: 433975768}
   - component: {fileID: 433975767}
+  - component: {fileID: 433975769}
   m_Layer: 0
   m_Name: Cove_Drawbridge_CoopController
   m_TagString: Untagged
@@ -33969,6 +33974,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 367e0942ea0396c4c9960b16d9424ffa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoveDrawbridgeCoopController
+  ShowTopMostFoldoutHeaderGroup: 1
   hingePivot: {fileID: 591872420}
   leaf: {fileID: 771547426}
   releasePin: {fileID: 156894614}
@@ -34006,6 +34012,32 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &433975769
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 433975766}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 1973901159
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  m_InScenePlaced: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
 --- !u!1 &434069986 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -8802418388260877534, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -34321,36 +34353,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 0}
---- !u!114 &438501099
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 438501095}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 389e2db4e6f53954a9e61ea88b945c27, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopDrawbridgeController
-  bridgeHinge: {fileID: 0}
-  leverLeft: {fileID: 0}
-  leverRight: {fileID: 0}
-  pulleyLeft: {fileID: 0}
-  pulleyRight: {fileID: 0}
-  ringLeft: {fileID: 0}
-  ringRight: {fileID: 0}
-  chainLeft: {fileID: 0}
-  chainRight: {fileID: 0}
-  startUpright: 1
-  interactDistance: 3
-  uprightAngleOffset: 0
-  halfLowerAngleOffset: 38
-  fullLowerAngleOffset: 78
-  transitionDuration: 2
-  isLeftPulled: 0
-  isRightPulled: 0
-  currentBridgeAngle: 0
 --- !u!1 &439314018 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -3036091515802054322, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -38391,6 +38393,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ecf99d8a5aa04b44cb3aeed337a2a7dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.Stage3ZiplineCoopController
+  ShowTopMostFoldoutHeaderGroup: 1
   winchPost: {fileID: 141601366}
   winchDrum: {fileID: 0}
   giantStoneGear: {fileID: 0}
@@ -38405,6 +38408,32 @@ MonoBehaviour:
   isRiding: 0
   hasCompletedRide: 0
   winchProgress: 0
+--- !u!114 &525501099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 525501089}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 1297974435
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  m_InScenePlaced: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
 --- !u!1 &525913369 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7093052055643984498, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -53407,9 +53436,7 @@ MonoBehaviour:
   arcPeakHeight: 5.5
   tiltAngleInitial: -15
   tiltAngleSlammed: 18
-  isChildSeated: 0
-  isLaunched: 0
-  isCompleted: 0
+  m_GuideLight: {fileID: 0}
 --- !u!1 &778899070
 GameObject:
   m_ObjectHideFlags: 0
@@ -54795,6 +54822,70 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 6664746501866207677, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
+--- !u!1 &788990100
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 788990101}
+  - component: {fileID: 788990102}
+  m_Layer: 0
+  m_Name: PlayScene3_ObjectiveDirector
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &788990101
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 788990100}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &788990102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 788990100}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98bcd1b86eee78a4a9f6fa2f04f4cfb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.TutorialObjectiveDirector
+  chapters: []
+  ropeLadderCtrl: {fileID: 0}
+  zone1DrawbridgeCtrl: {fileID: 0}
+  craneElevatorCtrl: {fileID: 0}
+  gearTurntableCtrl: {fileID: 0}
+  coveDrawbridgeCtrl: {fileID: 0}
+  ziplineCtrl: {fileID: 0}
+  shipwreckCtrl: {fileID: 0}
+  seesawCatapultCtrl: {fileID: 0}
+  tetherAbyssCtrl: {fileID: 0}
+  shieldSledCtrl: {fileID: 0}
+  nextLevelPortalCtrl: {fileID: 0}
+  beaconObject: {fileID: 0}
+  tutorialHUD: {fileID: 0}
+  objectiveTitleElementName: objective-title-label
+  objectiveHintElementName: objective-hint-label
+  keysContainerElementName: objective-keys-container
+  compassArrowElementName: compass-arrow
+  probeHz: 10
+  completionDelay: 1.2
 --- !u!1 &789077540 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -8102562556286779719, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -62553,41 +62644,6 @@ Transform:
   - {fileID: 1853558266}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &938171505 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2695151881244732004, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
-  m_PrefabInstance: {fileID: 351629602}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &938171510
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 938171505}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 389e2db4e6f53954a9e61ea88b945c27, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopDrawbridgeController
-  bridgeHinge: {fileID: 0}
-  leverLeft: {fileID: 0}
-  leverRight: {fileID: 0}
-  pulleyLeft: {fileID: 0}
-  pulleyRight: {fileID: 0}
-  ringLeft: {fileID: 0}
-  ringRight: {fileID: 0}
-  chainLeft: {fileID: 0}
-  chainRight: {fileID: 0}
-  startUpright: 1
-  interactDistance: 3
-  uprightAngleOffset: 0
-  halfLowerAngleOffset: 38
-  fullLowerAngleOffset: 78
-  transitionDuration: 2
-  isLeftPulled: 0
-  isRightPulled: 0
-  currentBridgeAngle: 0
 --- !u!1 &938738904 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -6227667530076796424, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -65721,6 +65777,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1009355036}
   - component: {fileID: 1009355037}
+  - component: {fileID: 1009355038}
   m_Layer: 0
   m_Name: Zone3_Gear_Turntable_Pivot
   m_TagString: Untagged
@@ -65756,6 +65813,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4326f3279cacb048b4f05b3ccccecb0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.GiantGearTurntableController
+  ShowTopMostFoldoutHeaderGroup: 1
   gearTurntablePivot: {fileID: 1009355036}
   gearBody: {fileID: 1887380795}
   gearCenterHub: {fileID: 1395785349}
@@ -65776,6 +65834,32 @@ MonoBehaviour:
   isCompleted: 0
   crankProgress: 0
   currentRotationAngle: 0
+--- !u!114 &1009355038
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1009355035}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 1342839531
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  m_InScenePlaced: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
 --- !u!1 &1009358921 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5384376004877340444, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -68927,6 +69011,7 @@ GameObject:
   - component: {fileID: 1077121098}
   - component: {fileID: 1077121097}
   - component: {fileID: 778899035}
+  - component: {fileID: 1077121099}
   m_Layer: 0
   m_Name: Crane_Elevator_System
   m_TagString: Untagged
@@ -68946,6 +69031,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 996ba7b11fef82245916b3c82bddb962, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CraneElevatorController
+  ShowTopMostFoldoutHeaderGroup: 1
   stoneBall: {fileID: 1480033454}
   stoneBallChain: {fileID: 313117343}
   cogwheel: {fileID: 0}
@@ -69019,6 +69105,32 @@ Transform:
   - {fileID: 959343568}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1077121099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1077121096}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 2654951840
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  m_InScenePlaced: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
 --- !u!1 &1077760157
 GameObject:
   m_ObjectHideFlags: 0
@@ -113398,6 +113510,96 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2046186943}
   m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &2048565104
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2048565106}
+  - component: {fileID: 2048565105}
+  - component: {fileID: 2048565107}
+  m_Layer: 0
+  m_Name: Zone1_Drawbridge_System
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2048565105
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2048565104}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 1432201812
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  m_InScenePlaced: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
+--- !u!4 &2048565106
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2048565104}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2048565107
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2048565104}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 389e2db4e6f53954a9e61ea88b945c27, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopDrawbridgeController
+  ShowTopMostFoldoutHeaderGroup: 1
+  bridgeHinge: {fileID: 351629613}
+  leverLeft: {fileID: 351629612}
+  leverRight: {fileID: 351629611}
+  pulleyLeft: {fileID: 351629610}
+  pulleyRight: {fileID: 351629609}
+  ringLeft: {fileID: 351629608}
+  ringRight: {fileID: 351629607}
+  chainLeft: {fileID: 351629606}
+  chainRight: {fileID: 351629605}
+  startUpright: 1
+  interactDistance: 3.5
+  uprightAngleOffset: 0
+  halfLowerAngleOffset: 38
+  fullLowerAngleOffset: 78
+  transitionDuration: 2
+  isLeftPulled: 0
+  isRightPulled: 0
+  currentBridgeAngle: 0
 --- !u!1 &2048883659 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -6667744493272238937, guid: ad2f1dd27f887d740bc39b9716822eab, type: 3}
@@ -117517,51 +117719,5 @@ SceneRoots:
   - {fileID: 852034185}
   - {fileID: 115528435}
   - {fileID: 258500843}
-
---- !u!1 &788990100
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 788990101}
-  - component: {fileID: 788990102}
-  m_Layer: 0
-  m_Name: PlayScene3_ObjectiveDirector
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &788990101
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 788990100}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &788990102
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 788990100}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 98bcd1b86eee78a4a9f6fa2f04f4cfb1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.TutorialObjectiveDirector
-  chapters: []
-  probeHz: 10
-  completionDelay: 1.2
+  - {fileID: 788990101}
+  - {fileID: 2048565106}

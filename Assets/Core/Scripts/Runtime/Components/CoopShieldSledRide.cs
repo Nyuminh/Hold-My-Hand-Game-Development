@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace Blocks.Gameplay.Core
 {
@@ -54,7 +57,7 @@ namespace Blocks.Gameplay.Core
 
             if (!isRiding)
             {
-                CheckBothBoarding();
+                CheckPlayersReady();
             }
             else
             {
@@ -62,9 +65,9 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        private void CheckBothBoarding()
+        private void CheckPlayersReady()
         {
-            if (sledTransform == null) return;
+            if (dadSeat == null || childSeat == null) return;
 
             var players = GameObject.FindGameObjectsWithTag("Player");
             CharacterController dad = null;
@@ -72,7 +75,7 @@ namespace Blocks.Gameplay.Core
 
             foreach (var p in players)
             {
-                float dist = Vector3.Distance(p.transform.position, sledTransform.position);
+                float dist = Vector3.Distance(p.transform.position, transform.position);
                 if (dist <= 3.5f)
                 {
                     bool isDad = p.name.ToLower().Contains("dad");
@@ -88,8 +91,21 @@ namespace Blocks.Gameplay.Core
 
             if (dad != null && child != null)
             {
-                // Khi cả hai đến gần xe trượt và nhấn [F] / [E]
-                if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))
+                // Khi cả hai đến gần xe trượt và nhấn [F] / [E] / [Space]
+                bool isInteract = false;
+#if ENABLE_INPUT_SYSTEM
+                if (Keyboard.current != null && (Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame))
+                {
+                    isInteract = true;
+                }
+                if (Gamepad.current != null && (Gamepad.current.buttonWest.wasPressedThisFrame || Gamepad.current.buttonSouth.wasPressedThisFrame))
+                {
+                    isInteract = true;
+                }
+#else
+                isInteract = Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space);
+#endif
+                if (isInteract)
                 {
                     StartSledRide(dad, child);
                 }
@@ -116,7 +132,20 @@ namespace Blocks.Gameplay.Core
             if (downhillWaypoints == null || downhillWaypoints.Count == 0 || sledTransform == null) return;
 
             // Xử lý Ba bẻ lái trái/phải
-            float steerInput = Input.GetAxisRaw("Horizontal");
+            float steerInput = 0f;
+#if ENABLE_INPUT_SYSTEM
+            if (Keyboard.current != null)
+            {
+                if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) steerInput -= 1f;
+                if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) steerInput += 1f;
+            }
+            if (Gamepad.current != null)
+            {
+                steerInput += Gamepad.current.leftStick.x.ReadValue();
+            }
+#else
+            steerInput = Input.GetAxisRaw("Horizontal");
+#endif
             m_CurrentSteerOffset += steerInput * steerSensitivity * Time.deltaTime;
             m_CurrentSteerOffset = Mathf.Clamp(m_CurrentSteerOffset, -maxSteerOffset, maxSteerOffset);
 

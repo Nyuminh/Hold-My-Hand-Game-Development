@@ -44,7 +44,9 @@ namespace Blocks.Gameplay.Core
             }
 
             // 3. Add NetworkObject to all interactive GameObjects that require Netcode
-            EnsureNetworkObject("Zone1_Lever_PivotBox_Left");
+            EnsureNetworkObject("Zone1_Drawbridge_System");
+            EnsureNetworkObject("Stage3_Landing_Deck");
+            EnsureNetworkObject("Cove_Drawbridge_CoopController");
             EnsureNetworkObject("Crane_Elevator_System");
             EnsureNetworkObject("Zone3_Gear_Turntable_Pivot");
             EnsureNetworkObject("Giant_Stone_Gear_Body");

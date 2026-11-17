@@ -1,6 +1,8 @@
 using System.Collections;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
+#endif
 using Unity.Netcode;
 
 namespace Blocks.Gameplay.Core
@@ -157,8 +159,15 @@ namespace Blocks.Gameplay.Core
 
             if (bridgeHinge != null)
             {
-                currentBridgeAngle = startUpright ? uprightAngleOffset : fullLowerAngleOffset;
-                bridgeHinge.localRotation = initialHingeRot * Quaternion.Euler(0f, currentBridgeAngle, 0f);
+                if (IsNetworkActive)
+                {
+                    UpdateBridgeTargetFromLevers();
+                }
+                else
+                {
+                    currentBridgeAngle = startUpright ? uprightAngleOffset : fullLowerAngleOffset;
+                    bridgeHinge.localRotation = initialHingeRot * Quaternion.Euler(0f, currentBridgeAngle, 0f);
+                }
             }
 
             UpdateChains();
@@ -230,31 +239,24 @@ namespace Blocks.Gameplay.Core
 
             bool interactPressed = IsInteractPressed();
 
-            // Cần gạt Trái
-            if (leverLeft != null)
+            float distLeft = leverLeft != null ? Vector3.Distance(player.position, leverLeft.position) : float.MaxValue;
+            float distRight = leverRight != null ? Vector3.Distance(player.position, leverRight.position) : float.MaxValue;
+
+            // Ưu tiên cần gạt gần nhất nếu cả hai đều nằm trong tầm
+            if (distLeft <= interactDistance && distLeft <= distRight)
             {
-                float distLeft = Vector3.Distance(player.position, leverLeft.position);
-                if (distLeft <= interactDistance)
+                currentPrompt = isLeftPulled ? "Nhấn [R] để nhả Cần Bên Trái" : "Nhấn [R] để gạt Cần Bên Trái";
+                if (interactPressed)
                 {
-                    currentPrompt = isLeftPulled ? "Nhấn [R] để nhả Cần Bên Trái" : "Nhấn [R] để gạt Cần Bên Trái";
-                    if (interactPressed)
-                    {
-                        ToggleLever(true);
-                    }
+                    ToggleLever(true);
                 }
             }
-
-            // Cần gạt Phải
-            if (leverRight != null)
+            else if (distRight <= interactDistance)
             {
-                float distRight = Vector3.Distance(player.position, leverRight.position);
-                if (distRight <= interactDistance)
+                currentPrompt = isRightPulled ? "Nhấn [R] để nhả Cần Bên Phải" : "Nhấn [R] để gạt Cần Bên Phải";
+                if (interactPressed)
                 {
-                    currentPrompt = isRightPulled ? "Nhấn [R] để nhả Cần Bên Phải" : "Nhấn [R] để gạt Cần Bên Phải";
-                    if (interactPressed)
-                    {
-                        ToggleLever(false);
-                    }
+                    ToggleLever(false);
                 }
             }
         }
@@ -266,6 +268,7 @@ namespace Blocks.Gameplay.Core
 
         private bool IsInteractPressed()
         {
+#if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
             {
                 return true;
@@ -275,8 +278,10 @@ namespace Blocks.Gameplay.Core
             {
                 return true;
             }
-
             return false;
+#else
+            return Input.GetKeyDown(KeyCode.R);
+#endif
         }
 
         public void ToggleLever(bool isLeft)
@@ -449,8 +454,22 @@ namespace Blocks.Gameplay.Core
 
         private Transform FindLocalPlayer()
         {
-            GameObject playerObj = GameObject.FindWithTag("Player");
-            if (playerObj != null) return playerObj.transform;
+            // Ưu tiên tìm nhân vật của máy local (IsOwner)
+            var players = GameObject.FindGameObjectsWithTag("Player");
+            if (players != null && players.Length > 0)
+            {
+                foreach (var p in players)
+                {
+                    if (p == null) continue;
+                    var no = p.GetComponentInParent<NetworkObject>();
+                    if (no != null && no.IsOwner)
+                    {
+                        return p.transform;
+                    }
+                }
+                // Fallback khi chạy solo/offline trong Editor
+                return players[0].transform;
+            }
 
             if (mainCam != null) return mainCam.transform;
 
