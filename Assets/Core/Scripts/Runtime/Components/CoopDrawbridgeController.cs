@@ -19,6 +19,8 @@ namespace Blocks.Gameplay.Core
         private static CoopDrawbridgeController instance;
         public static CoopDrawbridgeController Instance => instance;
 
+        public bool IsNetworkActive => NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && IsSpawned;
+
         private readonly NetworkVariable<bool> netIsLeftPulled = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly NetworkVariable<bool> netIsRightPulled = new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
@@ -279,7 +281,7 @@ namespace Blocks.Gameplay.Core
 
         public void ToggleLever(bool isLeft)
         {
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            if (IsNetworkActive)
             {
                 if (IsServer)
                 {
@@ -293,8 +295,9 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            // Fallback khi chạy solo/offline không có Netcode active
-            ApplyLeverVisual(isLeft, isLeft ? !isLeftPulled : !isRightPulled, true);
+            // Fallback khi chạy solo/offline trong Editor hoặc chưa spawn qua mạng
+            bool newPulled = isLeft ? !isLeftPulled : !isRightPulled;
+            ApplyLeverVisual(isLeft, newPulled, true);
         }
 
         [ServerRpc(RequireOwnership = false)]
