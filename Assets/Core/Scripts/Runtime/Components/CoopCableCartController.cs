@@ -367,8 +367,10 @@ namespace Blocks.Gameplay.Core
             if (Keyboard.current != null && Keyboard.current.eKey.isPressed) return true;
             if (Gamepad.current != null && Gamepad.current.rightTrigger.isPressed) return true;
             if (Mouse.current != null && Mouse.current.leftButton.isPressed) return true;
-#endif
+            return false;
+#else
             return Input.GetKey(KeyCode.E) || Input.GetMouseButton(0);
+#endif
         }
 
         private bool IsLatchPressed()
@@ -376,8 +378,10 @@ namespace Blocks.Gameplay.Core
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) return true;
             if (Gamepad.current != null && Gamepad.current.buttonNorth.wasPressedThisFrame) return true;
-#endif
+            return false;
+#else
             return Input.GetKeyDown(KeyCode.R);
+#endif
         }
 
         #endregion

@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using Unity.Services.Authentication;
-#if UNITY_INPUT_SYSTEM
+#if ENABLE_INPUT_SYSTEM || UNITY_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
 
@@ -319,8 +319,8 @@ namespace Blocks.Gameplay.Core
 
         private static bool IsPushToTalkPressed()
         {
-#if UNITY_INPUT_SYSTEM
-            return s_Instance != null && !s_Instance.SuppressPushToTalk && Keyboard.current?.vKey.isPressed == true;
+#if ENABLE_INPUT_SYSTEM || UNITY_INPUT_SYSTEM
+            return s_Instance != null && !s_Instance.SuppressPushToTalk && Keyboard.current != null && Keyboard.current.vKey.isPressed;
 #else
             return s_Instance != null && !s_Instance.SuppressPushToTalk && Input.GetKey(KeyCode.V);
 #endif

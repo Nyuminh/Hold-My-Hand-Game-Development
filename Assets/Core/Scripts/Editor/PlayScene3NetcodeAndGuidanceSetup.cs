@@ -95,6 +95,47 @@ namespace Blocks.Gameplay.Core
                 uiDoc.panelSettings = panelSettings;
             }
 
+            // 5. Ensure WaitRoomUI & WaitRoomManager on GameManager
+            var gm = Object.FindAnyObjectByType<GameManager>();
+            if (gm != null)
+            {
+                var wrm = gm.GetComponent<WaitRoomManager>();
+                if (wrm == null) wrm = gm.gameObject.AddComponent<WaitRoomManager>();
+
+                var waitRoomGo = GameObject.Find("WaitRoomUI");
+                if (waitRoomGo == null)
+                {
+                    waitRoomGo = new GameObject("WaitRoomUI");
+                    waitRoomGo.layer = LayerMask.NameToLayer("UI") >= 0 ? LayerMask.NameToLayer("UI") : 5;
+                }
+
+                var wrmDoc = waitRoomGo.GetComponent<UIDocument>();
+                if (wrmDoc == null) wrmDoc = waitRoomGo.AddComponent<UIDocument>();
+
+                var bPanel = AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/Blocks/Common/BlocksPanelSettings.asset");
+                if (bPanel != null) wrmDoc.panelSettings = bPanel;
+
+                var wrmUxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Core/UI/WaitRoomScreen.uxml");
+                if (wrmUxml != null) wrmDoc.visualTreeAsset = wrmUxml;
+
+                var soWrm = new SerializedObject(wrm);
+                var wrmUiProp = soWrm.FindProperty("waitRoomUI");
+                if (wrmUiProp != null)
+                {
+                    wrmUiProp.objectReferenceValue = wrmDoc;
+                    soWrm.ApplyModifiedProperties();
+                }
+
+                var soGm = new SerializedObject(gm);
+                var gmWrmProp = soGm.FindProperty("waitRoomManager");
+                if (gmWrmProp != null)
+                {
+                    gmWrmProp.objectReferenceValue = wrm;
+                    soGm.ApplyModifiedProperties();
+                }
+                Debug.Log("[Setup] Configured WaitRoomManager and WaitRoomUI in PlayScene3.");
+            }
+
             // Save Scene
             EditorSceneManager.MarkSceneDirty(scene);
             bool saved = EditorSceneManager.SaveScene(scene);

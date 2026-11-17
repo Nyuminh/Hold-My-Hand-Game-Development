@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace Blocks.Gameplay.Core
 {
@@ -199,17 +202,23 @@ namespace Blocks.Gameplay.Core
         private bool IsInteractPressed()
         {
 #if ENABLE_INPUT_SYSTEM
-            if (UnityEngine.InputSystem.Keyboard.current != null)
+            if (Keyboard.current != null)
             {
-                var kb = UnityEngine.InputSystem.Keyboard.current;
-                if (kb.fKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)
+                if (Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame)
                     return true;
             }
-#endif
+            if (Gamepad.current != null)
+            {
+                if (Gamepad.current.buttonWest.wasPressedThisFrame || Gamepad.current.buttonSouth.wasPressedThisFrame)
+                    return true;
+            }
+            return false;
+#else
             if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))
                 return true;
 
             return false;
+#endif
         }
     }
 }

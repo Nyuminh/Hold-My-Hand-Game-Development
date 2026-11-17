@@ -221,6 +221,7 @@ namespace Blocks.Gameplay.Core
             catch { }
 #endif
 
+#if !ENABLE_INPUT_SYSTEM
             if (!escPressed)
             {
                 try
@@ -232,6 +233,7 @@ namespace Blocks.Gameplay.Core
                 }
                 catch { }
             }
+#endif
 
             if (escPressed)
             {
