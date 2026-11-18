@@ -39,6 +39,8 @@ namespace Blocks.Gameplay.Core
         {
             if (!isPickedUp)
             {
+                // The castle key is available only after the shipwreck chest opens.
+                if (ShipwreckCoopController.Instance != null && !ShipwreckCoopController.Instance.IsChestOpened) return;
                 // Hover and rotate
                 float newY = startPos.y + Mathf.Sin(Time.time * bobSpeed) * bobHeight;
                 transform.position = new Vector3(startPos.x, newY, startPos.z);

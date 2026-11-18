@@ -32,6 +32,10 @@ namespace Blocks.Gameplay.Core
         private Vector3 startRiderPos;
         private float rideProgress = 0f;
         private bool showPrompt = false;
+        private CharacterController riderController;
+        private Rigidbody riderBody;
+        private bool controllerWasEnabled;
+        private bool bodyWasKinematic;
 
         private void Awake()
         {
@@ -90,7 +94,8 @@ namespace Blocks.Gameplay.Core
                 while (p != null)
                 {
                     string n = p.name.ToLower();
-                    if (n.Contains("dad") || n.Contains("son") || n.Contains("child") || n.Contains("player") || n.Contains("character"))
+                    var net = p.GetComponent<NetworkObject>();
+                    if ((n.Contains("dad") || n.Contains("son") || n.Contains("child") || n.Contains("player") || n.Contains("character")) && (net == null || !net.IsSpawned || net.IsOwner))
                     {
                         foundPlayer = p;
                         break;
@@ -103,7 +108,11 @@ namespace Blocks.Gameplay.Core
             if (foundPlayer != null)
             {
                 showPrompt = true;
+#if ENABLE_INPUT_SYSTEM
+                if (UnityEngine.InputSystem.Keyboard.current != null && (UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame || UnityEngine.InputSystem.Keyboard.current.spaceKey.wasPressedThisFrame))
+#else
                 if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))
+#endif
                 {
                     StartRide(foundPlayer);
                 }
@@ -116,18 +125,22 @@ namespace Blocks.Gameplay.Core
 
         public void StartRide(Transform player)
         {
-            if (isLocalRiding) return;
+            if (isLocalRiding || player == null || launchPoint == null || landPoint == null) return;
+            var net = player.GetComponentInParent<NetworkObject>();
+            if (net != null && net.IsSpawned && !net.IsOwner) return;
             activeRider = player;
             isLocalRiding = true;
             rideProgress = 0f;
             startRiderPos = activeRider.position;
 
             // Disable character controller while on zipline
-            var cc = activeRider.GetComponent<CharacterController>();
-            if (cc != null) cc.enabled = false;
+            riderController = activeRider.GetComponent<CharacterController>();
+            controllerWasEnabled = riderController != null && riderController.enabled;
+            if (riderController != null) riderController.enabled = false;
 
-            var rb = activeRider.GetComponent<Rigidbody>();
-            if (rb != null) rb.isKinematic = true;
+            riderBody = activeRider.GetComponent<Rigidbody>();
+            bodyWasKinematic = riderBody != null && riderBody.isKinematic;
+            if (riderBody != null) riderBody.isKinematic = true;
 
             if (ziplineAudio != null) ziplineAudio.Play();
             if (windParticles != null) windParticles.Play();
@@ -150,13 +163,11 @@ namespace Blocks.Gameplay.Core
             // Smooth cubic ease-in-out
             float smoothT = Mathf.SmoothStep(0f, 1f, t);
 
-            Vector3 startP = launchPoint != null ? launchPoint.position + Vector3.down * 1.5f : startRiderPos;
-            Vector3 endP = landPoint != null ? landPoint.position + Vector3.up * 0.2f : new Vector3(1.5f, 24.5f, -102.0f);
-
-            // Slight sag / curve in zipline
-            Vector3 currentP = Vector3.Lerp(startP, endP, smoothT);
-            float sag = Mathf.Sin(smoothT * Mathf.PI) * 1.2f;
-            currentP.y -= sag;
+            Vector3 startP = startRiderPos;
+            Vector3 endP = landPoint.position + Vector3.up * 0.2f;
+            Vector3 control = (startP + endP) * 0.5f + Vector3.down * 2.4f;
+            float inverse = 1f - smoothT;
+            Vector3 currentP = inverse * inverse * startP + 2f * inverse * smoothT * control + smoothT * smoothT * endP;
 
             activeRider.position = currentP;
 
@@ -176,15 +187,20 @@ namespace Blocks.Gameplay.Core
             isLocalRiding = false;
             if (activeRider != null)
             {
-                var cc = activeRider.GetComponent<CharacterController>();
-                if (cc != null) cc.enabled = true;
-
-                var rb = activeRider.GetComponent<Rigidbody>();
-                if (rb != null) rb.isKinematic = false;
-
-                Vector3 landP = landPoint != null ? landPoint.position + Vector3.up * 0.1f : new Vector3(1.5f, 24.5f, -102.0f);
+                Vector3 landP = landPoint != null ? landPoint.position + Vector3.up * 0.2f : activeRider.position;
                 activeRider.position = landP;
+                var movement = activeRider.GetComponent<CoreMovement>();
+                if (movement != null) { movement.SetPosition(landP); movement.ResetMovementForces(); }
+                if (riderController != null) riderController.enabled = controllerWasEnabled;
+                if (riderBody != null)
+                {
+                    riderBody.isKinematic = bodyWasKinematic;
+                    if (!bodyWasKinematic && launchPoint != null && landPoint != null)
+                        riderBody.AddForce((landPoint.position - launchPoint.position).normalized * 2f, ForceMode.Impulse);
+                }
                 activeRider = null;
+                riderController = null;
+                riderBody = null;
             }
 
             // Reset trolley handle back to top after a delay

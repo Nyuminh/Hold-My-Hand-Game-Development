@@ -139487,8 +139487,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CastleZiplineRideController
   ShowTopMostFoldoutHeaderGroup: 1
-  launchPoint: {fileID: 0}
-  landPoint: {fileID: 0}
+  launchPoint: {fileID: 332756740}
+  landPoint: {fileID: 362094603}
   trolleyHandle: {fileID: 0}
   rideDuration: 2.8
   triggerRadius: 3.2

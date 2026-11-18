@@ -551,6 +551,20 @@ namespace Blocks.Gameplay.Core
             if (target != null) { target.intensity = originalIntensity; target.color = originalColor; }
         }
 
+        private void ActivateCaptainGoldKey()
+        {
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+            {
+                foreach (var child in root.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.name != "Captain_Gold_Key") continue;
+                    child.gameObject.SetActive(true);
+                    return;
+                }
+            }
+            Debug.LogWarning("[ShipwreckCoop] Không tìm thấy Captain_Gold_Key trong scene.");
+        }
+
         private IEnumerator OpenCaptainChestRoutine()
         {
             UISoundManager.PlayConfirm();
@@ -581,6 +595,7 @@ namespace Blocks.Gameplay.Core
             isChestOpened = true;
             isGangplankLowered = true;
             hasKey = true;
+            ActivateCaptainGoldKey();
             UISoundManager.PlaySuccess();
             ShowPrompt("🗝️ ĐÃ MỞ RƯƠNG THUYỀN TRƯỞNG & HẠ CẦU TÀU! Hai Cha Con hãy xuống bến cảng đến ĐÀI HẢI ĐĂNG CỔ ĐẠI để sang Màn 1!", Color.green, 8.0f);
             Debug.Log("[ShipwreckCoop] Rương thuyền trưởng đã mở, hạ cầu tàu dẫn lối sang Đài Hải Đăng Cổ Đại!");
