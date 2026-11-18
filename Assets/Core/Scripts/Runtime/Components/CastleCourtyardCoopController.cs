@@ -51,8 +51,8 @@ namespace Blocks.Gameplay.Core
                 gateTargetPos = gateInitialPos + Vector3.up * openHeight;
             }
 
-            if (fatherLight != null) fatherLight.intensity = 0.5f;
-            if (childLight != null) childLight.intensity = 0.5f;
+            if (fatherLight != null) fatherLight.intensity = 0f;
+            if (childLight != null) childLight.intensity = 0f;
             if (daisAuraLight != null) daisAuraLight.intensity = 0f;
         }
 
@@ -130,7 +130,7 @@ namespace Blocks.Gameplay.Core
                 isFatherOnPlate = CheckPlayerNear(fatherPlate.position, checkRadius, true);
                 if (fatherLight != null)
                 {
-                    fatherLight.intensity = Mathf.Lerp(fatherLight.intensity, isFatherOnPlate ? 3.5f : 0.6f, Time.deltaTime * 5f);
+                    fatherLight.intensity = Mathf.MoveTowards(fatherLight.intensity, isFatherOnPlate ? 1f : 0f, Time.deltaTime);
                 }
             }
 
@@ -140,7 +140,7 @@ namespace Blocks.Gameplay.Core
                 isChildOnPlate = CheckPlayerNear(childPlate.position, checkRadius, false);
                 if (childLight != null)
                 {
-                    childLight.intensity = Mathf.Lerp(childLight.intensity, isChildOnPlate ? 3.5f : 0.6f, Time.deltaTime * 5f);
+                    childLight.intensity = Mathf.MoveTowards(childLight.intensity, isChildOnPlate ? 1f : 0f, Time.deltaTime);
                 }
             }
         }

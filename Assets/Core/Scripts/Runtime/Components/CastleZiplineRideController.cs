@@ -69,6 +69,14 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        private IEnumerator ShakeCamera(Transform cameraTransform)
+        {
+            Vector3 original = cameraTransform.localPosition;
+            cameraTransform.localPosition = original + UnityEngine.Random.insideUnitSphere * 0.05f;
+            yield return null;
+            if (cameraTransform != null) cameraTransform.localPosition = original;
+        }
+
         private void CheckNearbyPlayer()
         {
             Vector3 center = launchPoint != null ? launchPoint.position : transform.position;
@@ -123,6 +131,7 @@ namespace Blocks.Gameplay.Core
 
             if (ziplineAudio != null) ziplineAudio.Play();
             if (windParticles != null) windParticles.Play();
+            if (Camera.main != null) StartCoroutine(ShakeCamera(Camera.main.transform));
 
             Debug.Log("<color=cyan>🪢 [CastleZipline] BẮT ĐẦU ĐU DÂY TRƯỢT SANG LÂU ĐÀI!</color>");
         }

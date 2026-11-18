@@ -156,6 +156,8 @@ namespace Blocks.Gameplay.Core
             if (isUnlocked) return;
             isUnlocked = true;
             isSwinging = true;
+            var gateLight = GameObject.Find("CastleGate_KeyLight")?.GetComponent<Light>();
+            if (gateLight != null) gateLight.enabled = true;
 
             Debug.Log("<color=green>🔓 [CastleGateKeyUnlocker] CỔNG LÂU ĐÀI ĐÃ ĐƯỢC MỞ KHÓA THÀNH CÔNG!</color>");
 

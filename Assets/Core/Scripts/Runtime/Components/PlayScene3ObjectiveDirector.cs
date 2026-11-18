@@ -49,6 +49,19 @@ namespace Blocks.Gameplay.Core
         private GUIStyle cardTitleStyle;
         private GUIStyle cardHintStyle;
         private GUIStyle compassIconStyle;
+        private string dialogSpeaker;
+        private string dialogLine;
+        private float dialogDuration;
+        private float dialogUntil;
+        private GUIStyle dialogStyle;
+
+        public void ShowDialog(string speaker, string line, float duration)
+        {
+            dialogSpeaker = speaker;
+            dialogLine = line;
+            dialogDuration = Mathf.Max(0f, duration);
+            dialogUntil = Time.unscaledTime + dialogDuration;
+        }
 
         private void Awake()
         {
@@ -178,6 +191,12 @@ namespace Blocks.Gameplay.Core
             }
 
             UpdateCompass();
+#if ENABLE_INPUT_SYSTEM
+            if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.tabKey.wasPressedThisFrame && !string.IsNullOrEmpty(dialogLine))
+#else
+            if (Input.GetKeyDown(KeyCode.Tab) && !string.IsNullOrEmpty(dialogLine))
+#endif
+                dialogUntil = Time.unscaledTime + dialogDuration;
         }
 
         private void EvaluateProgression()
@@ -334,6 +353,19 @@ namespace Blocks.Gameplay.Core
 
         private void OnGUI()
         {
+            if (!string.IsNullOrEmpty(dialogLine) && Time.unscaledTime < dialogUntil)
+            {
+                if (dialogStyle == null)
+                    dialogStyle = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true, normal = { textColor = Color.white } };
+                float width = Mathf.Min(700f, Screen.width - 20f);
+                var rect = new Rect((Screen.width - width) * 0.5f, Screen.height - 145f, width, 90f);
+                Color previous = GUI.color;
+                GUI.color = new Color(0.04f, 0.06f, 0.1f, 0.9f);
+                GUI.DrawTexture(rect, Texture2D.whiteTexture);
+                GUI.color = Color.white;
+                GUI.Label(rect, $"[{dialogSpeaker}] {dialogLine}", dialogStyle);
+                GUI.color = previous;
+            }
             if (currentStageIndex < 0 || currentStageIndex >= objectives.Count) return;
 
             var obj = objectives[currentStageIndex];

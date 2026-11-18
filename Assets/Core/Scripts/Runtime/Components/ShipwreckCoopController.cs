@@ -451,6 +451,8 @@ namespace Blocks.Gameplay.Core
             {
                 wheelTurnProgress = 1f;
                 isWheelCompleted = true;
+                var keyLight = GameObject.Find("Ship_WOW_KeyLight")?.GetComponent<Light>();
+                if (keyLight != null) StartCoroutine(PulseLight(keyLight, 0.5f));
 
                 UISoundManager.PlaySuccess();
                 ShowPrompt("✨ TRỤC BÁNH LÁI ĐÃ MỞ TOANG NẮP RƯƠNG KHO BÁU!", Color.green, 5.0f);
@@ -532,6 +534,21 @@ namespace Blocks.Gameplay.Core
 
             isClimbing = false;
             UISoundManager.PlayConfirm();
+        }
+
+        private IEnumerator PulseLight(Light target, float duration)
+        {
+            float originalIntensity = target.intensity;
+            Color originalColor = target.color;
+            target.color = new Color(1f, 0.8f, 0.2f);
+            float elapsed = 0f;
+            while (elapsed < duration && target != null)
+            {
+                elapsed += Time.deltaTime;
+                target.intensity = originalIntensity + 2f * Mathf.Sin(Mathf.Clamp01(elapsed / duration) * Mathf.PI);
+                yield return null;
+            }
+            if (target != null) { target.intensity = originalIntensity; target.color = originalColor; }
         }
 
         private IEnumerator OpenCaptainChestRoutine()

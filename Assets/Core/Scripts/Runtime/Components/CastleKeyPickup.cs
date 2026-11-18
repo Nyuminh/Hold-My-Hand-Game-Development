@@ -95,6 +95,7 @@ namespace Blocks.Gameplay.Core
                 keyLight.range = 10f;
                 keyLight.intensity = 3f;
             }
+            StartCoroutine(LiftCollector());
 
             // Hide mesh
             var r = GetComponent<Renderer>() ?? GetComponentInChildren<Renderer>();
@@ -105,6 +106,21 @@ namespace Blocks.Gameplay.Core
             {
                 Debug.Log("<color=green>[ObjectiveDirector] Đã có chìa khóa lâu đài!</color>");
             }
+        }
+
+        private System.Collections.IEnumerator LiftCollector()
+        {
+            var visual = GetComponent<Renderer>() ?? GetComponentInChildren<Renderer>();
+            Vector3 start = transform.position;
+            if (visual != null) visual.enabled = true;
+            float elapsed = 0f;
+            while (elapsed < 0.5f)
+            {
+                elapsed += Time.deltaTime;
+                transform.position = start + Vector3.up * (0.5f * Mathf.Clamp01(elapsed / 0.5f));
+                yield return null;
+            }
+            if (visual != null) visual.enabled = false;
         }
 
         private void OnGUI()

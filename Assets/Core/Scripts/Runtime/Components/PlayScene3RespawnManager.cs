@@ -54,6 +54,11 @@ namespace Blocks.Gameplay.Core
         private readonly Dictionary<Transform, float> lastRespawnTime = new Dictionary<Transform, float>();
         private string activeDeathPrompt = "";
         private float promptDismissTime = 0f;
+        private float flashUntil;
+        private Color flashColor = new Color(0.7f, 0.05f, 0.05f, 0.4f);
+        private string reviveCenterText;
+        private float reviveCenterUntil;
+        private Color reviveCenterColor = Color.white;
 
         public int CurrentCheckpoint => IsNetworkActive ? currentCheckpointIndex.Value : localSoloCheckpoint;
         public bool IsNetworkActive => NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && IsSpawned;
@@ -245,6 +250,11 @@ namespace Blocks.Gameplay.Core
             }
 
             Debug.Log($"<color=green>[Checkpoint] 🚩 ĐÃ KÍCH HOẠT CHECKPOINT MỚI: {checkpoints[index].name}!</color>");
+            flashUntil = Time.unscaledTime + 0.3f;
+            flashColor = new Color(0.05f, 0.7f, 0.15f, 0.4f);
+            reviveCenterText = "Điểm lưu!";
+            reviveCenterColor = new Color(0.55f, 1f, 0.65f);
+            reviveCenterUntil = Time.unscaledTime + 2f;
             ShowPrompt($"🚩 Đã lưu Điểm Hồi Sinh: <color=#FFEE55>{checkpoints[index].name}</color>", 3.0f);
         }
 
@@ -271,6 +281,11 @@ namespace Blocks.Gameplay.Core
             Vector3 spawnPoint = GetCheckpointPosition(CurrentCheckpoint);
             string pName = playerTransform.gameObject.name;
 
+            flashUntil = Time.unscaledTime + 0.3f;
+            flashColor = new Color(0.7f, 0.05f, 0.05f, 0.4f);
+            reviveCenterText = "Đang hồi sinh...";
+            reviveCenterColor = new Color(1f, 0.85f, 0.85f);
+            reviveCenterUntil = Time.unscaledTime + 1.5f;
             Debug.Log($"<color=orange>[RespawnManager] ⚠️ '{pName}' rơi xuống vực (Y: {playerTransform.position.y:F1})! Đang hồi sinh tại Checkpoint {CurrentCheckpoint} ({spawnPoint})...</color>");
             ShowPrompt($"⚠️ <color=#FF6666>Rơi xuống vực!</color> Đang hồi sinh tại: <color=#FFEE55>{checkpoints[CurrentCheckpoint].name}</color>", 2.5f);
 
@@ -304,6 +319,15 @@ namespace Blocks.Gameplay.Core
             {
                 pState.SetLifeState(PlayerLifeState.Respawned);
             }
+            StartCoroutine(ShowRespawnComplete());
+        }
+
+        private IEnumerator ShowRespawnComplete()
+        {
+            yield return new WaitForSecondsRealtime(1.5f);
+            reviveCenterText = "Đã hồi sinh";
+            reviveCenterColor = new Color(0.55f, 1f, 0.65f);
+            reviveCenterUntil = Time.unscaledTime + 1f;
         }
 
         private void ShowPrompt(string message, float duration)
@@ -314,6 +338,18 @@ namespace Blocks.Gameplay.Core
 
         private void OnGUI()
         {
+            if (Time.unscaledTime < flashUntil)
+            {
+                Color previous = GUI.color;
+                GUI.color = flashColor;
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = previous;
+            }
+            if (!string.IsNullOrEmpty(reviveCenterText) && Time.unscaledTime < reviveCenterUntil)
+            {
+                var center = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = reviveCenterColor } };
+                GUI.Label(new Rect(0, Screen.height * 0.42f, Screen.width, 48f), reviveCenterText, center);
+            }
             if (!string.IsNullOrEmpty(activeDeathPrompt) && Time.time < promptDismissTime)
             {
                 GUIStyle style = new GUIStyle(GUI.skin.box);
