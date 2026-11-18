@@ -33,6 +33,13 @@ namespace Blocks.Gameplay.Core
         [Tooltip("GameObject nhân vật Player 2 (bạn) — ẩn ban đầu, hiện khi có người join")]
         [SerializeField] private GameObject player2Preview;
 
+        [Tooltip("Humanoid idle clips chosen independently for each lobby character.")]
+        [SerializeField] private AnimationClip[] lobbyIdleClips;
+
+        private TextMeshProUGUI m_DadNameplate;
+        private TextMeshProUGUI m_ChildNameplate;
+        private readonly Dictionary<string, string> m_LobbyDisplayNames = new Dictionary<string, string>();
+
         [Header("Scene")]
         [Tooltip("Tên scene game sẽ load khi bấm PLAY")]
         [SerializeField] private string gameSceneName = "[BB] Core MultiplayerSession";
@@ -216,7 +223,7 @@ namespace Blocks.Gameplay.Core
                         try
                         {
                             Debug.Log($"[Lobby3D] Đang tự động kết nối lại phòng {LobbySessionContext.CurrentLobbyCode}...");
-                            lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(LobbySessionContext.CurrentLobbyCode);
+                            lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(LobbySessionContext.CurrentLobbyCode, new JoinLobbyByCodeOptions { Player = LocalLobbyPlayer() });
                         }
                         catch (System.Exception joinEx)
                         {
@@ -234,6 +241,16 @@ namespace Blocks.Gameplay.Core
                         m_IsHost = (lobby.HostId == AuthenticationService.Instance.PlayerId);
                     }
                     LobbySessionContext.SetCurrentLobby(lobby.Id, lobby.LobbyCode, m_IsHost);
+
+                    try
+                    {
+                        lobby = await LobbyService.Instance.UpdatePlayerAsync(lobby.Id, AuthenticationService.Instance.PlayerId,
+                            new UpdatePlayerOptions { Data = LocalLobbyPlayer().Data });
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[Lobby3D] Could not refresh lobby display name: {ex.Message}");
+                    }
 
                     if (m_IsHost)
                     {
@@ -405,6 +422,9 @@ namespace Blocks.Gameplay.Core
 
         private void SetupPreview()
         {
+            EnsurePreviewNameplates();
+            SetPreviewName(m_DadNameplate, LocalDisplayName, "CHA");
+            SetPreviewName(m_ChildNameplate, LocalDisplayName, "CON");
             // Player 1 luôn hiện (nhân vật mình)
             if (player1Preview != null)
             {
@@ -423,10 +443,12 @@ namespace Blocks.Gameplay.Core
         private void EnsurePreviewAnimator(GameObject preview)
         {
             if (preview == null) return;
-            if (!preview.TryGetComponent<LobbyPreviewAnimator>(out _))
+            if (!preview.TryGetComponent<LobbyPreviewAnimator>(out var previewAnimator))
             {
-                preview.AddComponent<LobbyPreviewAnimator>();
+                previewAnimator = preview.AddComponent<LobbyPreviewAnimator>();
             }
+            previewAnimator.enabled = true;
+            previewAnimator.Configure(lobbyIdleClips);
 
             // Đảm bảo các mô hình 3D mannequin trong Lobby không hiển thị HUD cá nhân.
             if (preview.TryGetComponent<CoreHUD>(out var hud))
@@ -447,6 +469,100 @@ namespace Blocks.Gameplay.Core
 
             if (m_PlayerRoleLabel != null)
                 m_PlayerRoleLabel.text = "Vai trò: ---";
+        }
+
+        private static string LocalDisplayName => !string.IsNullOrWhiteSpace(ApiClient.DisplayName)
+            ? ApiClient.DisplayName : (!string.IsNullOrWhiteSpace(ApiClient.Username) ? ApiClient.Username : "Player");
+
+        private static Player LocalLobbyPlayer() => new Player
+        {
+            Data = new Dictionary<string, PlayerDataObject>
+            {
+                { "displayName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, LocalDisplayName) }
+            }
+        };
+
+        private void EnsurePreviewNameplates()
+        {
+            if (lobbyCanvas == null) return;
+            if (m_DadNameplate == null) m_DadNameplate = CreatePreviewNameplate("dad-nameplate");
+            if (m_ChildNameplate == null) m_ChildNameplate = CreatePreviewNameplate("child-nameplate");
+        }
+
+        private TextMeshProUGUI CreatePreviewNameplate(string objectName)
+        {
+            foreach (var existing in lobbyCanvas.GetComponentsInChildren<TextMeshProUGUI>(true))
+                if (existing.name == objectName) return existing;
+            var plate = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(UnityEngine.UI.Image));
+            plate.transform.SetParent(lobbyCanvas.transform, false);
+            var rect = (RectTransform)plate.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.sizeDelta = new Vector2(230f, 58f);
+            var background = plate.GetComponent<UnityEngine.UI.Image>();
+            background.color = new Color(0.04f, 0.04f, 0.05f, 0.8f);
+            background.raycastTarget = false;
+            var labelObject = new GameObject("label", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            labelObject.transform.SetParent(plate.transform, false);
+            var labelRect = (RectTransform)labelObject.transform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(8f, 3f);
+            labelRect.offsetMax = new Vector2(-8f, -3f);
+            var label = labelObject.GetComponent<TextMeshProUGUI>();
+            // Match the lobby's font, including its Vietnamese fallback glyphs.
+            if (m_PlayerNameLabel != null) label.font = m_PlayerNameLabel.font;
+            label.fontSize = 19f;
+            label.fontStyle = FontStyles.Bold;
+            label.color = new Color(1f, 0.85f, 0.45f);
+            label.alignment = TextAlignmentOptions.Center;
+            label.richText = false;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.overflowMode = TextOverflowModes.Ellipsis;
+            label.raycastTarget = false;
+            // The lookup uses the text object name to reuse plates after script reloads.
+            labelObject.name = objectName;
+            return label;
+        }
+
+        private static void SetPreviewName(TextMeshProUGUI label, string displayName, string role)
+        {
+            if (label == null) return;
+            displayName = string.IsNullOrWhiteSpace(displayName) ? "Người chơi" : displayName.Trim();
+            label.text = displayName.Replace('\n', ' ').Replace('\r', ' ') + "\n" + role;
+        }
+
+        private string ResolveLobbyDisplayName(string playerId)
+        {
+            if (string.IsNullOrEmpty(playerId)) return null;
+            if (UnityServices.State == ServicesInitializationState.Initialized &&
+                AuthenticationService.Instance.IsSignedIn && playerId == AuthenticationService.Instance.PlayerId)
+                return LocalDisplayName;
+            return m_LobbyDisplayNames.TryGetValue(playerId, out var displayName) ? displayName : null;
+        }
+
+        private void LateUpdate()
+        {
+            PositionPreviewNameplate(m_DadNameplate, player1Preview);
+            PositionPreviewNameplate(m_ChildNameplate, player2Preview);
+        }
+
+        private void PositionPreviewNameplate(TextMeshProUGUI label, GameObject preview)
+        {
+            if (label == null) return;
+            var plate = label.transform.parent.gameObject;
+            var camera = Camera.main;
+            bool visible = preview != null && preview.activeInHierarchy && camera != null;
+            if (!visible) { plate.SetActive(false); return; }
+            var animator = preview.GetComponentInChildren<Animator>();
+            var head = animator != null && animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Head) : null;
+            var anchor = head != null ? head.position : preview.transform.position + Vector3.up * 1.8f;
+            var screen = camera.WorldToScreenPoint(anchor + Vector3.up * 0.3f);
+            plate.SetActive(screen.z > 0f);
+            if (screen.z <= 0f) return;
+            var canvasCamera = lobbyCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : lobbyCanvas.worldCamera;
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle((RectTransform)lobbyCanvas.transform, screen, canvasCamera, out var point))
+                ((RectTransform)plate.transform).anchoredPosition = point;
         }
 
         #endregion
@@ -529,6 +645,8 @@ namespace Blocks.Gameplay.Core
             // Cập nhật mô hình preview 3D tương ứng trong Lobby
             if (player1Preview != null) player1Preview.SetActive(isDad);
             if (player2Preview != null) player2Preview.SetActive(!isDad);
+            SetPreviewName(m_DadNameplate, LocalDisplayName, "CHA");
+            SetPreviewName(m_ChildNameplate, LocalDisplayName, "CON");
         }
 
         private void OnCancelTutorialClicked()
@@ -567,6 +685,7 @@ namespace Blocks.Gameplay.Core
             {
                 var options = new CreateLobbyOptions {
                     IsPrivate = false,
+                    Player = LocalLobbyPlayer(),
                     Data = new Dictionary<string, DataObject> {
                         { "dadUserId", new DataObject(DataObject.VisibilityOptions.Public, AuthenticationService.Instance.PlayerId) },
                         { "childUserId", new DataObject(DataObject.VisibilityOptions.Public, "") },
@@ -635,7 +754,7 @@ namespace Blocks.Gameplay.Core
                     try { await LobbyService.Instance.RemovePlayerAsync(m_CurrentLobbyId, AuthenticationService.Instance.PlayerId); } catch { }
                 }
 
-                var lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(code);
+                var lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(code, new JoinLobbyByCodeOptions { Player = LocalLobbyPlayer() });
                 
                 m_CurrentLobbyId = lobby.Id;
                 m_CurrentLobbyCode = lobby.LobbyCode;
@@ -752,8 +871,7 @@ namespace Blocks.Gameplay.Core
                 m_CurrentLobbyId = null;
                 m_CurrentLobbyCode = null;
 
-                if (player2Preview != null) player2Preview.SetActive(false);
-
+                SetupPreview();
                 ShowMainButtons();
                 UISoundManager.PlayCancel();
                 ShowToast("Đã rời phòng.");
@@ -1127,6 +1245,10 @@ namespace Blocks.Gameplay.Core
 
         private ApiClient.LobbyResponseData MapToFakeResponse(Lobby lobby)
         {
+            m_LobbyDisplayNames.Clear();
+            foreach (var player in lobby.Players)
+                if (player.Data != null && player.Data.TryGetValue("displayName", out var displayName))
+                    m_LobbyDisplayNames[player.Id] = displayName.Value;
             var p2Id = lobby.Players.Count > 1 ? lobby.Players[1].Id : null;
             
             string dadId = lobby.Data.ContainsKey("dadUserId") ? lobby.Data["dadUserId"].Value : "";
@@ -1157,6 +1279,9 @@ namespace Blocks.Gameplay.Core
 
         private void UpdateLobbyUI(ApiClient.LobbyResponseData lobby)
         {
+            EnsurePreviewNameplates();
+            SetPreviewName(m_DadNameplate, ResolveLobbyDisplayName(lobby.dadUserId), "CHA");
+            SetPreviewName(m_ChildNameplate, ResolveLobbyDisplayName(lobby.childUserId), "CON");
             // Room code
             if (m_RoomCodeLabel != null)
                 m_RoomCodeLabel.text = lobby.lobbyCode ?? "------";
@@ -1166,7 +1291,8 @@ namespace Blocks.Gameplay.Core
             if (m_RemoteProfileCard != null) m_RemoteProfileCard.SetActive(hasPlayer2);
             if (hasPlayer2 && m_RemotePlayerLabel != null)
             {
-                string self = AuthenticationService.Instance.IsSignedIn ? AuthenticationService.Instance.PlayerId : null;
+                string self = UnityServices.State == ServicesInitializationState.Initialized && AuthenticationService.Instance.IsSignedIn
+                    ? AuthenticationService.Instance.PlayerId : null;
                 string remoteId = lobby.player1Id == self ? lobby.player2Id : lobby.player1Id;
                 m_RemotePlayerLabel.text = "Người chơi " + (string.IsNullOrEmpty(remoteId) ? "2" : remoteId.Substring(0, Mathf.Min(6, remoteId.Length)));
             }
@@ -1187,7 +1313,8 @@ namespace Blocks.Gameplay.Core
             // Role display
             if (m_PlayerRoleLabel != null)
             {
-                string myId = AuthenticationService.Instance.IsSignedIn ? AuthenticationService.Instance.PlayerId : null;
+                string myId = UnityServices.State == ServicesInitializationState.Initialized && AuthenticationService.Instance.IsSignedIn
+                    ? AuthenticationService.Instance.PlayerId : null;
                 if (!string.IsNullOrEmpty(myId))
                 {
                     if (myId == lobby.dadUserId)
