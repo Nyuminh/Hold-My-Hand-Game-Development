@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
@@ -28,6 +30,7 @@ namespace Blocks.Gameplay.Core
         [Header("Spawn Reference")]
         [Tooltip("Điểm xuất phát ban đầu")]
         [SerializeField] private Transform spawnPoint;
+        [SerializeField] private TutorialIntroCutscene introCutscene;
 
         private Label m_RoleBadgeLabel;
         private Button m_SwitchRoleButton;
@@ -55,6 +58,7 @@ namespace Blocks.Gameplay.Core
 
         private void Update()
         {
+            if (introCutscene != null && introCutscene.IsPlaying) return;
             // Phím tắt T để đổi vai
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame)
@@ -116,6 +120,7 @@ namespace Blocks.Gameplay.Core
                 NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
             }
             CleanupCompanion();
+            if (Instance == this) Instance = null;
         }
 
         private IEnumerator InitTutorialRoutine()
@@ -124,7 +129,8 @@ namespace Blocks.Gameplay.Core
 
             // Kiểm tra xem có phải đang kết nối Multiplayer từ Lobby qua AutoSessionStarter hay không
             bool isMultiplayerSession = FindAnyObjectByType<AutoSessionStarter>() != null || 
-                                         (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && NetworkManager.Singleton.ConnectedClients.Count > 1);
+                                         (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening &&
+                                          (!NetworkManager.Singleton.IsServer || NetworkManager.Singleton.ConnectedClients.Count > 1));
 
             if (!isMultiplayerSession)
             {
@@ -137,18 +143,22 @@ namespace Blocks.Gameplay.Core
                     if (NetworkManager.Singleton.IsListening)
                     {
                         NetworkManager.Singleton.Shutdown();
-                        yield return new WaitForSecondsRealtime(0.2f);
                     }
+                    while (NetworkManager.Singleton.ShutdownInProgress) yield return null;
 
                     bool hostStarted = false;
                     var utp = NetworkManager.Singleton.NetworkConfig.NetworkTransport as Unity.Netcode.Transports.UTP.UnityTransport;
 
-                    // Thử khởi động Host với ServerListenAddress 0.0.0.0 và fallback port 7777 -> 7785 nếu port bị chiếm
-                    for (ushort port = 7777; port <= 7785; port++)
+                    // Solo has no external clients: request a free local port from the OS.
+                    // Starting Netcode on occupied fixed ports logs transport errors and can
+                    // trigger Editor Error Pause before a fallback gets a chance to run.
+                    for (int attempt = 0; attempt < 2; attempt++)
                     {
+                        ushort port = 0;
                         if (utp != null)
                         {
-                            utp.SetConnectionData("127.0.0.1", port, "0.0.0.0");
+                            if (!TryGetSoloPort(out port)) yield break;
+                            utp.SetConnectionData("127.0.0.1", port, "127.0.0.1");
                         }
 
                         if (NetworkManager.Singleton.StartHost())
@@ -163,12 +173,14 @@ namespace Blocks.Gameplay.Core
                         {
                             NetworkManager.Singleton.Shutdown();
                         }
-                        yield return new WaitForSecondsRealtime(0.15f);
+                        while (NetworkManager.Singleton.ShutdownInProgress) yield return null;
+                        yield return null;
                     }
 
                     if (!hostStarted)
                     {
                         Debug.LogError("[TutorialManager] Không thể khởi động Host cục bộ trên bất kỳ port nào!");
+                        yield break;
                     }
                 }
             }
@@ -186,8 +198,8 @@ namespace Blocks.Gameplay.Core
             // Đợi NetworkManager và Spawner sẵn sàng
             yield return new WaitForSecondsRealtime(0.3f);
 
-            m_Spawner = FindAnyObjectByType<RoleBasedSpawner>();
-            if (m_Spawner != null && NetworkManager.Singleton != null)
+            m_Spawner = RoleBasedSpawner.Instance != null ? RoleBasedSpawner.Instance : FindAnyObjectByType<RoleBasedSpawner>();
+            if (m_Spawner != null && NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
             {
                 // Đảm bảo client 0 có PlayerObject
                 var localClient = NetworkManager.Singleton.LocalClient;
@@ -197,19 +209,51 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
-            yield return new WaitForSecondsRealtime(0.2f);
+            float spawnDeadline = Time.realtimeSinceStartup + 20f;
+            while (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient?.PlayerObject == null && Time.realtimeSinceStartup < spawnDeadline)
+                yield return null;
+
+            var localPlayer = NetworkManager.Singleton?.LocalClient?.PlayerObject;
+            if (localPlayer == null)
+            {
+                Debug.LogWarning("[TutorialManager] Local player not ready; intro was not started.");
+                yield break;
+            }
 
             // Mở khóa chuột và di chuyển ngay lập tức
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
             // Nếu chỉ có 1 người chơi (Solo Test): Tự động tạo Bạn Đồng Hành (Companion) để test co-op
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients.Count <= 1)
+            if (!isMultiplayerSession && NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer && NetworkManager.Singleton.ConnectedClients.Count <= 1)
             {
                 SpawnOrUpdateCompanion(Lobby3DManager.AmIDad);
             }
 
             UpdateRoleBadge();
+            if (introCutscene != null) introCutscene.Play(localPlayer, isMultiplayerSession, m_CompanionInstance, tutorialHUD);
+        }
+
+        private static bool TryGetSoloPort(out ushort port)
+        {
+            port = 0;
+            try
+            {
+                // Dispose before UnityTransport binds. The OS chooses an ephemeral port
+                // rather than colliding with other editors or standalone game instances.
+                using (var probe = new UdpClient(AddressFamily.InterNetwork))
+                {
+                    probe.ExclusiveAddressUse = true;
+                    probe.Client.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+                    port = (ushort)((IPEndPoint)probe.Client.LocalEndPoint).Port;
+                }
+                return true;
+            }
+            catch (SocketException exception)
+            {
+                Debug.LogError($"[TutorialManager] Không thể chọn cổng UDP cho Solo: {exception.Message}");
+                return false;
+            }
         }
 
         private void OnClientConnected(ulong clientId)
@@ -329,6 +373,7 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public void ToggleRole()
         {
+            if (introCutscene != null && introCutscene.IsPlaying) return;
             if (m_IsSwitching) return;
             StartCoroutine(SwitchRoleRoutine(!Lobby3DManager.AmIDad));
         }
@@ -420,6 +465,7 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public void TeleportToBoat()
         {
+            if (introCutscene != null && introCutscene.IsPlaying) return;
             var boat = GameObject.Find("Coop_Wooden_Boat");
             if (boat == null) return;
 
