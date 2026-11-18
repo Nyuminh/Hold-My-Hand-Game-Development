@@ -134,3 +134,8 @@ WORK_STATUS.md
 Docs/**/*.py
 Docs/*.py
 *.ps1
+
+# Ignore heavy raw materials/texture packs exceeding GitHub quota
+Assets/Map Material/Materials/
+Assets/Map Material/Materials.meta
+
