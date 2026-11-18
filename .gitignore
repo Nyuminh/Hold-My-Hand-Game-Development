@@ -135,7 +135,7 @@ Docs/**/*.py
 Docs/*.py
 *.ps1
 
-# Ignore heavy raw materials/texture packs exceeding GitHub quota
-Assets/Map Material/Materials/
-Assets/Map Material/Materials.meta
+# Ignore demo scenes and heavy skyboxes
+Assets/Map Material/Materials/WoodLog/Scene/
+Assets/Map Material/Materials/WoodLog/Scene.meta
 
