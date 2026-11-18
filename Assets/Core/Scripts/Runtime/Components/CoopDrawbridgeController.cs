@@ -245,15 +245,24 @@ namespace Blocks.Gameplay.Core
             // Ưu tiên cần gạt gần nhất nếu cả hai đều nằm trong tầm
             if (distLeft <= interactDistance && distLeft <= distRight)
             {
-                currentPrompt = isLeftPulled ? "Nhấn [R] để nhả Cần Bên Trái" : "Nhấn [R] để gạt Cần Bên Trái";
-                if (interactPressed)
+                bool isDad = IsPlayerDad(player);
+                if (!isDad)
                 {
-                    ToggleLever(true);
+                    currentPrompt = "<color=#FFAA00>⚠️ [Con] Cần gạt bên trái quá nặng! Chỉ có 🧔 Ba mới đủ sức gạt!</color>";
+                }
+                else
+                {
+                    currentPrompt = isLeftPulled ? "👨 [Ba] Nhấn [R] để nhả Cần Bên Trái" : "👨 [Ba] Nhấn [R] để gạt Cần Bên Trái";
+                    if (interactPressed)
+                    {
+                        ToggleLever(true);
+                    }
                 }
             }
             else if (distRight <= interactDistance)
             {
-                currentPrompt = isRightPulled ? "Nhấn [R] để nhả Cần Bên Phải" : "Nhấn [R] để gạt Cần Bên Phải";
+                bool isDad = IsPlayerDad(player);
+                currentPrompt = isRightPulled ? (isDad ? "👨 [Ba] Nhấn [R] để nhả Cần Bên Phải" : "👶 [Con] Nhấn [R] để nhả Cần Bên Phải") : (isDad ? "👨 [Ba] Nhấn [R] để gạt Cần Bên Phải" : "👶 [Con] Nhấn [R] để gạt Cần Bên Phải");
                 if (interactPressed)
                 {
                     ToggleLever(false);
@@ -494,5 +503,18 @@ namespace Blocks.Gameplay.Core
                 GUI.Box(new Rect(x, y, width, height), currentPrompt, style);
             }
         }
-    }
+
+        public static bool IsPlayerDad(Transform playerTransform)
+        {
+            if (playerTransform == null) return false;
+            var visuals = playerTransform.GetComponentInChildren<PlayerRoleVisuals>();
+            if (visuals != null) return visuals.IsDad;
+            var boost = playerTransform.GetComponentInChildren<CoopBoostThrowAbility>();
+            if (boost != null) return boost.IsDad;
+            string n = playerTransform.gameObject.name.ToLower();
+            if (n.Contains("dad") || n.Contains("father")) return true;
+            if (n.Contains("child") || n.Contains("son")) return false;
+            return true;
+        }
+}
 }

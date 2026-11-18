@@ -161,7 +161,7 @@ namespace Blocks.Gameplay.Core.Validation
                             // display:none is still the authoritative hidden state in that case.
                             Check(root.style.display.value == DisplayStyle.None || root.resolvedStyle.display == DisplayStyle.None, "loading overlay hidden");
                         }
-                    Check(Object.FindAnyObjectByType<CraneElevatorController>() != null && Object.FindAnyObjectByType<GiantGearTurntableController>() != null && Object.FindAnyObjectByType<CoveDrawbridgeCoopController>() != null && Object.FindAnyObjectByType<Stage3ZiplineCoopController>() != null && Object.FindAnyObjectByType<ShipwreckCoopController>() != null, "authored level 3 puzzles remain");
+                    Check(Object.FindAnyObjectByType<CraneElevatorController>() != null && Object.FindAnyObjectByType<GiantGearTurntableController>() != null && Object.FindAnyObjectByType<CoveDrawbridgeCoopController>() != null && Object.FindAnyObjectByType<Stage3ZiplineCoopController>() != null && Object.FindAnyObjectByType<CoopLevelExitPortal>() != null, "authored level 3 puzzles remain");
                     File.AppendAllText(Report, "RESULT PASS. LIMITATION: host plus owned companion fixture; independent two-client transition not exercised.\n");
                     Finish();
                 }

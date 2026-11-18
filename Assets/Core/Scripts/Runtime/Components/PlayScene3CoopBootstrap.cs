@@ -31,11 +31,13 @@ namespace Blocks.Gameplay.Core
         {
             FixObstructions();
             EnsureObjectiveDirector();
+            EnsureRespawnManager();
         }
 
         private void Start()
         {
             FixObstructions();
+            EnsureRespawnManager();
         }
 
         private void FixObstructions()
@@ -81,6 +83,16 @@ namespace Blocks.Gameplay.Core
                 var directorGo = new GameObject("PlayScene3_ObjectiveDirector");
                 directorGo.AddComponent<PlayScene3ObjectiveDirector>();
                 Debug.Log("<color=cyan>[PlayScene3] Đã kích hoạt Bộ Chỉ Hướng Mục Tiêu & La Bàn Dẫn Đường!</color>");
+            }
+        }
+
+        private void EnsureRespawnManager()
+        {
+            if (FindAnyObjectByType<PlayScene3RespawnManager>() == null)
+            {
+                var respawnGo = new GameObject("PlayScene3_RespawnManager");
+                respawnGo.AddComponent<PlayScene3RespawnManager>();
+                Debug.Log("<color=green>[PlayScene3] Đã kích hoạt Quản Lý Điểm Hồi Sinh (Checkpoints & Fall Damage Zone)!</color>");
             }
         }
     }

@@ -88,27 +88,54 @@ namespace Blocks.Gameplay.Core
                 objectives.Add(new LevelStageObjective
                 {
                     id = "zone3_turntable",
-                    title = "🎯 Mục Tiêu 3: Bàn Xoay Bánh Răng Đá (Zone 3)",
-                    hint = "👦 Con gỡ chốt kẹt bánh răng đá, 👨 Ba quay cần tời mở lối sang Zone 4!",
-                    targetPosition = new Vector3(0.13f, 14.65f, -60.00f),
+                    title = "🎯 Mục Tiêu 3: Bàn Xoay Bánh Răng & Hạ Cầu Rút Cove",
+                    hint = "👦 Con gỡ chốt kẹt bánh răng, 👨 Ba quay tời hạ cầu rút vượt qua vụng biển!",
+                    targetPosition = new Vector3(0.00f, 14.50f, -67.00f),
                     completeRadius = 8.0f
                 });
 
                 objectives.Add(new LevelStageObjective
                 {
-                    id = "zone3_zipline",
-                    title = "🎯 Mục Tiêu 4: Đường Trượt Zipline Sang Vịnh Thuyền Đắm",
-                    hint = "Cả hai cùng tiến đến bục cáp Zipline, nhấn [E] bám thanh trượt bay sang Tàu Đắm!",
-                    targetPosition = new Vector3(-20.53f, 13.67f, -69.51f),
+                    id = "boat_key_and_stairs",
+                    title = "🎯 Mục Tiêu 4: Lấy Chìa Khóa Cổ Thành Dưới Thuyền & Leo Tháp Canh",
+                    hint = "🔑 Tiến xuống sàn tàu đắm nhặt Chìa Khóa Cổ Thành, sau đó bước qua cầu rút leo cầu thang lên Tháp Canh!",
+                    targetPosition = new Vector3(44.50f, 4.20f, -54.00f),
+                    completeRadius = 6.0f
+                });
+
+                objectives.Add(new LevelStageObjective
+                {
+                    id = "skybridge_and_zipline",
+                    title = "🎯 Mục Tiêu 5: Băng Cầu Treo & Đu Dây Sang Lâu Đài",
+                    hint = "🪢 Băng qua Cầu Treo lộng gió sang Tháp Phòng Thủ, nhấn [E] bám dây cáp đu qua vực sâu sang Cổng Lâu Đài!",
+                    targetPosition = new Vector3(9.50f, 31.50f, -87.00f),
+                    completeRadius = 6.0f
+                });
+
+                objectives.Add(new LevelStageObjective
+                {
+                    id = "unlock_castle_gate",
+                    title = "🎯 Mục Tiêu 6: Mở Cổng Lâu Đài Bằng Chìa Khóa Cổ Thành",
+                    hint = "🔓 Tiếp cận cánh cổng đôi kiên cố, nhấn [E] dùng Chìa Khóa Cổ Thành mở cổng vào Đại Sảnh!",
+                    targetPosition = new Vector3(0.00f, 25.50f, -105.15f),
+                    completeRadius = 6.0f
+                });
+
+                objectives.Add(new LevelStageObjective
+                {
+                    id = "zone4_castle",
+                    title = "🎯 Mục Tiêu 7: Sân Lâu Đài - Kích Hoạt Bia Đá Cổ Ngữ",
+                    hint = "👨 Ba đứng lên Bia Thái Dương (Vàng), 👦 Con đứng lên Bia Nguyệt Quang (Lam) để mở Cổng Sau!",
+                    targetPosition = new Vector3(0.00f, 24.30f, -118.50f),
                     completeRadius = 8.0f
                 });
 
                 objectives.Add(new LevelStageObjective
                 {
-                    id = "zone5_portal",
-                    title = "🎯 Mục Tiêu 5: Cổng Cổ Đại Vịnh Thuyền Đắm",
-                    hint = "Hai Cha Con cùng bước lên bệ đá kích hoạt cổng hoàn thành ải!",
-                    targetPosition = new Vector3(39.50f, 5.80f, -53.50f),
+                    id = "zone5_zephyr",
+                    title = "🎯 Mục Tiêu 8: Băng Qua Cầu Lên Khinh Khí Cầu Zephyr",
+                    hint = "Hai Cha Con cùng tiến qua Cầu Vực Đá phía sau Lâu Đài để lên Khinh Khí Cầu thoát hiểm!",
+                    targetPosition = new Vector3(0.00f, 24.10f, -140.50f),
                     completeRadius = 6.0f
                 });
             }
@@ -182,12 +209,44 @@ namespace Blocks.Gameplay.Core
             }
             else if (currentStageIndex == 3)
             {
-                if (Stage3ZiplineCoopController.Instance != null &&
-                    Stage3ZiplineCoopController.Instance.HasCompletedRide)
+                // Stage 3: Nhặt chìa khóa dưới thuyền & leo tháp canh
+                if (CastleKeyPickup.HasKey)
                 {
                     AdvanceStage();
                 }
             }
+            else if (currentStageIndex == 4)
+            {
+                // Stage 4: Đu dây sang lâu đài - Kiểm tra người chơi đáp xuống sân cổng lâu đài
+                Transform localPlayer = GetLocalPlayerTransform();
+                if (localPlayer != null && localPlayer.position.z <= -98f && localPlayer.position.y >= 20f)
+                {
+                    AdvanceStage();
+                }
+            }
+            else if (currentStageIndex == 5)
+            {
+                // Stage 5: Mở cổng Lâu Đài bằng chìa khóa
+                if (CastleGateKeyUnlocker.Instance != null &&
+                    CastleGateKeyUnlocker.Instance.IsUnlocked)
+                {
+                    AdvanceStage();
+                }
+            }
+            else if (currentStageIndex == 6)
+            {
+                // Stage 6: Sân lâu đài - kích hoạt bia đá cổ ngữ
+                if (CastleCourtyardCoopController.Instance != null &&
+                    CastleCourtyardCoopController.Instance.IsGateUnlocked)
+                {
+                    AdvanceStage();
+                }
+            }
+        }
+
+        public void SetCastleCourtyardCompleted()
+        {
+            AdvanceStage();
         }
 
         private void AdvanceStage()

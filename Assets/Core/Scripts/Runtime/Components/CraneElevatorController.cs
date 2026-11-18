@@ -790,7 +790,14 @@ namespace Blocks.Gameplay.Core
 
                 if (isNearCrane)
                 {
-                    Transform actor = (dadPlayer != null && Vector3.Distance(dadPlayer.position, craneP) <= interactDistance) ? dadPlayer : closestPlayer;
+                    bool isActorDad = IsPlayerDad(closestPlayer);
+                    if (!isActorDad)
+                    {
+                        currentPrompt = "<color=#FFAA00>⚠️ [Con] Ròng rọc này quá nặng so với Con! Chỉ có Ba mới đủ sức quay ròng rọc!</color>";
+                    }
+                    else
+                    {
+                        Transform actor = (dadPlayer != null && Vector3.Distance(dadPlayer.position, craneP) <= interactDistance) ? dadPlayer : closestPlayer;
 
                     if (IsInteractHeld())
                     {
@@ -860,6 +867,7 @@ namespace Blocks.Gameplay.Core
                         {
                             currentPrompt = "👨 [Ba] [GIỮ SPACE / E] Xoay ròng rọc tời để hạ quả cầu đá đưa Con sang Zone 3!";
                         }
+                    }
                     }
                 }
             }
@@ -944,11 +952,29 @@ namespace Blocks.Gameplay.Core
 
                 if (nearCrane)
                 {
-                    currentPrompt = "👨 [Ba] [GIỮ SPACE / E] Xoay bánh ròng rọc nhả chốt hãm cáp cho Con!";
-                    if (IsInteractHeld() || IsInteractPressed())
+                    Transform nearPlayer = null;
+                    foreach (var p in players)
                     {
-                        TriggerDadReleaseClutch();
-                        return;
+                        if (Vector3.Distance(p.position, craneP) <= interactDistance + 1f ||
+                            (cogwheel != null && Vector3.Distance(p.position, cogwheel.position) <= interactDistance + 1f))
+                        {
+                            nearPlayer = p;
+                            break;
+                        }
+                    }
+
+                    if (!IsPlayerDad(nearPlayer))
+                    {
+                        currentPrompt = "<color=#FFAA00>⚠️ [Con] Chốt hãm cáp này của Ba bên cần cẩu! Chỉ có Ba mới nhả được!</color>";
+                    }
+                    else
+                    {
+                        currentPrompt = "👨 [Ba] [GIỮ SPACE / E] Xoay bánh ròng rọc nhả chốt hãm cáp cho Con!";
+                        if (IsInteractHeld() || IsInteractPressed())
+                        {
+                            TriggerDadReleaseClutch();
+                            return;
+                        }
                     }
                 }
                 else if (nearWinch)
@@ -1109,6 +1135,19 @@ namespace Blocks.Gameplay.Core
             return false;
         }
 
+        public static bool IsPlayerDad(Transform playerTransform)
+        {
+            if (playerTransform == null) return false;
+            var visuals = playerTransform.GetComponentInChildren<PlayerRoleVisuals>();
+            if (visuals != null) return visuals.IsDad;
+            var boost = playerTransform.GetComponentInChildren<CoopBoostThrowAbility>();
+            if (boost != null) return boost.IsDad;
+            string n = playerTransform.gameObject.name.ToLower();
+            if (n.Contains("dad")) return true;
+            if (n.Contains("child") || n.Contains("son")) return false;
+            return Lobby3DManager.AmIDad;
+        }
+
         private Transform FindDadPlayer()
         {
             GameObject dad = GameObject.Find("Dad(Clone)");
@@ -1118,7 +1157,7 @@ namespace Blocks.Gameplay.Core
             var managers = FindObjectsOfType<CorePlayerManager>();
             foreach (var m in managers)
             {
-                if (m.gameObject.name.ToLower().Contains("dad"))
+                if (IsPlayerDad(m.transform))
                     return m.transform;
             }
             return null;
