@@ -11,7 +11,9 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
     /// <summary>
     /// Repeatable authoring of Level 2 (PlayScene2.unity) objects.
     /// Preserves existing environment assets intact while creating the complete
-    /// 5-stage river expedition layout, docks, obstacles, and checkpoints.
+    /// 5-stage river expedition layout, docks, obstacles, and checkpoints,
+    /// with professional architectural blockout, aesthetic details, signposts,
+    /// and a fully integrated guiding and waypoint navigation arrow system.
     /// </summary>
     public static class LevelTwoSceneBuilder
     {
@@ -112,6 +114,10 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 water.GetComponent<Renderer>().sharedMaterial = Find("Water_Rapids_1").GetComponent<Renderer>().sharedMaterial;
                 Object.DestroyImmediate(water.GetComponent<Collider>());
             }
+
+            // Wire Guiding Director
+            WireGuidingDirector();
+
             Save();
         }
 
@@ -184,6 +190,9 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             }
             Dock("Start_DockLanding", new Vector3(96, 0.5f, 31), new Vector3(94, 1.15f, 30), new Vector3(94, 1.15f, 32));
             Dock("Sluice_DockLanding", new Vector3(106, 0.5f, 70), new Vector3(108, 1.15f, 70), new Vector3(109.5f, 1.15f, 71));
+
+            WireGuidingDirector();
+
             Save();
         }
 
@@ -281,7 +290,24 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 var profile = AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GUIDToAssetPath(guid));
                 if (profile != null) EditorUtility.SetDirty(profile);
             }
+
+            WireGuidingDirector();
+
             Save();
+        }
+
+        public static void WireGuidingDirector()
+        {
+            var directorObj = GameObject.Find("LVL2_GuidingDirector");
+            if (directorObj == null)
+            {
+                directorObj = new GameObject("LVL2_GuidingDirector");
+                directorObj.transform.position = Vector3.zero;
+            }
+            var director = Ensure<LevelTwoGuidingDirector>(directorObj);
+            director.AutoFindReferences();
+            director.EnsureWaypointVisuals();
+            director.UpdateWaypointTarget(true);
         }
 
         public static Vector3 Surface(float x, float z)
@@ -318,6 +344,60 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             obj.transform.localScale = size;
             if (material != null) obj.GetComponent<Renderer>().sharedMaterial = material;
             return obj;
+        }
+
+        /// <summary>
+        /// Tạo Cột đèn lồng ấm áp cổ điển có Point Light chiếu rọi
+        /// </summary>
+        public static GameObject LanternPost(string name, Transform parent, Vector3 position, Material woodMat, Material goldMat)
+        {
+            var root = Marker(name, parent, position).gameObject;
+            // Cột gỗ đứng
+            Cylinder("Post", root.transform, new Vector3(0, 1.2f, 0), new Vector3(0.25f, 2.4f, 0.25f), woodMat);
+            // Tay đòn ngang vươn ra
+            Box("Arm", root.transform, new Vector3(0.4f, 2.2f, 0), new Vector3(0.9f, 0.15f, 0.15f), woodMat);
+            // Lồng đèn vàng
+            var lantern = Box("Lantern", root.transform, new Vector3(0.75f, 1.9f, 0), new Vector3(0.35f, 0.45f, 0.35f), goldMat);
+            var light = lantern.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1.0f, 0.85f, 0.45f);
+            light.range = 10f;
+            light.intensity = 2.5f;
+            return root;
+        }
+
+        /// <summary>
+        /// Tạo Biển báo gỗ chỉ đường có mũi tên chạm khắc chỉ hướng
+        /// </summary>
+        public static GameObject Signpost(string name, Transform parent, Vector3 position, Vector3 rotation, Material woodMat, Material goldMat, bool arrowPointsForward = true)
+        {
+            var root = Marker(name, parent, position).gameObject;
+            root.transform.localRotation = Quaternion.Euler(rotation);
+            // Cột biển báo
+            Cylinder("Post", root.transform, new Vector3(0, 0.9f, 0), new Vector3(0.2f, 1.8f, 0.2f), woodMat);
+            // Bảng gỗ
+            Box("Board", root.transform, new Vector3(0, 1.5f, 0), new Vector3(1.2f, 0.55f, 0.12f), woodMat);
+            // Biểu tượng mũi tên trên biển báo
+            var arrowShaft = Box("ArrowShaft", root.transform, new Vector3(0, 1.5f, 0.08f), new Vector3(0.5f, 0.12f, 0.06f), goldMat);
+            var arrowHead = Box("ArrowHead", root.transform, new Vector3(arrowPointsForward ? 0.28f : -0.28f, 1.5f, 0.08f), new Vector3(0.2f, 0.25f, 0.06f), goldMat);
+            arrowHead.transform.localRotation = Quaternion.Euler(0, 0, arrowPointsForward ? -45 : 45);
+            return root;
+        }
+
+        /// <summary>
+        /// Tạo Phao nổi chỉ luồng sông hình mũi tên (Floating River Arrow Buoy)
+        /// </summary>
+        public static GameObject FloatingRiverArrow(string name, Transform parent, Vector3 position, float yRotation, Material woodMat, Material goldMat)
+        {
+            var root = Marker(name, parent, position).gameObject;
+            root.transform.localRotation = Quaternion.Euler(0, yRotation, 0);
+            // Thân phao chữ V
+            var shaft = Box("ArrowShaft", root.transform, new Vector3(0, 0.05f, -0.4f), new Vector3(0.5f, 0.15f, 1.4f), woodMat);
+            var headL = Box("ArrowHead_L", root.transform, new Vector3(-0.45f, 0.06f, 0.4f), new Vector3(0.35f, 0.16f, 0.9f), goldMat);
+            headL.transform.localRotation = Quaternion.Euler(0, -35, 0);
+            var headR = Box("ArrowHead_R", root.transform, new Vector3(0.45f, 0.06f, 0.4f), new Vector3(0.35f, 0.16f, 0.9f), goldMat);
+            headR.transform.localRotation = Quaternion.Euler(0, 35, 0);
+            return root;
         }
 
         public static Material Material(string name, Color color, float metallic = 0f, float smoothness = 0.4f)
@@ -382,6 +462,25 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             Cylinder("Bollard_1", startArea, new Vector3(95.5f, 1.25f, 32.0f), new Vector3(0.25f, 0.4f, 0.25f), ironMat);
             Cylinder("Bollard_2", startArea, new Vector3(95.5f, 1.25f, 34.0f), new Vector3(0.25f, 0.4f, 0.25f), ironMat);
 
+            // NÂNG CẤP KIẾN TRÚC START DOCK:
+            // Cầu dốc thoai thoải nối bờ cát với sàn cầu cảng (Ramp)
+            var ramp = Box("StartDock_Ramp", startArea, new Vector3(93.5f, 0.85f, 24.5f), new Vector3(4.0f, 0.2f, 3.2f), woodMat);
+            ramp.transform.localRotation = Quaternion.Euler(6f, 0, 0);
+
+            // Lan can bảo vệ hai bên mép dock (Railings)
+            Box("StartDock_Railing_Left", startArea, new Vector3(91.2f, 1.45f, 30.0f), new Vector3(0.18f, 0.85f, 8.8f), woodMat);
+            Box("StartDock_Railing_Right_Back", startArea, new Vector3(95.8f, 1.45f, 27.5f), new Vector3(0.18f, 0.85f, 3.8f), woodMat);
+            // Cầu ván nhảy áp sát mạn thuyền (Gangway leading to boat)
+            var gangway = Box("StartDock_Gangway", startArea, new Vector3(96.2f, 0.85f, 33.5f), new Vector3(1.8f, 0.15f, 2.2f), woodMat);
+            gangway.transform.localRotation = Quaternion.Euler(0, 10f, -8f);
+
+            // 2 Cột đèn lồng ấm áp thắp sáng bến khởi hành
+            LanternPost("StartDock_Lantern_1", startArea, new Vector3(91.5f, 0.95f, 25.5f), woodMat, goldMat);
+            LanternPost("StartDock_Lantern_2", startArea, new Vector3(95.6f, 0.95f, 35.0f), woodMat, goldMat);
+
+            // Biển gỗ chỉ dẫn "XUỐNG THUYỀN [E]"
+            Signpost("StartDock_Signpost", startArea, new Vector3(94.8f, 0.95f, 26.5f), new Vector3(0, -30f, 0), woodMat, goldMat, true);
+
             // Spawn points on dock
             var spawnDad = Marker("SpawnPoint_Dad", startArea, new Vector3(93.0f, 1.25f, 28.5f));
             spawnDad.forward = Vector3.forward;
@@ -417,9 +516,16 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             // 2. STAGE 1: SLALOM BUOYS & HAZARD ROCKS (Z: 40 - 68)
             // ==========================================
             var stage1 = Marker("02_SlalomCourse_Stage1", Root.transform, Vector3.zero);
+
             // Gate 1 (Z: 44)
             Cylinder("Buoy_1_Red", stage1, new Vector3(93.0f, 0.65f, 44.0f), new Vector3(0.7f, 1.2f, 0.7f), buoyRedMat);
             Cylinder("Buoy_1_Green", stage1, new Vector3(103.0f, 0.65f, 44.0f), new Vector3(0.7f, 1.2f, 0.7f), buoyGreenMat);
+            // Thêm vành nổi & chóp đèn cho Phao Gate 1
+            Cylinder("Buoy_1_Red_Base", stage1, new Vector3(93.0f, 0.48f, 44.0f), new Vector3(1.3f, 0.15f, 1.3f), ironMat);
+            Cylinder("Buoy_1_Green_Base", stage1, new Vector3(103.0f, 0.48f, 44.0f), new Vector3(1.3f, 0.15f, 1.3f), ironMat);
+            Box("Buoy_1_Red_Flag", stage1, new Vector3(93.0f, 1.45f, 44.0f), new Vector3(0.08f, 0.4f, 0.4f), buoyRedMat);
+            Box("Buoy_1_Green_Flag", stage1, new Vector3(103.0f, 1.45f, 44.0f), new Vector3(0.08f, 0.4f, 0.4f), buoyGreenMat);
+
             var g1Trigger = Box("SlalomGate_1_Trigger", stage1, new Vector3(98.0f, 1.0f, 44.0f), new Vector3(9.0f, 2.5f, 1.5f));
             g1Trigger.GetComponent<BoxCollider>().isTrigger = true;
             Object.DestroyImmediate(g1Trigger.GetComponent<MeshRenderer>());
@@ -427,6 +533,11 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             // Gate 2 (Z: 56)
             Cylinder("Buoy_2_Red", stage1, new Vector3(92.5f, 0.65f, 56.0f), new Vector3(0.7f, 1.2f, 0.7f), buoyRedMat);
             Cylinder("Buoy_2_Green", stage1, new Vector3(104.0f, 0.65f, 56.0f), new Vector3(0.7f, 1.2f, 0.7f), buoyGreenMat);
+            Cylinder("Buoy_2_Red_Base", stage1, new Vector3(92.5f, 0.48f, 56.0f), new Vector3(1.3f, 0.15f, 1.3f), ironMat);
+            Cylinder("Buoy_2_Green_Base", stage1, new Vector3(104.0f, 0.48f, 56.0f), new Vector3(1.3f, 0.15f, 1.3f), ironMat);
+            Box("Buoy_2_Red_Flag", stage1, new Vector3(92.5f, 1.45f, 56.0f), new Vector3(0.08f, 0.4f, 0.4f), buoyRedMat);
+            Box("Buoy_2_Green_Flag", stage1, new Vector3(104.0f, 1.45f, 56.0f), new Vector3(0.08f, 0.4f, 0.4f), buoyGreenMat);
+
             var g2Trigger = Box("SlalomGate_2_Trigger", stage1, new Vector3(98.2f, 1.0f, 56.0f), new Vector3(10.5f, 2.5f, 1.5f));
             g2Trigger.GetComponent<BoxCollider>().isTrigger = true;
             Object.DestroyImmediate(g2Trigger.GetComponent<MeshRenderer>());
@@ -434,14 +545,28 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             // Gate 3 (Z: 66)
             Cylinder("Buoy_3_Red", stage1, new Vector3(95.0f, 0.65f, 66.0f), new Vector3(0.7f, 1.2f, 0.7f), buoyRedMat);
             Cylinder("Buoy_3_Green", stage1, new Vector3(106.0f, 0.65f, 66.0f), new Vector3(0.7f, 1.2f, 0.7f), buoyGreenMat);
+            Cylinder("Buoy_3_Red_Base", stage1, new Vector3(95.0f, 0.48f, 66.0f), new Vector3(1.3f, 0.15f, 1.3f), ironMat);
+            Cylinder("Buoy_3_Green_Base", stage1, new Vector3(106.0f, 0.48f, 66.0f), new Vector3(1.3f, 0.15f, 1.3f), ironMat);
+            Box("Buoy_3_Red_Flag", stage1, new Vector3(95.0f, 1.45f, 66.0f), new Vector3(0.08f, 0.4f, 0.4f), buoyRedMat);
+            Box("Buoy_3_Green_Flag", stage1, new Vector3(106.0f, 1.45f, 66.0f), new Vector3(0.08f, 0.4f, 0.4f), buoyGreenMat);
+
             var g3Trigger = Box("SlalomGate_3_Trigger", stage1, new Vector3(100.5f, 1.0f, 66.0f), new Vector3(10.0f, 2.5f, 1.5f));
             g3Trigger.GetComponent<BoxCollider>().isTrigger = true;
             Object.DestroyImmediate(g3Trigger.GetComponent<MeshRenderer>());
 
-            // Channel Hazard Rocks
+            // Channel Hazard Rocks với các tảng phụ điêu khắc tự nhiên
             Box("HazardRock_Left_1", stage1, new Vector3(88.0f, 1.2f, 48.0f), new Vector3(4.0f, 2.2f, 6.0f), stoneMat);
+            Box("HazardRock_Left_1_Sub", stage1, new Vector3(89.5f, 0.9f, 49.5f), new Vector3(2.5f, 1.6f, 3.0f), stoneMat);
+
             Box("HazardRock_Right_1", stage1, new Vector3(109.0f, 1.2f, 52.0f), new Vector3(4.5f, 2.4f, 7.0f), stoneMat);
+            Box("HazardRock_Right_1_Sub", stage1, new Vector3(107.5f, 0.8f, 53.5f), new Vector3(2.2f, 1.5f, 3.5f), stoneMat);
+
             Box("HazardRock_Left_2", stage1, new Vector3(89.5f, 1.2f, 62.0f), new Vector3(3.5f, 2.0f, 5.0f), stoneMat);
+
+            // Phao Mũi tên dẫn luồng nổi trên sông (Floating Waypoint Arrows) chỉ hướng lượn qua 3 cổng
+            FloatingRiverArrow("Slalom_FlowArrow_1", stage1, new Vector3(97.8f, 0.48f, 40.0f), 5f, woodMat, goldMat);
+            FloatingRiverArrow("Slalom_FlowArrow_2", stage1, new Vector3(98.5f, 0.48f, 50.0f), -8f, woodMat, goldMat);
+            FloatingRiverArrow("Slalom_FlowArrow_3", stage1, new Vector3(99.8f, 0.48f, 61.0f), 12f, woodMat, goldMat);
 
             // ==========================================
             // 3. STAGE 2: SLUICE WATERGATE & ISLAND PUZZLE (Z: 70 - 85)
@@ -454,26 +579,54 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             // Movable Iron Portcullis Gate
             var gateBarrier = Box("SluiceGate_IronPortcullis", stage2, new Vector3(100.5f, 2.2f, 74.0f), new Vector3(14.5f, 4.2f, 0.6f), ironMat);
 
+            // Chi tiết vòm đá đỉnh tháp (Battlements / Cornices)
+            Box("Sluice_LeftTower_Cap", stage2, new Vector3(91.5f, 8.3f, 74.0f), new Vector3(4.2f, 0.6f, 4.8f), stoneMat);
+            Box("Sluice_RightTower_Cap", stage2, new Vector3(109.5f, 8.3f, 74.0f), new Vector3(4.6f, 0.6f, 5.2f), stoneMat);
+
             // Side Dock for puzzle landing (Right bank)
-            Box("Sluice_SideDock", stage2, new Vector3(107.5f, 0.95f, 70.0f), new Vector3(4.0f, 0.25f, 5.0f), woodMat);
-            // Dad Winch Station
+            Box("Sluice_SideDock", stage2, new Vector3(107.5f, 0.95f, 70.0f), new Vector3(5.0f, 0.25f, 6.0f), woodMat);
+            // Bậc thang gỗ lên bờ bến Sluice
+            Box("Sluice_Dock_Stairs", stage2, new Vector3(109.8f, 1.05f, 70.0f), new Vector3(1.6f, 0.35f, 4.0f), woodMat);
+            // Cọc neo thuyền và đèn lồng bến
+            Cylinder("Sluice_Dock_Bollard", stage2, new Vector3(105.5f, 1.2f, 68.0f), new Vector3(0.25f, 0.5f, 0.25f), ironMat);
+            LanternPost("Sluice_Dock_Lantern", stage2, new Vector3(109.5f, 0.95f, 67.5f), woodMat, goldMat);
+
+            // Biển hướng dẫn phân công Co-op tại bến Cửa Cống
+            Signpost("Sluice_Guidance_Sign", stage2, new Vector3(109.5f, 1.15f, 68.8f), new Vector3(0, 180f, 0), woodMat, goldMat, true);
+
+            // Dad Winch Station - Bệ đá nâng cao trang trọng
+            Box("Dad_Winch_BasePlinth", stage2, new Vector3(110.5f, 1.15f, 71.5f), new Vector3(2.4f, 0.4f, 2.4f), stoneMat);
             var dadWinch = Box("Dad_Winch_Station", stage2, new Vector3(110.5f, 1.8f, 71.5f), new Vector3(1.2f, 1.6f, 1.2f), ironMat);
             Cylinder("Dad_Winch_Wheel", dadWinch.transform, new Vector3(0, 0.6f, 0.4f), new Vector3(1.2f, 0.15f, 1.2f), ironMat);
+            // Tay quay tời (Winch Handles)
+            Box("Winch_Handle_1", dadWinch.transform, new Vector3(0, 1.1f, 0.4f), new Vector3(0.12f, 0.45f, 0.12f), goldMat);
+            Box("Winch_Handle_2", dadWinch.transform, new Vector3(0, 0.1f, 0.4f), new Vector3(0.12f, 0.45f, 0.12f), goldMat);
+            // Biển báo "BA: GIỮ TỜI [E]"
+            Signpost("Dad_Winch_Sign", stage2, new Vector3(111.8f, 1.15f, 71.5f), new Vector3(0, -90f, 0), woodMat, goldMat, false);
 
             // Child Crawl Conduit
             var crawlway = Box("Child_Crawlway_Conduit", stage2, new Vector3(109.5f, 0.9f, 74.0f), new Vector3(1.1f, 1.0f, 4.2f), stoneMat);
             var crawlVol = crawlway.AddComponent<CoopCrawlVolume>();
             crawlway.GetComponent<BoxCollider>().isTrigger = true;
 
+            // Vòm đá lối vào hầm cho Con (Arched Entry)
+            Box("Crawl_Arch_Header", stage2, new Vector3(109.5f, 2.0f, 71.6f), new Vector3(1.8f, 0.4f, 0.4f), stoneMat);
+            Box("Crawl_Arch_Post_L", stage2, new Vector3(108.6f, 1.4f, 71.6f), new Vector3(0.4f, 1.2f, 0.4f), stoneMat);
+            Box("Crawl_Arch_Post_R", stage2, new Vector3(110.4f, 1.4f, 71.6f), new Vector3(0.4f, 1.2f, 0.4f), stoneMat);
+            // Biển chỉ dẫn "CON: CHUI HẦM [CRAWL]"
+            Signpost("Child_Crawl_Sign", stage2, new Vector3(108.4f, 1.15f, 72.2f), new Vector3(0, 45f, 0), woodMat, goldMat, true);
+
             // Upper Control Balcony & Valve Lever
             Box("Upper_Balcony", stage2, new Vector3(109.5f, 4.2f, 75.5f), new Vector3(3.5f, 0.3f, 3.5f), woodMat);
             var lever = Cylinder("WaterValve_Lever", stage2, new Vector3(109.5f, 5.0f, 75.5f), new Vector3(0.2f, 1.2f, 0.2f), goldMat);
+            // Bệ đỡ van xả hoàng kim
+            Cylinder("Valve_Pedestal", stage2, new Vector3(109.5f, 4.5f, 75.5f), new Vector3(0.6f, 0.5f, 0.6f), stoneMat);
+            Cylinder("Valve_Wheel", stage2, new Vector3(109.5f, 5.3f, 75.5f), new Vector3(0.85f, 0.12f, 0.85f), goldMat);
 
             // ==========================================
             // 4. STAGE 3: RAPIDS RUN & TWIN WHIRLPOOLS (Z: 86 - 150)
             // ==========================================
             var stage3 = Marker("04_RapidsWhirlpools_Stage3", Root.transform, Vector3.zero);
-            // Water planes extension for rapids channel
             var rapidsWater1 = GameObject.CreatePrimitive(PrimitiveType.Plane);
             rapidsWater1.name = "Water_Rapids_1";
             rapidsWater1.transform.SetParent(stage3, false);
@@ -507,15 +660,22 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             Box("Whirlpool_2_Rock1", stage3, new Vector3(98.0f, 1.5f, 128.0f), new Vector3(2.5f, 3.0f, 3.0f), stoneMat);
             Box("Whirlpool_2_Rock2", stage3, new Vector3(110.0f, 1.5f, 128.0f), new Vector3(2.5f, 3.0f, 3.0f), stoneMat);
 
-            // Canyon Gorge Clifflines
+            // Canyon Gorge Clifflines & Rock Formations
             Box("Canyon_Cliff_Left", stage3, new Vector3(85.0f, 3.0f, 115.0f), new Vector3(4.0f, 6.0f, 65.0f), stoneMat);
             Box("Canyon_Cliff_Right", stage3, new Vector3(116.0f, 3.0f, 115.0f), new Vector3(4.0f, 6.0f, 65.0f), stoneMat);
+            // Các bậc đá nhô ra tạo cảm giác hẻm vực hiểm trở
+            Box("Canyon_Ledge_1", stage3, new Vector3(87.5f, 2.5f, 102.0f), new Vector3(3.0f, 4.0f, 12.0f), stoneMat);
+            Box("Canyon_Ledge_2", stage3, new Vector3(113.5f, 2.5f, 128.0f), new Vector3(3.0f, 4.0f, 12.0f), stoneMat);
+
+            // Phao Mũi tên dẫn hướng né xoáy nước (Navigate Path Arrows)
+            FloatingRiverArrow("Rapids_Arrow_1", stage3, new Vector3(103.5f, 0.48f, 96.0f), 15f, woodMat, goldMat); // Né xoáy 1 qua phải
+            FloatingRiverArrow("Rapids_Arrow_2", stage3, new Vector3(98.5f, 0.48f, 116.0f), -15f, woodMat, goldMat); // Lách qua trái né xoáy 2
+            FloatingRiverArrow("Rapids_Arrow_3", stage3, new Vector3(100.0f, 0.48f, 142.0f), 0f, woodMat, goldMat); // Ra khỏi hẻm ghềnh thác
 
             // ==========================================
             // 5. STAGE 4: MISTY MARSH & TWIN BEACONS (Z: 155 - 215)
             // ==========================================
             var stage4 = Marker("05_MistyMarsh_Stage4", Root.transform, Vector3.zero);
-            // Wide Basin Water Plane
             var marshWater = GameObject.CreatePrimitive(PrimitiveType.Plane);
             marshWater.name = "Water_Marsh_Basin";
             marshWater.transform.SetParent(stage4, false);
@@ -529,18 +689,27 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             Cylinder("WestBeacon_Brazier", stage4, new Vector3(83.0f, 6.2f, 175.0f), new Vector3(1.4f, 0.8f, 1.4f), ironMat);
             var westLight = Box("WestBeacon_Flame", stage4, new Vector3(83.0f, 6.8f, 175.0f), new Vector3(0.8f, 0.8f, 0.8f), goldMat);
 
+            // Bệ đá chân tháp Hải đăng Tây (Tiered Base)
+            Cylinder("WestBeacon_Base_Step", stage4, new Vector3(83.0f, 1.4f, 175.0f), new Vector3(5.0f, 0.4f, 5.0f), stoneMat);
+
             // East Beacon Tower & Island (Right)
             var eastIsland = Cylinder("EastBeacon_Island", stage4, new Vector3(117.0f, 0.9f, 190.0f), new Vector3(9.0f, 0.8f, 9.0f), stoneMat);
             Cylinder("EastBeacon_Tower", stage4, new Vector3(117.0f, 3.5f, 190.0f), new Vector3(2.5f, 5.0f, 2.5f), stoneMat);
             Cylinder("EastBeacon_Brazier", stage4, new Vector3(117.0f, 6.2f, 190.0f), new Vector3(1.4f, 0.8f, 1.4f), ironMat);
             var eastLight = Box("EastBeacon_Flame", stage4, new Vector3(117.0f, 6.8f, 190.0f), new Vector3(0.8f, 0.8f, 0.8f), goldMat);
+            Cylinder("EastBeacon_Base_Step", stage4, new Vector3(117.0f, 1.4f, 190.0f), new Vector3(5.0f, 0.4f, 5.0f), stoneMat);
 
             // Giant Lily Stepping Stones (BoostThrow landing area for Child)
-            Cylinder("GiantLilyPad_1", stage4, new Vector3(90.0f, 0.55f, 175.0f), new Vector3(3.2f, 0.1f, 3.2f), buoyGreenMat);
-            Cylinder("GiantLilyPad_2", stage4, new Vector3(110.0f, 0.55f, 190.0f), new Vector3(3.2f, 0.1f, 3.2f), buoyGreenMat);
+            var lily1 = Cylinder("GiantLilyPad_1", stage4, new Vector3(90.0f, 0.55f, 175.0f), new Vector3(3.2f, 0.1f, 3.2f), buoyGreenMat);
+            var lily2 = Cylinder("GiantLilyPad_2", stage4, new Vector3(110.0f, 0.55f, 190.0f), new Vector3(3.2f, 0.1f, 3.2f), buoyGreenMat);
+
             // Lumina Crystal Pedestal on West Island
             Box("LuminaCrystal_Pedestal", stage4, new Vector3(83.0f, 1.6f, 172.5f), new Vector3(0.8f, 1.2f, 0.8f), stoneMat);
             Box("LuminaCrystal_Gem", stage4, new Vector3(83.0f, 2.4f, 172.5f), new Vector3(0.5f, 0.6f, 0.5f), goldMat);
+
+            // Biển hướng dẫn ném đồng đội tại 2 bến Đầm lầy
+            Signpost("West_Throw_Sign", stage4, new Vector3(98.5f, 1.15f, 173.5f), new Vector3(0, -90f, 0), woodMat, goldMat, false);
+            Signpost("East_Throw_Sign", stage4, new Vector3(101.5f, 1.15f, 188.5f), new Vector3(0, 90f, 0), woodMat, goldMat, true);
 
             // ==========================================
             // 6. STAGE 5: GIANT WATERMILL CLIMAX & HAVEN (Z: 216 - 265)
@@ -549,11 +718,13 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             // Gorge Archway before Watermill
             Box("Watermill_LeftGorge", stage5, new Vector3(89.0f, 5.0f, 225.0f), new Vector3(5.0f, 10.0f, 4.0f), stoneMat);
             Box("Watermill_RightGorge", stage5, new Vector3(111.0f, 5.0f, 225.0f), new Vector3(5.0f, 10.0f, 4.0f), stoneMat);
+            // Vòm đá vươn ngang hẻm núi nối hai trụ
+            Box("Watermill_Arch_Overhead", stage5, new Vector3(100.0f, 10.5f, 225.0f), new Vector3(25.0f, 1.5f, 3.5f), stoneMat);
 
             // Giant Watermill Axis & 4 Paddles
             var millRoot = Marker("GiantWatermill_Assembly", stage5, new Vector3(100.0f, 4.5f, 225.0f));
             Cylinder("Watermill_Hub", millRoot, Vector3.zero, new Vector3(1.8f, 16.0f, 1.8f), ironMat);
-            millRoot.transform.Rotate(0, 0, 90f); // Horizontal axle across river
+            millRoot.transform.Rotate(0, 0, 90f);
 
             // 4 Paddles in cross formation
             Box("Paddle_Blade_Top", millRoot, new Vector3(0, 0, 3.8f), new Vector3(15.0f, 0.3f, 3.2f), woodMat);
@@ -574,12 +745,30 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             Cylinder("HavenHarbor_Post_L", stage5, new Vector3(96.5f, 1.3f, 246.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat);
             Cylinder("HavenHarbor_Post_R", stage5, new Vector3(103.5f, 1.3f, 246.0f), new Vector3(0.35f, 1.2f, 0.35f), woodMat);
 
+            // Cột đèn lồng chào đón tại Haven Harbor
+            LanternPost("Haven_Lantern_Left", stage5, new Vector3(96.2f, 1.0f, 246.5f), woodMat, goldMat);
+            LanternPost("Haven_Lantern_Right", stage5, new Vector3(103.8f, 1.0f, 246.5f), woodMat, goldMat);
+
+            // Đại sảnh Bậc Tam Cấp dẫn lên Bàn Thờ (Grand Stairs)
+            Box("Haven_GrandStairs_1", stage5, new Vector3(100.0f, 1.1f, 251.5f), new Vector3(6.5f, 0.25f, 1.8f), stoneMat);
+            Box("Haven_GrandStairs_2", stage5, new Vector3(100.0f, 1.3f, 253.2f), new Vector3(5.5f, 0.25f, 1.8f), stoneMat);
+
             // Altar of Dawn & Victory Trigger
             var altar = Box("AltarOfDawn_Podium", stage5, new Vector3(100.0f, 1.4f, 256.0f), new Vector3(3.5f, 0.8f, 3.5f), stoneMat);
             Cylinder("Altar_MemoryCrystal", altar.transform, new Vector3(0, 0.8f, 0), new Vector3(0.8f, 1.2f, 0.8f), goldMat);
             var victoryTrig = Box("LevelTwo_VictoryTrigger", stage5, new Vector3(100.0f, 1.8f, 256.0f), new Vector3(5.0f, 3.0f, 5.0f));
             victoryTrig.GetComponent<BoxCollider>().isTrigger = true;
             Object.DestroyImmediate(victoryTrig.GetComponent<MeshRenderer>());
+
+            // Hai Bục đứng thiêng liêng dành cho Cha và Con tại Bàn Thờ Bình Minh
+            Cylinder("Altar_Dad_Plinth", stage5, new Vector3(98.8f, 1.5f, 256.0f), new Vector3(1.2f, 0.15f, 1.2f), goldMat);
+            Cylinder("Altar_Child_Plinth", stage5, new Vector3(101.2f, 1.5f, 256.0f), new Vector3(1.0f, 0.15f, 1.0f), goldMat);
+            // 2 Ngọn đuốc thiêng hai bên Bàn Thờ
+            LanternPost("Altar_Torch_L", stage5, new Vector3(97.2f, 1.4f, 257.5f), stoneMat, goldMat);
+            LanternPost("Altar_Torch_R", stage5, new Vector3(102.8f, 1.4f, 257.5f), stoneMat, goldMat);
+
+            // Biển chỉ dẫn hoàn thành: "NẮM TAY NHAU [H] ĐỂ CHIẾN THẮNG"
+            Signpost("Altar_Victory_Sign", stage5, new Vector3(100.0f, 1.4f, 254.5f), new Vector3(0, 0, 0), woodMat, goldMat, true);
 
             // ==========================================
             // 7. CHECKPOINTS
@@ -590,12 +779,17 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             Marker("CP2_PostRapids", cpRoot, new Vector3(100.0f, 1.0f, 150.0f));
             Marker("CP3_HavenHarbor", cpRoot, new Vector3(100.0f, 1.2f, 250.0f));
 
+            // Wiring stages
+            WireStageOne();
+            WireStageTwo();
+            WireStageThree();
+
             // Mark dirty and save
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             AssetDatabase.SaveAssets();
 
-            Debug.Log("[LVL2] Complete River Map built successfully in " + ScenePath + "!");
+            Debug.Log("[LVL2] Complete River Map with Guiding Arrows & Architectural Blockout built successfully in " + ScenePath + "!");
         }
     }
 }
