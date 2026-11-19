@@ -90,6 +90,9 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public bool IsAiming => m_IsAiming;
 
+        private bool m_CutsceneInputBlocked;
+        public void SetCutsceneInputBlocked(bool blocked) => m_CutsceneInputBlocked = blocked;
+
         // Internal state for look angles and sensitivity.
         private float m_TargetVerticalLookAngle;
         private float m_TargetHorizontalLookAngle;
@@ -251,7 +254,7 @@ namespace Blocks.Gameplay.Core
         /// <param name="lookInput">The 2D vector from the input device.</param>
         public void SetLookInput(Vector2 lookInput)
         {
-            if (!IsOwner || !enableLookInput) return;
+            if (!IsOwner || !enableLookInput || m_CutsceneInputBlocked) return;
 
             m_TargetHorizontalLookAngle += lookInput.x * m_LookSensitivity;
 
