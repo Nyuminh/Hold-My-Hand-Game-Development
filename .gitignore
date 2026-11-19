@@ -134,3 +134,8 @@ WORK_STATUS.md
 Docs/**/*.py
 Docs/*.py
 *.ps1
+
+# Ignore demo scenes and heavy skyboxes
+Assets/Map Material/Materials/WoodLog/Scene/
+Assets/Map Material/Materials/WoodLog/Scene.meta
+
