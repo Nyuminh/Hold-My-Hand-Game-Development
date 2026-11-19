@@ -204,6 +204,9 @@ namespace Blocks.Gameplay.Core
                 RegisterNetworkHandlers();
             }
 
+            // The intro consumes ESC for Skip, including the camera's return blend.
+            if (TutorialIntroCutscene.IsAnyPlaying) return;
+
             bool escPressed = false;
 
 #if ENABLE_INPUT_SYSTEM

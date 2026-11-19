@@ -1,4 +1,2 @@
 "Assets/Map Material/FlipGameDev/Terrain&GrassPack/Demo/Demo/LightingData.asset" filter=lfs diff=lfs merge=lfs -text
-"Assets/Map Material/FlipGameDev/Terrain&GrassPack/Terrain_Settings/Data/Demo.asset" filter=lfs diff=lfs merge=lfs -text
-Assets/Map[[:space:]]Material/FlipGameDev/Terrain&GrassPack/Terrain_Settings/Data/Demo.asset filter=lfs diff=lfs merge=lfs -text
 Assets/Map[[:space:]]Material/FlipGameDev/Terrain&GrassPack/Demo/Demo/LightingData.asset filter=lfs diff=lfs merge=lfs -text

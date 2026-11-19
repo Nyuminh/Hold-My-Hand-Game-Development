@@ -442,6 +442,7 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         private void HandlePlayerMountInputs()
         {
+            if (TutorialIntroCutscene.IsAnyPlaying) return;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             // Phím tắt kiểm thử nhanh: [B] Dịch chuyển người chơi và bạn đồng hành đến cạnh thuyền
             bool bPressed = false;
@@ -1511,6 +1512,7 @@ namespace Blocks.Gameplay.Core
 
         private void OnGUI()
         {
+            if (TutorialIntroCutscene.IsAnyPlaying) return;
             var localPlayer = FindLocalPlayer();
             if (localPlayer == null) return;
 

@@ -231,6 +231,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 30865776}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &32631794
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 32631795}
+  m_Layer: 0
+  m_Name: Lake End
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &32631795
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 32631794}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -12, y: 14, z: 149}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1007220380}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &69335624
 GameObject:
   m_ObjectHideFlags: 0
@@ -614,7 +645,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1831116031875492818, guid: d30cdca7a8c9b40d9835b82c86542a4e, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 3322214770
+      value: 21090236
       objectReference: {fileID: 0}
     - target: {fileID: 1831116031875492818, guid: d30cdca7a8c9b40d9835b82c86542a4e, type: 3}
       propertyPath: DontDestroyWithOwner
@@ -1533,7 +1564,11 @@ MonoBehaviour:
   oarRight: {fileID: 1520644081}
   seatRower: {fileID: 1520644076}
   seatNavigator: {fileID: 1520644077}
+  distancePerStroke: 1
+  minStrokeSpeed: 2.2
+  speedBoostPerSpam: 1.2
   maxRowSpeed: 4.5
+  strokeDuration: 0.55
   rowAcceleration: 2.4
   waterDrag: 1.2
   reverseSpeed: 1.5
@@ -1552,6 +1587,8 @@ MonoBehaviour:
   boardInteractionRadius: 3.5
   boardKey: 101
   soloTestMode: 1
+  riverPhysicsEnabled: 0
+  maxDriftSpeed: 5
   dadSeatLocalOffset: {x: 0, y: 0.06, z: 0}
   childSeatLocalOffset: {x: 0, y: 0.06, z: 0}
 --- !u!1 &680794893
@@ -1890,6 +1927,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 757938522}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &813490822
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 813490823}
+  m_Layer: 0
+  m_Name: Lake Start
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &813490823
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 813490822}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 12, y: 17, z: 115}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1007220380}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &852780400
 GameObject:
   m_ObjectHideFlags: 0
@@ -1979,6 +2047,7 @@ GameObject:
   - component: {fileID: 939296892}
   - component: {fileID: 939296891}
   - component: {fileID: 939296890}
+  - component: {fileID: 939296893}
   m_Layer: 0
   m_Name: '[TutorialManager]'
   m_TagString: Untagged
@@ -2023,6 +2092,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.TutorialManager
   tutorialHUD: {fileID: 939296890}
   spawnPoint: {fileID: 422813931}
+  introCutscene: {fileID: 939296893}
 --- !u!4 &939296892
 Transform:
   m_ObjectHideFlags: 0
@@ -2038,6 +2108,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &939296893
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 939296889}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e07fac7d8cba4cafb68b426e135c1eac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.TutorialIntroCutscene
+  flyoverWaypoints:
+  - {fileID: 1190186365}
+  - {fileID: 1035425920}
+  lakeWaypoints:
+  - {fileID: 813490823}
+  - {fileID: 32631795}
+  courseFocus: {x: 0, y: 1, z: 55}
+  lakeFocus: {x: 0, y: 3.5, z: 133}
+  returnBlendDuration: 0.8
 --- !u!1 &991935033
 GameObject:
   m_ObjectHideFlags: 0
@@ -2150,6 +2241,72 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 991935033}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1007220379
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1007220380}
+  m_Layer: 0
+  m_Name: Tutorial Intro Waypoints
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1007220380
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1007220379}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1190186365}
+  - {fileID: 1035425920}
+  - {fileID: 813490823}
+  - {fileID: 32631795}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1035425919
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1035425920}
+  m_Layer: 0
+  m_Name: Course End
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1035425920
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1035425919}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -9, y: 14, z: 84}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1007220380}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1069064432
 GameObject:
   m_ObjectHideFlags: 0
@@ -2262,6 +2419,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1069064432}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1190186364
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1190186365}
+  m_Layer: 0
+  m_Name: Course Start
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1190186365
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1190186364}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 8, y: 12, z: 18}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1007220380}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1227417944
 GameObject:
   m_ObjectHideFlags: 0
@@ -3339,7 +3527,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 831219775
+  GlobalObjectIdHash: 314896128
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -3418,7 +3606,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializedBakingSet: {fileID: 11400000, guid: 954024a17bf324b8c8abf1a3669e263a, type: 2}
-  sceneGUID: 05c679bdeb81e9f4c8d578f19b77212d
+  sceneGUID: 9c970485b2124180bbec170ac82139ef
   obsoleteAsset: {fileID: 0}
   obsoleteCellSharedDataAsset: {fileID: 0}
   obsoleteCellSupportDataAsset: {fileID: 0}
@@ -4836,3 +5024,4 @@ SceneRoots:
   - {fileID: 936259571}
   - {fileID: 1275934356}
   - {fileID: 1942205110}
+  - {fileID: 1007220380}

@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-10-29T08:59:18.589Z" agent="Antigravity" version="21.0.0" type="device">
+  <diagram name="Hold-My-Hand-ERD" id="hold-my-hand-erd-v2">
+    <mxGraphModel dx="2200" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1400" background="#0f172a">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="2" value="&lt;b&gt;Account&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> id: <font color="#94a3b8">string</font><br/>+ username: <font color="#94a3b8">string</font><br/>+ email: <font color="#94a3b8">string</font><br/>+ role: <font color="#94a3b8">enum</font><br/>+ is_banned: <font color="#94a3b8">bool</font><br/>+ created_at: <font color="#94a3b8">datetime</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="60" y="160" width="180" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="&lt;b&gt;Admin&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> admin_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> account_id: <font color="#94a3b8">string</font><br/>+ permissions: <font color="#94a3b8">string</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="290" y="80" width="170" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="4" value="&lt;b&gt;Mod_Action_log&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> log_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> admin_id: <font color="#94a3b8">string</font><br/>+ target_type: <font color="#94a3b8">string</font><br/>+ target_id: <font color="#94a3b8">string</font><br/>+ <font color="#f97316"><b>[FK*]</b></font> session_id: <font color="#94a3b8">string</font><br/>+ <font color="#f97316"><b>[FK*]</b></font> lobby_code: <font color="#94a3b8">string</font><br/>+ action: <font color="#94a3b8">string</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="510" y="80" width="190" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="5" value="&lt;b&gt;Player_Profile&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> account_id: <font color="#94a3b8">string</font><br/>+ display_name: <font color="#94a3b8">string</font><br/>+ avatar_url: <font color="#94a3b8">string</font><br/>+ total_play_time: <font color="#94a3b8">int</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="290" y="240" width="180" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="6" value="&lt;b&gt;Progression&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> progression_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ highest_chapter: <font color="#94a3b8">int</font><br/>+ total_stars: <font color="#94a3b8">int</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="60" y="440" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="7" value="&lt;b&gt;Lobby&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> lobby_code: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> host_player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ status: <font color="#94a3b8">enum</font><br/>+ created_at: <font color="#94a3b8">datetime</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="770" y="160" width="180" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="8" value="&lt;b&gt;Lobby_Member&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> member_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> lobby_code: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ role_pref: <font color="#94a3b8">enum</font><br/>+ is_ready: <font color="#94a3b8">bool</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="540" y="270" width="180" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="9" value="&lt;b&gt;Game_Session ★ CENTRAL HUB&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> session_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> lobby_code: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ <font color="#f97316"><b>[FK*]</b></font> current_checkpoint_id: <font color="#94a3b8">string</font><br/>+ <font color="#f97316"><b>[FK*]</b></font> current_boss_phase_id: <font color="#94a3b8">string</font><br/>+ status: <font color="#94a3b8">enum</font><br/>+ relay_join_code: <font color="#94a3b8">string</font><br/>+ duration_seconds: <font color="#94a3b8">int</font><br/>+ death_count: <font color="#94a3b8">int</font><br/>+ started_at: <font color="#94a3b8">datetime</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#291e0a;strokeColor=#f59e0b;strokeWidth=3;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="180" width="230" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="10" value="&lt;b&gt;Session_Player&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> session_player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> session_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> character_id: <font color="#94a3b8">string</font><br/>+ role: <font color="#94a3b8">enum(Dad/Child)</font><br/>+ is_host: <font color="#94a3b8">bool</font><br/>+ ping_ms: <font color="#94a3b8">int</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="250" width="190" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="11" value="&lt;b&gt;Network_State_log&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> log_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> session_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ rtt_ms: <font color="#94a3b8">float</font><br/>+ packet_loss: <font color="#94a3b8">float</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="70" width="190" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="&lt;b&gt;Character (Dad / Child)&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> character_id: <font color="#94a3b8">string</font><br/>+ name: <font color="#94a3b8">string</font><br/>+ physics_type: <font color="#94a3b8">string</font><br/>+ primary_stat: <font color="#94a3b8">string</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="250" width="190" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="&lt;b&gt;Character_Attribute&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> attribute_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> character_id: <font color="#94a3b8">string</font><br/>+ stat_name: <font color="#94a3b8">string</font><br/>+ starting_value: <font color="#94a3b8">float</font><br/>+ regen_rate: <font color="#94a3b8">float</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="250" width="180" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="&lt;b&gt;Combat_Ability&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> ability_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> character_id: <font color="#94a3b8">string</font><br/>+ ability_name: <font color="#94a3b8">string</font><br/>+ cooldown: <font color="#94a3b8">float</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="110" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="&lt;b&gt;Player_Achievement&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> achievement_id: <font color="#94a3b8">string</font><br/>+ unlocked_at: <font color="#94a3b8">datetime</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="270" y="440" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="16" value="&lt;b&gt;Player_Tool_Unlock&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> tool_id: <font color="#94a3b8">string</font><br/>+ unlocked_at: <font color="#94a3b8">datetime</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="480" y="440" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="17" value="&lt;b&gt;Player_Objective_Progress&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> id: <font color="#94a3b8">string</font><br/>+ <font color="#f97316"><b>[FK*]</b></font> session_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> puzzle_trigger_id: <font color="#94a3b8">string</font><br/>+ is_completed: <font color="#94a3b8">bool</font><br/>+ triggered_at: <font color="#94a3b8">datetime</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="690" y="440" width="200" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="18" value="&lt;b&gt;Player_Collectible&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> id: <font color="#94a3b8">string</font><br/>+ <font color="#f97316"><b>[FK*]</b></font> session_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> collectible_id: <font color="#94a3b8">string</font><br/>+ collected_at: <font color="#94a3b8">datetime</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="920" y="440" width="180" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="19" value="&lt;b&gt;Minigame_Score&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> score_id: <font color="#94a3b8">string</font><br/>+ <font color="#f97316"><b>[FK*]</b></font> session_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> minigame_id: <font color="#94a3b8">string</font><br/>+ score: <font color="#94a3b8">int</font><br/>+ completion_time: <font color="#94a3b8">float</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="440" width="180" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="&lt;b&gt;Player_Quest_Progress&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> id: <font color="#94a3b8">string</font><br/>+ <font color="#f97316"><b>[FK*]</b></font> session_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> player_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> quest_object_id: <font color="#94a3b8">string</font><br/>+ status: <font color="#94a3b8">enum</font><br/>+ completed_at: <font color="#94a3b8">datetime</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="440" width="190" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="21" value="&lt;b&gt;Achievement&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> achievement_id: <font color="#94a3b8">string</font><br/>+ title: <font color="#94a3b8">string</font><br/>+ description: <font color="#94a3b8">string</font><br/>+ points: <font color="#94a3b8">int</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="270" y="640" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="&lt;b&gt;Tool&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> tool_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ name: <font color="#94a3b8">string</font><br/>+ tool_type: <font color="#94a3b8">string</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="480" y="640" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="&lt;b&gt;Puzzle_Trigger&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> trigger_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> puzzle_id: <font color="#94a3b8">string</font><br/>+ name: <font color="#94a3b8">string</font><br/>+ sequence: <font color="#94a3b8">int</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="690" y="640" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="&lt;b&gt;Puzzle_Element&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> puzzle_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ puzzle_type: <font color="#94a3b8">string</font><br/>+ required_role: <font color="#94a3b8">enum</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="690" y="780" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="25" value="&lt;b&gt;Boss_Phase&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> phase_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> boss_id: <font color="#94a3b8">string</font><br/>+ phase_num: <font color="#94a3b8">int</font><br/>+ hp_threshold: <font color="#94a3b8">float</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="900" y="640" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="26" value="&lt;b&gt;Boss&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> boss_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ name: <font color="#94a3b8">string</font><br/>+ phases_count: <font color="#94a3b8">int</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="900" y="780" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="27" value="&lt;b&gt;Collectible&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> collectible_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ name: <font color="#94a3b8">string</font><br/>+ rarity: <font color="#94a3b8">string</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="640" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="28" value="&lt;b&gt;Minigame&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> minigame_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ title: <font color="#94a3b8">string</font><br/>+ rules_type: <font color="#94a3b8">string</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="640" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="29" value="&lt;b&gt;Checkpoint&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> checkpoint_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ name: <font color="#94a3b8">string</font><br/>+ respawn_coord: <font color="#94a3b8">Vector3</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1510" y="640" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="30" value="&lt;b&gt;CutScene&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> cutscene_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ title: <font color="#94a3b8">string</font><br/>+ duration: <font color="#94a3b8">float</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1720" y="640" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="31" value="&lt;b&gt;Quest_Object&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> quest_object_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> quest_id: <font color="#94a3b8">string</font><br/>+ title: <font color="#94a3b8">string</font><br/>+ target_count: <font color="#94a3b8">int</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1910" y="440" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="32" value="&lt;b&gt;Quest&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> quest_id: <font color="#94a3b8">string</font><br/>+ <font color="#60a5fa"><b>[FK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ name: <font color="#94a3b8">string</font><br/>+ quest_type: <font color="#94a3b8">string</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1910" y="640" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="33" value="&lt;b&gt;Chapter (Master Level)&lt;/b&gt;&lt;hr/&gt;+ <font color="#fbbf24"><b>[PK]</b></font> chapter_id: <font color="#94a3b8">string</font><br/>+ name: <font color="#94a3b8">string</font><br/>+ theme: <font color="#94a3b8">string</font><br/>+ order_index: <font color="#94a3b8">int</font><br/>+ description: <font color="#94a3b8">text</font><br/>+ is_active: <font color="#94a3b8">bool</font>" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=left;fontSize=11;fillColor=#18181b;strokeColor=#3f3f46;strokeWidth=1;fontColor=#f8fafc;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="920" width="220" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="34" value="&lt;font color="#71717a"&gt;is_admin&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="2" target="3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="35" value="&lt;font color="#71717a"&gt;has_profile&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="2" target="5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="36" value="&lt;font color="#71717a"&gt;logs_action&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="3" target="4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="37" value="&lt;font color="#71717a"&gt;joins_as&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="5" target="8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="38" value="&lt;font color="#71717a"&gt;contains&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="7" target="8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="39" value="&lt;font color="#38bdf8"&gt;spawns_on_ready&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#38bdf8;strokeWidth=2;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="7" target="9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="40" value="&lt;font color="#38bdf8"&gt;has_players (Dad & Child)&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#38bdf8;strokeWidth=2;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="9" target="10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="41" value="&lt;font color="#71717a"&gt;participates_as&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="5" target="10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="42" value="&lt;font color="#71717a"&gt;assigned_character&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="12" target="10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="43" value="&lt;font color="#38bdf8"&gt;monitors_network&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#38bdf8;strokeWidth=2;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="9" target="11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="44" value="&lt;font color="#38bdf8"&gt;session_runs_in_chapter&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#38bdf8;strokeWidth=2;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="9" target="33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="45" value="&lt;font color="#f59e0b"&gt;current_active_checkpoint&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#f59e0b;strokeWidth=2.5;dashed=1;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="9" target="29">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="46" value="&lt;font color="#f59e0b"&gt;current_boss_phase&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#f59e0b;strokeWidth=2.5;dashed=1;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="9" target="25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="47" value="&lt;font color="#f59e0b"&gt;session_puzzle_triggers&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#f59e0b;strokeWidth=2.5;dashed=1;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="9" target="17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="48" value="&lt;font color="#f59e0b"&gt;session_collected_items&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#f59e0b;strokeWidth=2.5;dashed=1;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="9" target="18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="49" value="&lt;font color="#f59e0b"&gt;session_minigame_scores&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#f59e0b;strokeWidth=2.5;dashed=1;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="9" target="19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="50" value="&lt;font color="#f59e0b"&gt;session_quest_progress&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#f59e0b;strokeWidth=2.5;dashed=1;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="9" target="20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="51" value="&lt;font color="#ec4899"&gt;aborts/inspects_session&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#ec4899;strokeWidth=1.5;dashed=1;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="4" target="9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="52" value="&lt;font color="#ec4899"&gt;closes_lobby (MOD-001)&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#ec4899;strokeWidth=1.5;dashed=1;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="4" target="7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="53" value="&lt;font color="#71717a"&gt;saves_progress&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="5" target="6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="54" value="&lt;font color="#71717a"&gt;unlocked&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="5" target="15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="55" value="&lt;font color="#71717a"&gt;unlocked&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="5" target="16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="56" value="&lt;font color="#71717a"&gt;profile_ref&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="5" target="17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="57" value="&lt;font color="#71717a"&gt;collects&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="5" target="18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="58" value="&lt;font color="#71717a"&gt;player_score&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="5" target="19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="59" value="&lt;font color="#71717a"&gt;player_progress&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="5" target="20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="60" value="&lt;font color="#71717a"&gt;has_stats&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="12" target="13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="61" value="&lt;font color="#71717a"&gt;has_abilities&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="12" target="14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="62" value="&lt;font color="#71717a"&gt;unlocked_via&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="21" target="15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="63" value="&lt;font color="#71717a"&gt;unlocks_tool&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="22" target="16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="64" value="&lt;font color="#71717a"&gt;triggers_objective&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="23" target="17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="65" value="&lt;font color="#71717a"&gt;collected_item&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="27" target="18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="66" value="&lt;font color="#71717a"&gt;minigame_recorded&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="28" target="19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="67" value="&lt;font color="#71717a"&gt;progresses_object&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="31" target="20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="68" value="&lt;font color="#71717a"&gt;contains_triggers&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="24" target="23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="69" value="&lt;font color="#71717a"&gt;has_phases&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="26" target="25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="70" value="&lt;font color="#71717a"&gt;has_objectives&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="32" target="31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="71" value="&lt;font color="#71717a"&gt;introduces&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="33" target="22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="72" value="&lt;font color="#71717a"&gt;contains&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="33" target="24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="73" value="&lt;font color="#71717a"&gt;has_boss&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="33" target="26">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="74" value="&lt;font color="#71717a"&gt;hides&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="33" target="27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="75" value="&lt;font color="#71717a"&gt;contains&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="33" target="28">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="76" value="&lt;font color="#71717a"&gt;contains&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="33" target="29">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="77" value="&lt;font color="#71717a"&gt;triggers&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="33" target="30">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="78" value="&lt;font color="#71717a"&gt;contains&lt;/font&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#71717a;strokeWidth=1;dashed=0;fontColor=#94a3b8;fontSize=9;" edge="1" parent="1" source="33" target="32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

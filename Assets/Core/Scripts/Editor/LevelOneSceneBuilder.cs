@@ -210,19 +210,26 @@ namespace Blocks.Gameplay.Core.LevelOneAuthoring
             climax.blockers=Marker("PortcullisCollision",climax.transform,center);
             for(int i=0;i<2;i++)
             {
-                var blocker=Box("SolidGate",climax.blockers,new Vector3(-0.8f,4.5f,i*6.4f),new Vector3(10.8f,9,0.45f),stone);
+                var blocker=Box("SolidGate",climax.blockers,new Vector3(-1.0f,4.5f,i*6.4f),new Vector3(10.8f,9,0.45f),stone);
                 blocker.GetComponent<Renderer>().enabled=false;
             }
             var drain=Marker("ChildDrain",climax.transform,climax.transform.TransformPoint(new Vector3(5.35f,0,2))).gameObject;
             drain.transform.rotation=climax.transform.rotation;
-            var volume=drain.AddComponent<BoxCollider>();volume.isTrigger=true;volume.size=new Vector3(1.5f,1.2f,16);volume.center=Vector3.up*0.6f;
+            var volume=drain.AddComponent<BoxCollider>();volume.isTrigger=true;volume.size=new Vector3(2.2f,1.4f,20.5f);volume.center=new Vector3(0,0.7f,0);
             climax.drain=drain.AddComponent<CoopCrawlVolume>();
-            Box("DrainFloor",drain.transform,new Vector3(0,-0.07f,0),new Vector3(1.65f,0.14f,16),stone);
-            Box("DrainRoof",drain.transform,new Vector3(0,1.18f,0),new Vector3(1.65f,0.25f,16),stone);
-            Box("DrainOuterWall",drain.transform,new Vector3(0.9f,0.75f,0),new Vector3(0.3f,1.5f,16),stone);
-            climax.childLever=Marker("ChildLever_E",climax.transform,climax.transform.TransformPoint(new Vector3(4,0,11)));
-            Box("LeverPost",climax.transform,new Vector3(4,0.65f,11),new Vector3(0.35f,1.3f,0.35f),wood);
-            Box("LeverHandle",climax.transform,new Vector3(4,1.2f,11),new Vector3(1.2f,0.2f,0.2f),stone);
+            var crawlSo=new SerializedObject(climax.drain);crawlSo.FindProperty("crawlHeight").floatValue=0.75f;crawlSo.ApplyModifiedPropertiesWithoutUndo();
+            Box("DrainFloor",drain.transform,new Vector3(0,-0.07f,0),new Vector3(2.2f,0.14f,16),stone);
+            Box("DrainRoof",drain.transform,new Vector3(0,1.30f,0),new Vector3(2.2f,0.25f,16),stone);
+            Box("DrainOuterWall",drain.transform,new Vector3(1.15f,0.75f,0),new Vector3(0.3f,1.5f,16),stone);
+            var gRight=Box("DrainEntranceGuide_Right",drain.transform,new Vector3(1.35f,0.75f,-8.7f),new Vector3(0.3f,1.5f,1.8f),stone);
+            gRight.transform.localRotation=Quaternion.Euler(0,-25f,0);
+            var gLeft=Box("DrainEntranceGuide_Left",drain.transform,new Vector3(-1.15f,0.75f,-8.7f),new Vector3(0.3f,1.5f,1.8f),stone);
+            gLeft.transform.localRotation=Quaternion.Euler(0,25f,0);
+            var ramp=Box("DrainEntranceRamp",drain.transform,new Vector3(0,-0.05f,-8.6f),new Vector3(2.2f,0.10f,1.4f),stone);
+            ramp.transform.localRotation=Quaternion.Euler(6f,0,0);
+            climax.childLever=Marker("ChildLever_E",climax.transform,climax.transform.TransformPoint(new Vector3(3.6f,0,11)));
+            Box("LeverPost",climax.transform,new Vector3(3.6f,0.65f,11),new Vector3(0.35f,1.3f,0.35f),wood);
+            Box("LeverHandle",climax.transform,new Vector3(3.6f,1.2f,11),new Vector3(1.2f,0.2f,0.2f),stone);
             climax.dadGrip=Marker("DadHold_E",climax.transform,climax.transform.TransformPoint(new Vector3(0,0,-1.2f)));
             climax.slideEntry=Marker("ChildSlide_E",climax.transform,climax.transform.TransformPoint(new Vector3(1.2f,0,-3)));
             Box("HoldMarker",climax.transform,new Vector3(0,0.03f,-1.2f),new Vector3(2,0.06f,1.5f),wood);
