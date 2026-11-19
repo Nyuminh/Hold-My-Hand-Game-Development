@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -22,7 +23,7 @@ namespace Blocks.Gameplay.Core
     /// thiếu reference nào → log cảnh báo + script tự vô hiệu hóa phần đó, không crash.
     /// Transform FBX: nhân offset với rotation gốc (initialRot * Euler), KHÔNG ghi đè.
     /// </summary>
-    public class CoopCableCartController : MonoBehaviour
+    public class CoopCableCartController : NetworkBehaviour
     {
         [Header("Target — Trục tời (tên CHÍNH XÁC)")]
         [Tooltip("Tên CHÍNH XÁC trục ròng rọc quay")]
@@ -60,6 +61,64 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private AudioSource winchAudio;
         [SerializeField] private ParticleSystem cartDust;
 
+        
+        [Header("Netcode Synchronization")]
+        private readonly NetworkVariable<float> netCartProgress = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<bool> netIsCranking = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<bool> netArrivedAtB = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<bool> netCableLocked = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        public bool IsNetworkActive => NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && IsSpawned;
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            netCartProgress.OnValueChanged += (o, n) => cartProgress = n;
+            netIsCranking.OnValueChanged += (o, n) => isCranking = n;
+            netArrivedAtB.OnValueChanged += (o, n) => arrivedAtB = n;
+            netCableLocked.OnValueChanged += (o, n) => cableLocked = n;
+
+            if (IsServer)
+            {
+                netCartProgress.Value = cartProgress;
+                netIsCranking.Value = isCranking;
+                netArrivedAtB.Value = arrivedAtB;
+                netCableLocked.Value = cableLocked;
+            }
+            else
+            {
+                cartProgress = netCartProgress.Value;
+                isCranking = netIsCranking.Value;
+                arrivedAtB = netArrivedAtB.Value;
+                cableLocked = netCableLocked.Value;
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            base.OnNetworkDespawn();
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void SetCrankingServerRpc(bool cranking)
+        {
+            netIsCranking.Value = cranking;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void LockCableServerRpc()
+        {
+            netCableLocked.Value = true;
+            netArrivedAtB.Value = true;
+        }
+
         [Header("Trạng thái (chỉ đọc)")]
         [SerializeField, Range(0f, 1f)] private float cartProgress;
         [SerializeField] private bool isCranking;
@@ -85,6 +144,36 @@ namespace Blocks.Gameplay.Core
         {
             m_Prompt = "";
             m_LocalPlayer = FindLocalPlayer();
+
+            if (IsNetworkActive)
+            {
+                if (IsServer && anchorA != null && anchorB != null)
+                {
+                    float cableLen = Vector3.Distance(anchorA.position, anchorB.position);
+                    if (cableLen > 0.01f && !netCableLocked.Value)
+                    {
+                        if (netIsCranking.Value)
+                        {
+                            netCartProgress.Value = Mathf.Clamp01(netCartProgress.Value + pullSpeed * Time.deltaTime / cableLen);
+                        }
+                        else if (!netArrivedAtB.Value && netCartProgress.Value > 0f)
+                        {
+                            netCartProgress.Value = Mathf.Clamp01(netCartProgress.Value - rollbackSpeed * Time.deltaTime / cableLen);
+                        }
+
+                        if (netCartProgress.Value >= 1f - arriveThreshold / Mathf.Max(cableLen, 1f) && !netArrivedAtB.Value)
+                        {
+                            netArrivedAtB.Value = true;
+                            netIsCranking.Value = false;
+                        }
+                    }
+                }
+
+                cartProgress = netCartProgress.Value;
+                isCranking = netIsCranking.Value;
+                arrivedAtB = netArrivedAtB.Value;
+                cableLocked = netCableLocked.Value;
+            }
 
             // 0. Chưa khóa cáp → logic kéo / trôi
             if (!cableLocked)
@@ -140,13 +229,28 @@ namespace Blocks.Gameplay.Core
 
             if (IsCrankHeld())
             {
-                isCranking = true;
+                if (IsNetworkActive)
+                {
+                    if (!netIsCranking.Value) SetCrankingServerRpc(true);
+                }
+                else
+                {
+                    isCranking = true;
+                }
                 m_Prompt = "Đang quay tời… (thả tay = giỏ trôi về)";
                 SpinWinch(Time.deltaTime);
                 StartWinchAudio();
             }
             else
             {
+                if (IsNetworkActive)
+                {
+                    if (netIsCranking.Value) SetCrankingServerRpc(false);
+                }
+                else
+                {
+                    isCranking = false;
+                }
                 m_Prompt = "GIỮ [E] để quay tời kéo giỏ qua vực";
                 StopWinchAudio();
             }
@@ -226,7 +330,14 @@ namespace Blocks.Gameplay.Core
                 m_LatchPlayerInside = true;
                 if (IsLatchPressed())
                 {
-                    cableLocked = true;
+                    if (IsNetworkActive)
+                    {
+                        LockCableServerRpc();
+                    }
+                    else
+                    {
+                        cableLocked = true;
+                    }
                     UISoundManager.PlayConfirm();
                     Debug.Log("[CableCart] 🔒 Con đã gạt chốt — cáp cố định, đón Cha qua!");
                 }
@@ -256,8 +367,10 @@ namespace Blocks.Gameplay.Core
             if (Keyboard.current != null && Keyboard.current.eKey.isPressed) return true;
             if (Gamepad.current != null && Gamepad.current.rightTrigger.isPressed) return true;
             if (Mouse.current != null && Mouse.current.leftButton.isPressed) return true;
-#endif
+            return false;
+#else
             return Input.GetKey(KeyCode.E) || Input.GetMouseButton(0);
+#endif
         }
 
         private bool IsLatchPressed()
@@ -265,8 +378,10 @@ namespace Blocks.Gameplay.Core
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) return true;
             if (Gamepad.current != null && Gamepad.current.buttonNorth.wasPressedThisFrame) return true;
-#endif
+            return false;
+#else
             return Input.GetKeyDown(KeyCode.R);
+#endif
         }
 
         #endregion

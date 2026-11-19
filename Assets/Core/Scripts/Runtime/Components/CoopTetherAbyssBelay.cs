@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace Blocks.Gameplay.Core
 {
@@ -115,7 +118,20 @@ namespace Blocks.Gameplay.Core
             // Khi cả hai cha con đã sẵn sàng tại mép vực
             if (dadAtAnchor && childObj != null)
             {
-                if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))
+                bool isInteract = false;
+#if ENABLE_INPUT_SYSTEM
+                if (Keyboard.current != null && (Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame))
+                {
+                    isInteract = true;
+                }
+                if (Gamepad.current != null && (Gamepad.current.buttonWest.wasPressedThisFrame || Gamepad.current.buttonSouth.wasPressedThisFrame))
+                {
+                    isInteract = true;
+                }
+#else
+                isInteract = Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space);
+#endif
+                if (isInteract)
                 {
                     StartTetherRappelling(childObj.GetComponent<CharacterController>());
                 }
@@ -141,12 +157,38 @@ namespace Blocks.Gameplay.Core
             if (m_RappellingChild == null || m_AnchorDad == null) return;
 
             // Điều khiển thả/thu dây (W/S)
-            float vertInput = Input.GetAxisRaw("Vertical");
+            float vertInput = 0f;
+#if ENABLE_INPUT_SYSTEM
+            if (Keyboard.current != null)
+            {
+                if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) vertInput += 1f;
+                if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) vertInput -= 1f;
+            }
+            if (Gamepad.current != null)
+            {
+                vertInput += Gamepad.current.leftStick.y.ReadValue();
+            }
+#else
+            vertInput = Input.GetAxisRaw("Vertical");
+#endif
             currentRopeLength += vertInput * 2.5f * Time.deltaTime;
             currentRopeLength = Mathf.Clamp(currentRopeLength, minRopeLength, maxRopeLength);
 
             // Điều khiển đu đưa người (A/D) theo con lắc vật lý
-            float horizInput = Input.GetAxisRaw("Horizontal");
+            float horizInput = 0f;
+#if ENABLE_INPUT_SYSTEM
+            if (Keyboard.current != null)
+            {
+                if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) horizInput -= 1f;
+                if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) horizInput += 1f;
+            }
+            if (Gamepad.current != null)
+            {
+                horizInput += Gamepad.current.leftStick.x.ReadValue();
+            }
+#else
+            horizInput = Input.GetAxisRaw("Horizontal");
+#endif
             m_SwingVelocity += horizInput * swingForce * Time.deltaTime;
             // Lực kéo phục hồi về trung tâm (trọng lực con lắc)
             m_SwingVelocity -= Mathf.Sin(m_SwingAngle * Mathf.Deg2Rad) * 14f * Time.deltaTime;
@@ -178,8 +220,21 @@ namespace Blocks.Gameplay.Core
             float dist = Vector3.Distance(m_RappellingChild.transform.position, abyssMechanismLatch.position);
             if (dist <= 2.2f)
             {
-                // Khi Con đu tới gần chốt cơ quan và bấm [F]
-                if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))
+                // Khi Con đu tới gần chốt cơ quan và bấm [F] / [E] / [Space]
+                bool isInteract = false;
+#if ENABLE_INPUT_SYSTEM
+                if (Keyboard.current != null && (Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame))
+                {
+                    isInteract = true;
+                }
+                if (Gamepad.current != null && (Gamepad.current.buttonWest.wasPressedThisFrame || Gamepad.current.buttonSouth.wasPressedThisFrame))
+                {
+                    isInteract = true;
+                }
+#else
+                isInteract = Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space);
+#endif
+                if (isInteract)
                 {
                     UnlockLatchAndHaulUp();
                 }

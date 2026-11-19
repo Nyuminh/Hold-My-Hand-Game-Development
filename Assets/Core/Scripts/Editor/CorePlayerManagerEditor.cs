@@ -12,7 +12,7 @@ namespace Blocks.Gameplay.Core
     /// </summary>
     [CustomEditor(typeof(CorePlayerManager))]
     [CanEditMultipleObjects]
-    public class CorePlayerManagerEditor : Editor
+    public class CorePlayerManagerEditor : UnityEditor.Editor
     {
         #region Fields & Properties
 

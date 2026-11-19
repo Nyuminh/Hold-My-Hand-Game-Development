@@ -95,7 +95,7 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float boatTurnSensitivity = 42.0f;
 
         [Tooltip("Quy tắc bẻ cần: Cần sang Phải -> Thuyền rẽ Trái và ngược lại (mặc định true)")]
-        [SerializeField] private bool invertTillerSteering = true;
+        [SerializeField] private bool invertTillerSteering = false;
 
         [Header("Mặt nước & Độ nổi (Water & Buoyancy)")]
         [Tooltip("Độ cao mặt nước trong scene")]

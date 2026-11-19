@@ -229,8 +229,10 @@ namespace Blocks.Gameplay.Core
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame) return true;
             if (Gamepad.current != null && Gamepad.current.buttonWest.wasPressedThisFrame) return true;
-#endif
+            return false;
+#else
             return Input.GetKeyDown(KeyCode.F);
+#endif
         }
 
         private bool IsJumpPressed()
@@ -238,8 +240,10 @@ namespace Blocks.Gameplay.Core
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) return true;
             if (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame) return true;
-#endif
+            return false;
+#else
             return Input.GetKeyDown(KeyCode.Space);
+#endif
         }
 
         #endregion

@@ -62,7 +62,7 @@ namespace Blocks.Gameplay.Core
                 if (next == 0 && gates.Length > 0 && gates.All(g => g.Passed)) next = 1;
                 if (next == 1 && sluice.Open) next = 2;
                 if (next == 2 && boat.HasCoopCrew && boat.transform.position.z >= 145f && boat.transform.position.z < 160f) next = 3;
-                if (next == 3 && beacons.Length == 2 && beacons.All(b => b.Lit)) next = 4;
+                if (next == 3 && beacons.Length > 0 && beacons.All(b => b.Lit)) next = 4;
                 if (next == 4 && mill.Passed) next = 5;
                 // A confirmed altar success is terminal even if a previous stage's
                 // positional checkpoint was missed. Never overwrite its saved 6.

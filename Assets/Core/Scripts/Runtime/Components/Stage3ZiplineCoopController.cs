@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -20,7 +21,7 @@ namespace Blocks.Gameplay.Core
     ///    - Cả hai giơ 2 tay bám thanh trượt suốt chuyến bay vượt vực sâu và đáp xuống boong Tàu Đắm an toàn!
     /// </summary>
     [SelectionBase]
-    public class Stage3ZiplineCoopController : MonoBehaviour
+    public class Stage3ZiplineCoopController : NetworkBehaviour
     {
         private static Stage3ZiplineCoopController instance;
         public static Stage3ZiplineCoopController Instance => instance;
@@ -56,6 +57,152 @@ namespace Blocks.Gameplay.Core
 
         [Tooltip("Khoảng cách tương tác để đu Zipline (mét)")]
         [SerializeField] private float rideInteractDistance = 3.8f;
+
+        
+        [Header("Netcode Synchronization")]
+        private readonly NetworkVariable<bool> netIsWinchUnlocked = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<bool> netIsZiplineReady = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<float> netWinchProgress = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private readonly NetworkVariable<bool> netHasCompletedRide = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        public bool IsNetworkActive => NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && IsSpawned;
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            netIsWinchUnlocked.OnValueChanged += OnWinchUnlockedChanged;
+            netIsZiplineReady.OnValueChanged += OnZiplineReadyChanged;
+            netWinchProgress.OnValueChanged += OnWinchProgressChanged;
+            netHasCompletedRide.OnValueChanged += OnCompletedRideChanged;
+
+            if (IsServer)
+            {
+                netIsWinchUnlocked.Value = isWinchUnlocked;
+                netIsZiplineReady.Value = isZiplineReady;
+                netWinchProgress.Value = winchProgress;
+                netHasCompletedRide.Value = hasCompletedRide;
+            }
+            else
+            {
+                isWinchUnlocked = netIsWinchUnlocked.Value;
+                isZiplineReady = netIsZiplineReady.Value;
+                winchProgress = netWinchProgress.Value;
+                hasCompletedRide = netHasCompletedRide.Value;
+                if (isZiplineReady && ziplineTrolley != null)
+                {
+                    ziplineTrolley.gameObject.SetActive(true);
+                    ziplineTrolley.position = CableWaypoints[0];
+                }
+                if (isWinchUnlocked && jammingWedge != null)
+                {
+                    jammingWedge.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            base.OnNetworkDespawn();
+            netIsWinchUnlocked.OnValueChanged -= OnWinchUnlockedChanged;
+            netIsZiplineReady.OnValueChanged -= OnZiplineReadyChanged;
+            netWinchProgress.OnValueChanged -= OnWinchProgressChanged;
+            netHasCompletedRide.OnValueChanged -= OnCompletedRideChanged;
+        }
+
+        private void OnWinchUnlockedChanged(bool oldVal, bool newVal)
+        {
+            isWinchUnlocked = newVal;
+            if (newVal && jammingWedge != null && jammingWedge.gameObject.activeSelf)
+            {
+                StartCoroutine(RemoveJammingWedgeRoutine());
+            }
+        }
+
+        private void OnZiplineReadyChanged(bool oldVal, bool newVal)
+        {
+            isZiplineReady = newVal;
+            if (newVal && ziplineTrolley != null)
+            {
+                ziplineTrolley.gameObject.SetActive(true);
+                ziplineTrolley.position = CableWaypoints[0];
+            }
+        }
+
+        private void OnWinchProgressChanged(float oldVal, float newVal)
+        {
+            winchProgress = newVal;
+        }
+
+        private void OnCompletedRideChanged(bool oldVal, bool newVal)
+        {
+            hasCompletedRide = newVal;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void UnlockWinchServerRpc()
+        {
+            netIsWinchUnlocked.Value = true;
+            UnlockWinchClientRpc();
+        }
+
+        [ClientRpc]
+        private void UnlockWinchClientRpc()
+        {
+            isWinchUnlocked = true;
+            UISoundManager.PlayConfirm();
+            if (jammingWedge != null && jammingWedge.gameObject.activeSelf)
+            {
+                StartCoroutine(RemoveJammingWedgeRoutine());
+            }
+            ShowPrompt("✨ ĐÃ GỠ KẸT BÁNH RĂNG ĐÁ! Ba hãy lên quay tời trên sàn cất cánh để kích hoạt Zipline!", Color.green, 5.0f);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void UpdateWinchProgressServerRpc(float delta)
+        {
+            float newProg = Mathf.Clamp01(netWinchProgress.Value + delta);
+            netWinchProgress.Value = newProg;
+            if (newProg >= 1f && !netIsZiplineReady.Value)
+            {
+                netIsZiplineReady.Value = true;
+                OnZiplineReadyClientRpc();
+            }
+        }
+
+        [ClientRpc]
+        private void OnZiplineReadyClientRpc()
+        {
+            isZiplineReady = true;
+            winchProgress = 1f;
+            if (ziplineTrolley != null)
+            {
+                ziplineTrolley.gameObject.SetActive(true);
+                ziplineTrolley.position = CableWaypoints[0];
+            }
+            UISoundManager.PlaySuccess();
+            ShowPrompt("⚓ ZIPLINE ĐÃ SẴN SÀNG! Tiến lại gần và nhấn [E] để cùng Con đu sang Tàu Đắm!", Color.green, 5.0f);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void StartZiplineRideServerRpc()
+        {
+            if (isRiding || hasCompletedRide) return;
+            PlayZiplineRideClientRpc();
+        }
+
+        [ClientRpc]
+        private void PlayZiplineRideClientRpc()
+        {
+            if (isRiding || hasCompletedRide) return;
+            StartCoroutine(PlayZiplineCinematicRide());
+        }
 
         [Header("State Status")]
         [SerializeField] private bool isWinchUnlocked = false;
@@ -388,7 +535,14 @@ namespace Blocks.Gameplay.Core
 
                     if (IsInteractPressed())
                     {
-                        StartCoroutine(PlayZiplineCinematicRide());
+                        if (IsNetworkActive)
+                        {
+                            StartZiplineRideServerRpc();
+                        }
+                        else
+                        {
+                            StartCoroutine(PlayZiplineCinematicRide());
+                        }
                     }
                 }
             }
@@ -396,13 +550,20 @@ namespace Blocks.Gameplay.Core
 
         private void UnlockWinch()
         {
-            isWinchUnlocked = true;
-            UISoundManager.PlayConfirm();
+            if (IsNetworkActive)
+            {
+                UnlockWinchServerRpc();
+            }
+            else
+            {
+                isWinchUnlocked = true;
+                UISoundManager.PlayConfirm();
 
-            StartCoroutine(RemoveJammingWedgeRoutine());
+                StartCoroutine(RemoveJammingWedgeRoutine());
 
-            ShowPrompt("✨ ĐÃ GỠ KẸT BÁNH RĂNG ĐÁ! Ba hãy lên quay tời trên sàn cất cánh để kích hoạt Zipline!", Color.green, 5.0f);
-            Debug.Log("[Stage3Zipline] Khúc cây kẹt bánh răng đá khổng lồ đã được Con gỡ ra thành công!");
+                ShowPrompt("✨ ĐÃ GỠ KẸT BÁNH RĂNG ĐÁ! Ba hãy lên quay tời trên sàn cất cánh để kích hoạt Zipline!", Color.green, 5.0f);
+                Debug.Log("[Stage3Zipline] Khúc cây kẹt bánh răng đá khổng lồ đã được Con gỡ ra thành công!");
+            }
         }
 
         private IEnumerator RemoveJammingWedgeRoutine()
@@ -443,22 +604,29 @@ namespace Blocks.Gameplay.Core
                 giantStoneGear.Rotate(Vector3.up, 25f * Time.deltaTime, Space.World);
             }
 
-            winchProgress += Time.deltaTime / 3.5f;
-
-            if (winchProgress >= 1f)
+            if (IsNetworkActive)
             {
-                isZiplineReady = true;
-                winchProgress = 1f;
+                UpdateWinchProgressServerRpc(Time.deltaTime / 3.5f);
+            }
+            else
+            {
+                winchProgress += Time.deltaTime / 3.5f;
 
-                if (ziplineTrolley != null)
+                if (winchProgress >= 1f)
                 {
-                    ziplineTrolley.gameObject.SetActive(true);
-                    ziplineTrolley.position = CableWaypoints[0];
-                }
+                    isZiplineReady = true;
+                    winchProgress = 1f;
 
-                UISoundManager.PlaySuccess();
-                ShowPrompt("⚓ ZIPLINE ĐÃ SẴN SÀNG! Tiến lại gần và nhấn [E] để cùng Con đu sang Tàu Đắm!", Color.green, 5.0f);
-                Debug.Log("[Stage3Zipline] Bánh răng đá đã kích hoạt Zipline vào bệ xuất phát thành công!");
+                    if (ziplineTrolley != null)
+                    {
+                        ziplineTrolley.gameObject.SetActive(true);
+                        ziplineTrolley.position = CableWaypoints[0];
+                    }
+
+                    UISoundManager.PlaySuccess();
+                    ShowPrompt("⚓ ZIPLINE ĐÃ SẴN SÀNG! Tiến lại gần và nhấn [E] để cùng Con đu sang Tàu Đắm!", Color.green, 5.0f);
+                    Debug.Log("[Stage3Zipline] Bánh răng đá đã kích hoạt Zipline vào bệ xuất phát thành công!");
+                }
             }
         }
 
@@ -676,6 +844,10 @@ namespace Blocks.Gameplay.Core
 
             isRiding = false;
             hasCompletedRide = true;
+            if (IsNetworkActive && IsServer)
+            {
+                netHasCompletedRide.Value = true;
+            }
 
             UISoundManager.PlaySuccess();
             ShowPrompt("⚓ ĐÃ ĐÁP XUỐNG BOONG TÀU ĐẮM! Hai Cha Con đã sang tới Vịnh Thuyền Đắm an toàn!", Color.green, 6.0f);

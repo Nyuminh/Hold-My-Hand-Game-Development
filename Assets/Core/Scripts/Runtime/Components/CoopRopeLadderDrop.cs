@@ -1,5 +1,8 @@
 using System.Collections;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace Blocks.Gameplay.Core
 {
@@ -110,25 +113,34 @@ namespace Blocks.Gameplay.Core
             if (isDropped || m_IsAnimating) return;
 
             // Kiểm tra xem có phải Đứa Con đã lên đỉnh tường không
-            if (other.TryGetComponent<PlayerRoleVisuals>(out var role))
+            var role = other.GetComponentInParent<PlayerRoleVisuals>();
+            if (role != null)
             {
                 if (!role.IsDad)
                 {
-                    // Con chỉ cần chạy lại gần hoặc bấm phím là thang tự bung
+                    // Con chỉ cần chạy lại gần hoặc chạm vào là thang tự bung
                     DropLadder();
+                    return;
                 }
             }
-            else if (other.CompareTag("Player") || other.GetComponent<CharacterController>() != null)
+
+            // Fallback nếu không có role: kiểm tra phím tương tác hoặc chạm trực tiếp
+            if (other.CompareTag("Player") || other.GetComponentInParent<CharacterController>() != null)
             {
-                // Fallback nếu không có role: bấm phím F hoặc chạm vào cuộn thang là rớt
+                bool kickPressed = false;
 #if ENABLE_INPUT_SYSTEM
-                if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.fKey.wasPressedThisFrame)
+                if (Keyboard.current != null && (Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.fKey.isPressed))
                 {
-                    DropLadder();
+                    kickPressed = true;
                 }
-                else
+                else if (Gamepad.current != null && (Gamepad.current.buttonWest.wasPressedThisFrame || Gamepad.current.buttonSouth.wasPressedThisFrame))
+                {
+                    kickPressed = true;
+                }
+#else
+                kickPressed = Input.GetKey(kickKey);
 #endif
-                if (Input.GetKey(kickKey))
+                if (kickPressed)
                 {
                     DropLadder();
                 }

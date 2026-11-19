@@ -65,7 +65,8 @@ namespace Blocks.Gameplay.Core
         }
         public bool TryComplete()
         {
-            if (!IsServer || Completed || !watermill.Passed || !west.Lit || !east.Lit || boat.IsDadMounted || boat.IsChildMounted) return false;
+            bool beaconsDone = (west == null || west.Lit) && (east == null || east.Lit);
+            if (!IsServer || Completed || !watermill.Passed || !beaconsDone || boat.IsDadMounted || boat.IsChildMounted) return false;
             CorePlayerManager dad = null, child = null;
             foreach (var actor in LevelTwoActors.All)
                 if (LevelTwoActors.Near(actor, altar, 3f)) { if (LevelOnePlayer.IsDad(actor)) dad = actor; else child = actor; }
@@ -104,7 +105,7 @@ namespace Blocks.Gameplay.Core
             {
                 var local = LevelTwoActors.Local;
                 if (Docked || (local != null && Vector3.Distance(local.transform.position, altar.position) < 14f))
-                    GUI.Box(new Rect(20, 85, 650, 60), !west.Lit || !east.Lit ? "Hãy thắp sáng đủ hai hải đăng trước khi hoàn thành màn." :
+                    GUI.Box(new Rect(20, 85, 650, 60), (west != null && !west.Lit) || (east != null && !east.Lit) ? "Hãy thắp sáng hải đăng trước khi hoàn thành màn." :
                         !watermill.Passed ? "Chưa ghi nhận vượt cối xay. Cả hai cùng chèo thuyền qua lúc cửa mở." :
                         "Haven Harbor: cả hai bấm [E] lên bờ.\nCùng tới Bàn Thờ Ký Ức, đứng sát và giữ [H] nắm tay để hoàn thành.");
                 return;

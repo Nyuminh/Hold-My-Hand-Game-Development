@@ -451,6 +451,8 @@ namespace Blocks.Gameplay.Core
             {
                 wheelTurnProgress = 1f;
                 isWheelCompleted = true;
+                var keyLight = GameObject.Find("Ship_WOW_KeyLight")?.GetComponent<Light>();
+                if (keyLight != null) StartCoroutine(PulseLight(keyLight, 0.5f));
 
                 UISoundManager.PlaySuccess();
                 ShowPrompt("✨ TRỤC BÁNH LÁI ĐÃ MỞ TOANG NẮP RƯƠNG KHO BÁU!", Color.green, 5.0f);
@@ -534,6 +536,35 @@ namespace Blocks.Gameplay.Core
             UISoundManager.PlayConfirm();
         }
 
+        private IEnumerator PulseLight(Light target, float duration)
+        {
+            float originalIntensity = target.intensity;
+            Color originalColor = target.color;
+            target.color = new Color(1f, 0.8f, 0.2f);
+            float elapsed = 0f;
+            while (elapsed < duration && target != null)
+            {
+                elapsed += Time.deltaTime;
+                target.intensity = originalIntensity + 2f * Mathf.Sin(Mathf.Clamp01(elapsed / duration) * Mathf.PI);
+                yield return null;
+            }
+            if (target != null) { target.intensity = originalIntensity; target.color = originalColor; }
+        }
+
+        private void ActivateCaptainGoldKey()
+        {
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+            {
+                foreach (var child in root.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.name != "Captain_Gold_Key") continue;
+                    child.gameObject.SetActive(true);
+                    return;
+                }
+            }
+            Debug.LogWarning("[ShipwreckCoop] Không tìm thấy Captain_Gold_Key trong scene.");
+        }
+
         private IEnumerator OpenCaptainChestRoutine()
         {
             UISoundManager.PlayConfirm();
@@ -564,6 +595,7 @@ namespace Blocks.Gameplay.Core
             isChestOpened = true;
             isGangplankLowered = true;
             hasKey = true;
+            ActivateCaptainGoldKey();
             UISoundManager.PlaySuccess();
             ShowPrompt("🗝️ ĐÃ MỞ RƯƠNG THUYỀN TRƯỞNG & HẠ CẦU TÀU! Hai Cha Con hãy xuống bến cảng đến ĐÀI HẢI ĐĂNG CỔ ĐẠI để sang Màn 1!", Color.green, 8.0f);
             Debug.Log("[ShipwreckCoop] Rương thuyền trưởng đã mở, hạ cầu tàu dẫn lối sang Đài Hải Đăng Cổ Đại!");

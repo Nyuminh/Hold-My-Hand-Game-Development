@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -200,12 +201,90 @@ namespace Blocks.Gameplay.Core
 
         private void Awake()
         {
+            AutoFindControllers();
+
+            if (chapters == null || chapters.Count == 0)
+            {
+                CreateDefaultPlaySceneChapters();
+            }
+
             m_Sorted = new List<TutorialChapter>(chapters);
             m_Sorted.Sort((a, b) => a.order.CompareTo(b.order));
         }
 
+        private void AutoFindControllers()
+        {
+            if (zone1DrawbridgeCtrl == null) zone1DrawbridgeCtrl = CoopDrawbridgeController.Instance ?? FindAnyObjectByType<CoopDrawbridgeController>(FindObjectsInactive.Include);
+            if (craneElevatorCtrl == null) craneElevatorCtrl = CraneElevatorController.Instance ?? FindAnyObjectByType<CraneElevatorController>(FindObjectsInactive.Include);
+            if (gearTurntableCtrl == null) gearTurntableCtrl = GiantGearTurntableController.Instance ?? FindAnyObjectByType<GiantGearTurntableController>(FindObjectsInactive.Include);
+            if (coveDrawbridgeCtrl == null) coveDrawbridgeCtrl = CoveDrawbridgeCoopController.Instance ?? FindAnyObjectByType<CoveDrawbridgeCoopController>(FindObjectsInactive.Include);
+            if (ziplineCtrl == null) ziplineCtrl = Stage3ZiplineCoopController.Instance ?? FindAnyObjectByType<Stage3ZiplineCoopController>(FindObjectsInactive.Include);
+            if (shipwreckCtrl == null) shipwreckCtrl = ShipwreckCoopController.Instance ?? FindAnyObjectByType<ShipwreckCoopController>(FindObjectsInactive.Include);
+        }
+
+        private void CreateDefaultPlaySceneChapters()
+        {
+            chapters = new List<TutorialChapter>
+            {
+                new TutorialChapter
+                {
+                    id = "zone1_drawbridge",
+                    title = "🎯 Mục tiêu: Hạ Cầu Rút Vực Đá (Zone 1)",
+                    hint = "👨 Ba gạt cần bên trái, 👦 Con gạt cần bên phải cùng lúc để hạ cầu qua vực!",
+                    triggerCenter = new Vector3(-14.05f, 7.0f, -0.5f),
+                    triggerRadius = 8.0f,
+                    order = 0,
+                    probe = ChapterProbe.DrawbridgeZone1Lowered,
+                    keys = new string[] { "E" }
+                },
+                new TutorialChapter
+                {
+                    id = "zone2_crane",
+                    title = "🎯 Mục tiêu: Thang Cẩu & Đối Trọng (Zone 2)",
+                    hint = "👨 Ba xoay ròng rọc hạ đối trọng đưa Con qua. 👦 Con sửa hộp điện/đẩy đá để đón Ba sang!",
+                    triggerCenter = new Vector3(-10.76f, 8.68f, -13.62f),
+                    triggerRadius = 8.0f,
+                    order = 1,
+                    probe = ChapterProbe.CraneElevatorCompleted,
+                    keys = new string[] { "E", "Space" }
+                },
+                new TutorialChapter
+                {
+                    id = "zone3_turntable",
+                    title = "🎯 Mục tiêu: Bàn Xoay Bánh Răng Đá (Zone 3)",
+                    hint = "👦 Con gỡ chốt kẹt bánh răng đá, 👨 Ba quay cần tời mở lối sang Zone 4!",
+                    triggerCenter = new Vector3(0.13f, 14.65f, -60.0f),
+                    triggerRadius = 8.0f,
+                    order = 2,
+                    probe = ChapterProbe.GearTurntableCompleted,
+                    keys = new string[] { "E" }
+                },
+                new TutorialChapter
+                {
+                    id = "zone3_zipline",
+                    title = "🎯 Mục tiêu: Đường Trượt Zipline Sang Vịnh Thuyền Đắm",
+                    hint = "Cả hai cùng tiến đến bục cáp Zipline, nhấn [E] bám thanh trượt bay sang Tàu Đắm!",
+                    triggerCenter = new Vector3(-20.53f, 13.67f, -69.51f),
+                    triggerRadius = 8.0f,
+                    order = 3,
+                    probe = ChapterProbe.ZiplineRidden,
+                    keys = new string[] { "E" }
+                }
+            };
+        }
+
         private void Start()
         {
+            if (tutorialHUD == null)
+            {
+                tutorialHUD = GetComponent<UIDocument>() ?? FindAnyObjectByType<UIDocument>();
+            }
+
+            if (beaconObject == null)
+            {
+                CreateDefaultBeacon();
+            }
+
             BindHUDElements();
             CachePlayerTransforms();
 
@@ -217,6 +296,13 @@ namespace Blocks.Gameplay.Core
 
             ApplyChapter(m_CurrentIndex);
             StartCoroutine(PollProbeRoutine());
+        }
+
+        private void CreateDefaultBeacon()
+        {
+            var existing = GameObject.Find("Objective_Beacon_Root");
+            if (existing != null) Destroy(existing);
+            beaconObject = null;
         }
 
         private void Update()
@@ -296,6 +382,7 @@ namespace Blocks.Gameplay.Core
 
                 // ── Cầu rút Zone1: Cha gạt cần trái + Con gạt cần phải ─────────
                 case ChapterProbe.DrawbridgeZone1Lowered:
+                    if (zone1DrawbridgeCtrl == null) zone1DrawbridgeCtrl = CoopDrawbridgeController.Instance ?? FindAnyObjectByType<CoopDrawbridgeController>(FindObjectsInactive.Include);
                     if (zone1DrawbridgeCtrl == null) { LogMissing("zone1DrawbridgeCtrl", chapter.id); return false; }
                     return zone1DrawbridgeCtrl.IsLeftPulled && zone1DrawbridgeCtrl.IsRightPulled;
 
@@ -531,15 +618,28 @@ namespace Blocks.Gameplay.Core
 
         private Transform GetLocalPlayer()
         {
-            if (m_Players != null && m_Players.Count > 0 && m_Players[0] != null)
-                return m_Players[0];
+            if (m_Players != null && m_Players.Count > 0)
+            {
+                foreach (var p in m_Players)
+                {
+                    if (p == null) continue;
+                    var no = p.GetComponentInParent<Unity.Netcode.NetworkObject>();
+                    if (no != null && no.IsOwner) return p;
+                }
+                if (m_Players[0] != null) return m_Players[0];
+            }
             return Camera.main != null ? Camera.main.transform : null;
         }
 
+        private static readonly HashSet<string> loggedMissing = new HashSet<string>();
         private static void LogMissing(string fieldName, string chapterId)
         {
-            Debug.LogWarning($"[TutorialObjectiveDirector] Chapter '{chapterId}': " +
-                             $"controller '{fieldName}' is not assigned. Probe will never fire.");
+            string key = $"{chapterId}_{fieldName}";
+            if (loggedMissing.Add(key))
+            {
+                Debug.LogWarning($"[TutorialObjectiveDirector] Chapter '{chapterId}': " +
+                                 $"controller '{fieldName}' is not assigned. Probe will never fire.");
+            }
         }
 
         private void OnAllChaptersComplete()
