@@ -232,6 +232,18 @@ namespace Blocks.Gameplay.Core
                         continue;
                     }
                 }
+
+                // 5. Khu Vực Zone 7 & 8 (Lâu Đài Hoàng Gia, Vực Cột Đá & Bệ Bay Khinh Khí Cầu Zephyr):
+                // Sân lâu đài ở Y=24.3m, cột đá Y=28-38m, cối xay Y=38-48m, bệ bay Zephyr Y=48-63m.
+                // Nếu người chơi trượt chân rơi khỏi ban công hoặc bệ bay xuống dưới Y < 18.0m -> Lập tức kích hoạt respawn!
+                if (pos.z < -105f && pos.z >= -235f)
+                {
+                    if (pos.y < 18.0f)
+                    {
+                        HandlePlayerFall(p);
+                        continue;
+                    }
+                }
             }
         }
 
