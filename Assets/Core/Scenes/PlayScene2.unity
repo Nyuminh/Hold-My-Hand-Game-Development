@@ -105681,19 +105681,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 362.8
+      value: 91.8
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.3
+      value: 1.2999992
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 371.9
+      value: -69.7
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.4066526
+      value: 0.010648129
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
       propertyPath: m_LocalRotation.x
@@ -105701,7 +105701,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.9135829
+      value: -0.9999434
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
       propertyPath: m_LocalRotation.z
@@ -105713,7 +105713,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: -132.011
+      value: -178.78
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
@@ -110180,7 +110180,6 @@ MonoBehaviour:
   strokeDuration: 0.55
   rowAcceleration: 2.4
   waterDrag: 1.6
-  reverseSpeed: 1.5
   strokeFrequency: 2.8
   oarStrokeAngle: 22
   oarDipAngle: 8
