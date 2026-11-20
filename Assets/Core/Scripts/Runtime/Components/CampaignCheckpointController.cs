@@ -152,7 +152,7 @@ namespace Blocks.Gameplay.Core
         }
         private void OnGUI()
         {
-            if (!IsSpawned || level != 2) return;
+            if (!IsSpawned || level != 2 || TutorialIntroCutscene.IsAnyPlaying) return;
             GUI.Box(new Rect(Screen.width - 310, 20, 290, 66),
                 "Độ bền thuyền: " + BoatHealth + "/100\n" + CampaignProgress.Description(level, Checkpoint) +
                 (BoatHealth == 0 ? " · Đang cứu hộ..." : " · ESC: chơi lại"));

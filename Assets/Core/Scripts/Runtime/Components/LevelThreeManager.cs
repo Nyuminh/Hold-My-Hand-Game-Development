@@ -54,7 +54,7 @@ namespace Blocks.Gameplay.Core
                 Restore(start);
                 return;
             }
-            if (Time.time < recoverAfter) return;
+            if (tether.CrewIsFalling || Time.time < recoverAfter) return;
             switch (progress.Value)
             {
                 case 0: if (bridge.Open && BothBeyond(bridge.landing)) progress.Value = 1; break;
@@ -78,7 +78,7 @@ namespace Blocks.Gameplay.Core
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         void RestartRpc(bool fromBeginning, RpcParams rpc = default)
         {
-            if (!ready || Time.time < recoverAfter || !LevelTwoActors.Sender(NetworkManager, rpc.Receive.SenderClientId)) return;
+            if (!ready || tether.CrewIsFalling || Time.time < recoverAfter || !LevelTwoActors.Sender(NetworkManager, rpc.Receive.SenderClientId)) return;
             Restore(fromBeginning ? 0 : Mathf.Min(progress.Value, 3));
         }
         void Restore(int index)

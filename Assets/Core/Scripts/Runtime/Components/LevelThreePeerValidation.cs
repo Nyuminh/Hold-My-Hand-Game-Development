@@ -109,7 +109,9 @@ namespace Blocks.Gameplay.Core
             yield return new WaitForSeconds(.7f);
             if (campaign.Checkpoint != 2 || string.IsNullOrEmpty(campaign.objective.text)) { Fail("crypt checkpoint or objective"); yield break; }
             actor.CoreMovement.SetPosition(checkpoint.position + new Vector3(12, -7, 4));
-            yield return new WaitForSeconds(1.6f);
+            yield return new WaitForSeconds(2.5f);
+            if (Vector3.Distance(actor.transform.position, checkpoint.position) < 1.5f) { Fail("respawn before three seconds"); yield break; }
+            yield return new WaitForSeconds(1.3f);
             if (Vector3.Distance(actor.transform.position, checkpoint.position) > 1.5f) { Fail("paired checkpoint recovery"); yield break; }
             Debug.Log("PASS both-fall checkpoint and objective");
             float pillarTop = pillar.stone.position.y;

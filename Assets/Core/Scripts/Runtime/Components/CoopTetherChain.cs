@@ -8,12 +8,14 @@ namespace Blocks.Gameplay.Core
     public sealed class CoopTetherChain : NetworkBehaviour
     {
         public const float Length = 9.5f;
+        const float RespawnDelay = 3f;
         public AudioClip clink;
         public AbyssFallTrigger abyss;
         public event System.Action CrewFell;
         readonly NetworkVariable<int> suspended = new(); // 2: Child hanging, 3: Dad has pulled the pair into the abyss
         readonly NetworkVariable<bool> hauling = new();
         public bool IsSuspended => suspended.Value == 2;
+        public bool CrewIsFalling => suspended.Value == 3;
         public void RequestHaul() { if (IsSpawned && IsSuspended) HaulRpc(); }
         CorePlayerManager dad, child;
         Transform dadHand, childHand;
@@ -62,7 +64,7 @@ namespace Blocks.Gameplay.Core
                 {
                     suspended.Value = 3;
                     hauling.Value = false;
-                    recoverAt = Time.time + .85f;
+                    recoverAt = Time.time + RespawnDelay;
                 }
                 if (suspended.Value == 3 && Time.time >= recoverAt)
                 {
