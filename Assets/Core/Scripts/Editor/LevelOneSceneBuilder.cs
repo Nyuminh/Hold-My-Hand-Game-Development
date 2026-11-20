@@ -16,7 +16,7 @@ namespace Blocks.Gameplay.Core.LevelOneAuthoring
         public static ChaseBossController Boss;
         public static Terrain Ground;
 
-        public static Vector3 Surface(float x, float z) => new Vector3(x, Ground.SampleHeight(new Vector3(x, 0, z)) + Ground.transform.position.y + 0.08f, z);
+        public static Vector3 Surface(float x, float z) => new Vector3(x, Ground.SampleHeight(new Vector3(x, 0, z)) + Ground.transform.position.y + 0.15f, z);
 
         public static Transform Marker(string name, Transform parent, Vector3 position)
         {
@@ -97,8 +97,10 @@ namespace Blocks.Gameplay.Core.LevelOneAuthoring
             var cpPoints = new[] { new Vector2(103,-48),new Vector2(131,63),new Vector2(96,236),new Vector2(280,318),new Vector2(327,340) };
             Boss.checkpoints = cpPoints.Select((p, i) => {
                 var center = Surface(p.x,p.y); route.Sample(route.Project(center),out var f);f.y=0;
-                var dad = Marker("CP"+i+"_Dad",cpRoot,center+Vector3.Cross(Vector3.up,f.normalized)*0.9f);
-                var child = Marker("CP"+i+"_Child",cpRoot,center-Vector3.Cross(Vector3.up,f.normalized)*0.9f);
+                var dadPos = center+Vector3.Cross(Vector3.up,f.normalized)*0.9f; dadPos = Surface(dadPos.x, dadPos.z);
+                var childPos = center-Vector3.Cross(Vector3.up,f.normalized)*0.9f; childPos = Surface(childPos.x, childPos.z);
+                var dad = Marker("CP"+i+"_Dad",cpRoot,dadPos);
+                var child = Marker("CP"+i+"_Child",cpRoot,childPos);
                 dad.forward=child.forward=f;
                 return new ChaseBossController.Checkpoint {dad=dad,child=child,bossDistance=Mathf.Max(0,route.Project(center)-30f)};
             }).ToArray();
