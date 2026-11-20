@@ -77,7 +77,7 @@ namespace Blocks.Gameplay.Core.Validation
             try
             {
                 string scene = SceneManager.GetActiveScene().name;
-                if ((step < 4 && scene != "PlayScene2") || (step == 4 && scene != "PlayScene2" && scene != "PlayScene3"))
+                if ((step < 4 && scene != "PlayScene2") || (step == 4 && scene != "PlayScene2" && scene != "PlayScene4"))
                 {
                     File.AppendAllText(Report, "CANCELLED: unexpected scene " + scene + "; test will not alter this session.\n");
                     RestoreSession();
@@ -108,7 +108,7 @@ namespace Blocks.Gameplay.Core.Validation
                 if (step == 2 && elapsed > 2)
                 {
                     var climax = Object.FindAnyObjectByType<LevelTwoClimaxManager>();
-                    Check(climax.nextLevelScene == "PlayScene3", "serialized Continue destination is PlayScene3");
+                    Check(climax.nextLevelScene == "PlayScene4", "serialized Continue destination is PlayScene4");
                     Check(!climax.TryComplete(), "success rejected before prerequisites");
                     // Fixture: preceding puzzles completed. Exercise the real final altar condition.
                     climax.watermill.RestoreCheckpoint(true);
@@ -135,7 +135,7 @@ namespace Blocks.Gameplay.Core.Validation
                     Object.FindAnyObjectByType<LevelTwoClimaxManager>().ContinueToNextLevel();
                     Next(); return;
                 }
-                if (step == 4 && SceneManager.GetActiveScene().name == "PlayScene3" && elapsed > 4)
+                if (step == 4 && SceneManager.GetActiveScene().name == "PlayScene4" && elapsed > 4)
                 {
                     Check(net.IsListening && net.IsHost, "host session survives continuation");
                     var player = net.LocalClient.PlayerObject;
@@ -151,7 +151,7 @@ namespace Blocks.Gameplay.Core.Validation
                     Check(actor.CoreMovement.enabled && actor.CoreMovement.IsMovementEnabled && actor.CoreInput.enabled, "movement and input unlocked");
                     var camera = actor.GetComponent<CoreCameraController>();
                     Check(camera.enabled && camera.ActiveCameraMode != null, "gameplay camera active");
-                    Check(CampaignProgress.Level("PlayScene3") == 3 && CampaignProgress.LastLevel == 3, "campaign correctly records level 3");
+                    Check(CampaignProgress.Level("PlayScene4") == 3 && CampaignProgress.LastLevel == 3, "campaign correctly records level 3");
                     foreach (var d in Object.FindObjectsByType<UIDocument>(FindObjectsSortMode.None))
                         if (d.name == "LoadingScreenUI")
                         {
@@ -161,7 +161,7 @@ namespace Blocks.Gameplay.Core.Validation
                             // display:none is still the authoritative hidden state in that case.
                             Check(root.style.display.value == DisplayStyle.None || root.resolvedStyle.display == DisplayStyle.None, "loading overlay hidden");
                         }
-                    Check(Object.FindAnyObjectByType<CraneElevatorController>() != null && Object.FindAnyObjectByType<GiantGearTurntableController>() != null && Object.FindAnyObjectByType<CoveDrawbridgeCoopController>() != null && Object.FindAnyObjectByType<Stage3ZiplineCoopController>() != null && Object.FindAnyObjectByType<ShipwreckCoopController>() != null, "authored level 3 puzzles remain");
+                    Check(GameObject.Find("LVL3_Castle/Clocktower Summit") != null, "castle parkour destination loaded");
                     File.AppendAllText(Report, "RESULT PASS. LIMITATION: host plus owned companion fixture; independent two-client transition not exercised.\n");
                     Finish();
                 }

@@ -244,6 +244,13 @@ namespace Blocks.Gameplay.Core
 
         private void RestartCampaign(bool fromBeginning)
         {
+            var castle = FindAnyObjectByType<LevelThreeManager>();
+            if (castle != null && castle.IsSpawned)
+            {
+                castle.RequestRestart(fromBeginning);
+                CloseMenu();
+                return;
+            }
             var campaign = FindAnyObjectByType<CampaignCheckpointController>();
             if (campaign == null || !campaign.IsSpawned) return;
             campaign.RequestRestart(fromBeginning);
