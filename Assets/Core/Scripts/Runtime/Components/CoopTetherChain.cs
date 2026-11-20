@@ -11,14 +11,15 @@ namespace Blocks.Gameplay.Core
         public AudioClip clink;
         public AbyssFallTrigger abyss;
         public event System.Action CrewFell;
-        readonly NetworkVariable<int> suspended = new(); // 1 Dad, 2 Child
+        readonly NetworkVariable<int> suspended = new(); // 2: Child hanging, 3: Dad has pulled the pair into the abyss
         readonly NetworkVariable<bool> hauling = new();
-        public bool IsSuspended => suspended.Value != 0;
+        public bool IsSuspended => suspended.Value == 2;
         public void RequestHaul() { if (IsSpawned && IsSuspended) HaulRpc(); }
         CorePlayerManager dad, child;
         Transform dadHand, childHand;
         LineRenderer chain;
-        bool wasTaut, failed;
+        bool wasTaut;
+        float recoverAt;
         float nextSound;
 
         void Awake()
@@ -57,21 +58,31 @@ namespace Blocks.Gameplay.Core
             if (IsServer)
             {
                 bool dadBelow = abyss.Below(dad.transform), childBelow = abyss.Below(child.transform);
-                if (dadBelow && childBelow)
+                if (dadBelow && suspended.Value != 3)
                 {
-                    ClearCatch();
-                    if (!failed) { failed = true; CrewFell?.Invoke(); }
+                    suspended.Value = 3;
+                    hauling.Value = false;
+                    recoverAt = Time.time + .85f;
+                }
+                if (suspended.Value == 3 && Time.time >= recoverAt)
+                {
+                    CrewFell?.Invoke();
                     return;
                 }
-                failed = false;
-                if (suspended.Value == 0)
-                {
-                    if (dadBelow && Supported(child)) suspended.Value = 1;
-                    if (childBelow && Supported(dad)) suspended.Value = 2;
-                }
+                if (suspended.Value == 0 && childBelow && Supported(dad)) suspended.Value = 2;
                 if (distance > Length && !wasTaut && Time.time >= nextSound)
                 { ClinkRpc(); nextSound = Time.time + .65f; }
                 wasTaut = distance > Length;
+            }
+            if (suspended.Value == 3)
+            {
+                if (child.IsOwner)
+                {
+                    var target = dad.transform.position + Vector3.down;
+                    child.CoreMovement.SetPosition(Vector3.MoveTowards(child.transform.position, target, 30f * Time.deltaTime), false);
+                    child.CoreMovement.SetVerticalVelocity(-9f);
+                }
+                return;
             }
             if (suspended.Value == 0)
             {
@@ -82,8 +93,8 @@ namespace Blocks.Gameplay.Core
                 }
                 return;
             }
-            var fallen = suspended.Value == 1 ? dad : child;
-            var anchor = fallen == dad ? child : dad;
+            var fallen = child;
+            var anchor = dad;
             if (anchor.IsOwner && Keyboard.current != null &&
                 (Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.fKey.wasPressedThisFrame)) RequestHaul();
             if (!fallen.IsOwner) return;
@@ -119,19 +130,19 @@ namespace Blocks.Gameplay.Core
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         void HaulRpc(RpcParams rpc = default)
         {
-            var anchor = suspended.Value == 1 ? child : dad;
-            if (suspended.Value != 0 && anchor && anchor.OwnerClientId == rpc.Receive.SenderClientId && Supported(anchor) && !hauling.Value)
+            var anchor = dad;
+            if (IsSuspended && anchor && anchor.OwnerClientId == rpc.Receive.SenderClientId && Supported(anchor) && !hauling.Value)
             { hauling.Value = true; ClinkRpc(); }
         }
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         void FinishRpc(RpcParams rpc = default)
         {
-            var fallen = suspended.Value == 1 ? dad : child;
+            var fallen = child;
             if (hauling.Value && fallen && fallen.OwnerClientId == rpc.Receive.SenderClientId && dad && child &&
                 Vector3.Distance(dad.transform.position, child.transform.position) < 2) ClearCatch();
         }
         void ClearCatch() { suspended.Value = 0; hauling.Value = false; }
-        public void ResetForCheckpoint() { if (IsServer) { ClearCatch(); failed = false; } }
+        public void ResetForCheckpoint() { if (IsServer) ClearCatch(); }
         [Rpc(SendTo.Everyone)]
         void ClinkRpc() { if (clink) GetComponent<AudioSource>().PlayOneShot(clink, .65f); }
     }

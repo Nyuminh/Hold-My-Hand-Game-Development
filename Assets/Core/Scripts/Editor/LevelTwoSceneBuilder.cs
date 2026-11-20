@@ -399,6 +399,36 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             return tower;
         }
 
+        public static void DressSluicePassage(SluiceGateObstacle sluice)
+        {
+            Dress(sluice.crawlDoor, 2, 40);
+            sluice.winch.gameObject.SetActive(false);
+            var stone = GateMasonry();
+            var stage = sluice.transform;
+            var facade = stage.Find("Castle Gatehouse");
+            if (facade)
+                foreach (var r in facade.GetComponentsInChildren<MeshRenderer>())
+                    if (r.name == "Bank Masonry" || r.transform.parent.name == "Front_Gatehouse_Stone")
+                        r.sharedMaterial = stone;
+            var grid = sluice.gate.Find("Front_Harrow_Portcullis");
+            if (grid) grid.GetComponentInChildren<MeshRenderer>().sharedMaterial =
+                AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Iron.mat");
+        }
+
+        static Material GateMasonry()
+        {
+            var stone = Material("GateMasonry", Color.white, 0, .18f);
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/ForestMap/Textures/cobblestone/cobblestone_diff.jpg");
+            stone.SetTexture("_BaseMap", texture);
+            stone.SetTextureScale("_BaseMap", new Vector2(8, 4));
+            // Keep the shaded river-facing wall legible even before the scene lighting starts.
+            stone.EnableKeyword("_EMISSION");
+            stone.SetTexture("_EmissionMap", texture);
+            stone.SetColor("_EmissionColor", new Color(.17f, .17f, .17f));
+            EditorUtility.SetDirty(stone);
+            return stone;
+        }
+
         public static void DressSluiceGate(Transform stage)
         {
             if (stage.Find("Castle Gatehouse")) return;
@@ -412,7 +442,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var barrier = gate.GetComponent<BoxCollider>().bounds;
             var centre = barrier.center;
             var facade = Marker("Castle Gatehouse", stage, centre);
-            var stone = castle.Find("Torch_Gate_Front_Left").GetComponent<MeshRenderer>().sharedMaterial;
+            var stone = GateMasonry();
 
             // The fortress opening is about one third of the full facade. Raise its
             // sill above the crawl roof and carry the flanks down to the river banks.

@@ -94,7 +94,8 @@ namespace Blocks.Gameplay.Core
         private void OnTriggerStay(Collider other)
         {
             var visuals = other.GetComponentInParent<PlayerRoleVisuals>();
-            if (visuals != null && visuals.IsDad)
+            var role = other.GetComponentInParent<CoopBoostThrowAbility>();
+            if (role != null ? role.IsDad : visuals != null && visuals.IsDad)
             {
                 var motor = other.GetComponentInParent<CoreMovement>();
                 if (motor != null && motor.IsOwner)

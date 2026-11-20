@@ -63,19 +63,18 @@ namespace Blocks.Gameplay.Core
 
                 BuildPuzzles(gorge, crypt, pillars, tower);
                 // Keep the cooperative puzzle dimensions local to each terrace.
-                gorge.position = new Vector3(0, 22, 85);
-                crypt.position = new Vector3(0, 46, 170);
-                pillars.position = new Vector3(0, 70, 255);
+                // The bridge is the first obstacle. Each ascent alternates jumps and moving traps.
+                crypt.position = new Vector3(0, 27, 86);
+                pillars.position = new Vector3(0, 56, 192);
                 tower.position = new Vector3(0, 95, 340);
-                Piece(root, "Platform", "Valley Entrance", 0, 0, 0, 10, 4, 8);
-                Ascent(root, "Outer Stair", 4, 0, 81, 22, 7, 5);
-                Ascent(root, "Curtain Wall Walk", 110, 22, 195, 46, -11, 5);
-                Ascent(root, "Broken Aqueduct", 213, 46, 298, 70, 9, 6);
-                Piece(root, "Platform", "Upper Watch Post", 0, 71, 320, 7, 7, 5);
-                Ascent(root, "Belfry Approach", 322.5f, 71, 403, 96, -10, 6);
+                Ascent(root, "Outer Stair", 25, 0, 111, 27, 7, 6);
+                Ascent(root, "Curtain Wall Walk", 129, 27, 236, 56, -11, 8);
+                Piece(root, "Platform", "Upper Watch Post", 0, 57, 257, 7, 7, 5);
+                Ascent(root, "Broken Aqueduct", 259.5f, 57, 332, 76, 9, 5);
+                Ascent(root, "Belfry Approach", 332, 76, 403, 96, -10, 5);
                 tether.abyss.courseElevation = new AnimationCurve();
-                foreach (var point in new[] {new Vector2(4,0),new Vector2(81,22),new Vector2(110,22),
-                    new Vector2(195,46),new Vector2(213,46),new Vector2(298,70),new Vector2(322.5f,71),
+                foreach (var point in new[] {new Vector2(0,0),new Vector2(25,0),new Vector2(111,27),
+                    new Vector2(129,27),new Vector2(236,56),new Vector2(259.5f,57),new Vector2(332,76),
                     new Vector2(403,96),new Vector2(431,96)})
                     tether.abyss.courseElevation.AddKey(point.x, point.y);
                 for (int i = 0; i < tether.abyss.courseElevation.length; i++)
@@ -133,6 +132,10 @@ namespace Blocks.Gameplay.Core
                 if (i == flights / 2)
                 {
                     Vector3 side = Vector3.Cross(Vector3.up, along) * Mathf.Sign(bend);
+                    var trap = BuildClockwork(section);
+                    // Gear on the preceding incline, pendulum above this landing.
+                    trap.rotation = Quaternion.LookRotation(along);
+                    trap.position = b - along * .8f + Vector3.down - trap.rotation * new Vector3(0, 0, 75);
                     var watch = b + side * 10;
                     Piece(section, "WallTower", "Watchtower", watch.x, b.y + 4, watch.z, 7, 18, 7);
                 }
@@ -155,8 +158,8 @@ namespace Blocks.Gameplay.Core
             campaign.altar = root.GetComponentInChildren<DualAltarPortal>();
             campaign.pillars = root.GetComponentsInChildren<CollapsingPlatform>();
             campaign.checkpoints = new Transform[10];
-            float[] stations = { 0, 107, 210, 320, 425 };
-            float[] elevations = { 0, 22, 46, 71, 96 };
+            float[] stations = { 0, 22, 126, 257, 425 };
+            float[] elevations = { 0, 0, 27, 57, 96 };
             for (int i = 0; i < stations.Length; i++)
             {
                 float y = elevations[i] + .3f;
@@ -220,12 +223,28 @@ namespace Blocks.Gameplay.Core
                 platform.tread = stone.Find("Stone Tread").GetComponent<BoxCollider>();
             }
 
+            BuildClockwork(tower);
+
+            var altar = Mechanism<DualAltarPortal>("Twin Altars", tower);
+            altar.dadPad = Block("Dad Altar", altar.transform, new Vector3(-2, 1.1f, 85), new Vector3(2, .2f, 2)).transform;
+            altar.childPad = Block("Child Altar", altar.transform, new Vector3(2, 1.1f, 85), new Vector3(2, .2f, 2)).transform;
+            altar.portal = Mark("Portal of Light", altar.transform, 0, 2.5f, 89).gameObject;
+            var light = altar.portal.AddComponent<Light>(); light.color = new Color(1, .83f, .45f); light.range = 12; light.intensity = 8;
+            Block("Lintel", altar.portal.transform, new Vector3(0, 4.6f, 89), new Vector3(4, .5f, 1));
+            foreach (int side in new[] {-1, 1}) Block("Pillar", altar.portal.transform, new Vector3(side * 1.8f, 2.7f, 89), new Vector3(.4f, 3.4f, 1));
+            altar.portal.SetActive(false);
+        }
+
+        static Transform BuildClockwork(Transform tower)
+        {
             var trap = Mechanism<ClocktowerGearHazard>("Clockwork", tower);
             trap.gear = Mark("Gear Axle", trap.transform, 0, 1.5f, 69);
             var cross = Block("Gear Teeth", trap.gear, trap.gear.position, new Vector3(5.5f, .55f, .8f));
             trap.blade = cross.GetComponent<BoxCollider>();
             trap.blade.isTrigger = true;
-            Cylinder("Gear Wheel", trap.gear, trap.gear.position, new Vector3(2.7f, .22f, 2.7f));
+            var wheel = Cylinder("Gear Wheel", trap.gear, trap.gear.position, new Vector3(2.7f, .22f, 2.7f));
+            var rim = wheel.GetComponent<MeshCollider>();
+            rim.convex = true; rim.isTrigger = true;
             for (int i = 0; i < 10; i++)
             {
                 var rotation = Quaternion.Euler(0, 36 * i, 0);
@@ -236,18 +255,11 @@ namespace Blocks.Gameplay.Core
             }
             trap.pendulum = Mark("Pendulum Pivot", trap.transform, 0, 5.8f, 75);
             var rod = Block("Pendulum Rod", trap.pendulum, new Vector3(0, 4, 75), new Vector3(.1f, 3.6f, .1f));
-            rod.GetComponent<BoxCollider>().enabled = false;
+            rod.GetComponent<BoxCollider>().isTrigger = true;
             trap.bob = Block("Pendulum Weight", trap.pendulum, new Vector3(0, 2, 75), new Vector3(1.4f, 1.4f, 1.4f)).GetComponent<BoxCollider>();
             trap.bob.isTrigger = true;
 
-            var altar = Mechanism<DualAltarPortal>("Twin Altars", tower);
-            altar.dadPad = Block("Dad Altar", altar.transform, new Vector3(-2, 1.1f, 85), new Vector3(2, .2f, 2)).transform;
-            altar.childPad = Block("Child Altar", altar.transform, new Vector3(2, 1.1f, 85), new Vector3(2, .2f, 2)).transform;
-            altar.portal = Mark("Portal of Light", altar.transform, 0, 2.5f, 89).gameObject;
-            var light = altar.portal.AddComponent<Light>(); light.color = new Color(1, .83f, .45f); light.range = 12; light.intensity = 8;
-            Block("Lintel", altar.portal.transform, new Vector3(0, 4.6f, 89), new Vector3(4, .5f, 1));
-            foreach (int side in new[] {-1, 1}) Block("Pillar", altar.portal.transform, new Vector3(side * 1.8f, 2.7f, 89), new Vector3(.4f, 3.4f, 1));
-            altar.portal.SetActive(false);
+            return trap.transform;
         }
 
         static T Mechanism<T>(string name, Transform parent) where T : Unity.Netcode.NetworkBehaviour

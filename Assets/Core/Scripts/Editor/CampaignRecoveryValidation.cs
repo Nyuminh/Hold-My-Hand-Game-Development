@@ -131,13 +131,11 @@ namespace Blocks.Gameplay.Core
                     foreach (var gate in Object.FindObjectsByType<RiverSlalomGate>(FindObjectsSortMode.None)) gate.RestoreCheckpoint(true);
                     dad.CoreMovement.SetPosition(new Vector3(110.5f, 1.15f, 70));
                     child.CoreMovement.SetPosition(new Vector3(109.5f, 1.15f, 70.5f));
-                    Set(sluice, "nextSend", Time.unscaledTime + 1000f);
-                    Check(sluice.SetWinchHeld(dad, true), "Dad holds winch after slalom");
+                    Check(sluice.TryPushRock(dad), "Dad pushes rock after slalom");
                     Next(); return;
                 }
                 if (step == 3)
                 {
-                    sluice.SetWinchHeld(dad, true);
                     if (elapsed < 1) return;
                     var cc = child.GetComponent<CharacterController>();
                     cc.Move(new Vector3(0, -.04f, .045f));
