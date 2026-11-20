@@ -31934,7 +31934,6 @@ Transform:
   m_Children:
   - {fileID: 1767737491}
   - {fileID: 1513545678}
-  - {fileID: 1017208274}
   - {fileID: 1891138574}
   m_Father: {fileID: 364467605}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -43804,7 +43803,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6507723845665482285, guid: 482e71a15885df94a94c0aaabd4e3173, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 18.93
       objectReference: {fileID: 0}
     - target: {fileID: 6507723845665482285, guid: 482e71a15885df94a94c0aaabd4e3173, type: 3}
       propertyPath: m_LocalRotation.w
@@ -52429,7 +52428,7 @@ Transform:
   m_GameObject: {fileID: 604098009}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 104, y: 0.48, z: 128}
+  m_LocalPosition: {x: 104.66, y: 0.48, z: 142.19}
   m_LocalScale: {x: 13.5, y: 0.05, z: 13.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -78630,6 +78629,7 @@ GameObject:
   - component: {fileID: 1015706872}
   - component: {fileID: 1015706871}
   - component: {fileID: 1015706870}
+  - component: {fileID: 1015706874}
   m_Layer: 0
   m_Name: Child_Crawlway_Conduit
   m_TagString: Untagged
@@ -78646,7 +78646,7 @@ Transform:
   m_GameObject: {fileID: 1015706868}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 109.5, y: 1.7, z: 74}
+  m_LocalPosition: {x: 109.5, y: 1.8, z: 74}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -78664,7 +78664,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e4a7234380854754eae98befe48d289e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.CoopCrawlVolume
-  crawlHeight: 0.75
+  crawlHeight: 0.65
   dadPushbackForce: 4.5
   dadBlockedMessage: "\U0001F6AB \U0001F9D4 Ba qu\xE1 to l\u1EDBn, kh\xF4ng th\u1EC3
     chui qua khe n\xE0y! H\xE3y \u0111\u1EC3 \U0001F476 Con chui v\xE0o m\u1EDF \u0111\u01B0\u1EDDng!"
@@ -78736,8 +78736,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.8, y: 2.1, z: 7.5}
-  m_Center: {x: 0, y: 0.05, z: 0.25}
+  m_Size: {x: 2.8, y: 2.6, z: 9.5}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!33 &1015706873
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -78746,6 +78746,33 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1015706868}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!54 &1015706874
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1015706868}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!64 &1016994979
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -78768,80 +78795,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: -7364200144158057475, guid: 8b464dc7df135ff4fb7db0af6d79284b, type: 3}
---- !u!1001 &1017208273
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 334085132}
-    m_Modifications:
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 1.2
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 1.1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 1.2
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 116.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 116
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: -0.81915206
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0.57357645
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2302032966242964682, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-      propertyPath: m_Name
-      value: Rock_11
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
---- !u!4 &1017208274 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 1493407706933284464, guid: 2664897f9c06f934e9305a0096197da0, type: 3}
-  m_PrefabInstance: {fileID: 1017208273}
-  m_PrefabAsset: {fileID: 0}
 --- !u!64 &1017779607
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -105071,7 +105024,7 @@ Transform:
   m_GameObject: {fileID: 1430846446}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 109.5, y: 2.45, z: 74}
+  m_LocalPosition: {x: 109.5, y: 2.65, z: 74}
   m_LocalScale: {x: 1.8, y: 0.55, z: 4.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -106627,7 +106580,7 @@ Transform:
   m_GameObject: {fileID: 1440635905}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 104, y: 0.45, z: 128}
+  m_LocalPosition: {x: 104.66, y: 0.45, z: 142.19}
   m_LocalScale: {x: 9.5, y: 0.1, z: 9.5}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -113864,7 +113817,7 @@ Transform:
   m_GameObject: {fileID: 1476461792}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 109.5, y: 1.7, z: 78}
+  m_LocalPosition: {x: 110.8, y: 1.7, z: 78.5}
   m_LocalScale: {x: 0.2, y: 1.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -140299,6 +140252,10 @@ PrefabInstance:
     - target: {fileID: 3665430172262861757, guid: 53a51c537c5080740bfdfde33a6e8cf0, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
+      objectReference: {fileID: 0}
+    - target: {fileID: 6452468383313630944, guid: 53a51c537c5080740bfdfde33a6e8cf0, type: 3}
+      propertyPath: m_Enabled
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7474249544747393847, guid: 53a51c537c5080740bfdfde33a6e8cf0, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -177550,6 +177507,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1929367753}
     m_Modifications:
+    - target: {fileID: 502171763118456035, guid: 5185dba8dd4c1a740a211c8b1c38b5f5, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3982887622874621997, guid: 5185dba8dd4c1a740a211c8b1c38b5f5, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -181701,6 +181662,7 @@ GameObject:
   - component: {fileID: 2075806668}
   - component: {fileID: 2075806667}
   - component: {fileID: 2075806666}
+  - component: {fileID: 2075806669}
   m_Layer: 0
   m_Name: Crawl_LiftingDoor
   m_TagString: Untagged
@@ -181801,6 +181763,33 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2075806664}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!54 &2075806669
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2075806664}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!64 &2077013965
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -184346,10 +184335,10 @@ MonoBehaviour:
   distancePerStroke: 1
   minStrokeSpeed: 2.2
   speedBoostPerSpam: 1.2
-  maxRowSpeed: 7.5
+  maxRowSpeed: 5.8
   strokeDuration: 0.55
   rowAcceleration: 2.4
-  waterDrag: 1.6
+  waterDrag: 1.5
   reverseSpeed: 1.5
   strokeFrequency: 2.8
   oarStrokeAngle: 22

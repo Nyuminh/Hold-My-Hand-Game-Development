@@ -24,6 +24,7 @@ GameObject:
   - component: {fileID: 3432624027115298979}
   - component: {fileID: 691561724687605723}
   - component: {fileID: 8293538361845572120}
+  - component: {fileID: 3450668103084347484}
   m_Layer: 3
   m_Name: '[BB] CorePlayer'
   m_TagString: Player
@@ -218,6 +219,9 @@ MonoBehaviour:
   rotationSmoothTime: 0.1
   speedChangeRate: 15
   forceDecayRate: 5
+  crouchSpeed: 2
+  crouchHeight: 1.15
+  crouchCenterY: 0.58
   gravity: -15
   jumpHeight: 3
   groundedOffset: -0.14
@@ -279,6 +283,23 @@ MonoBehaviour:
   enableLookInput: 1
   defaultLookSensitivity: 1
   defaultVerticalLookLimit: 70
+  minVerticalLookAngle: -28
+  maxVerticalLookAngle: 48
+  lookSmoothTime: 0.035
+  defaultCameraDistance: 3.6
+  dadCameraDistance: 5.2
+  aimCameraDistance: 2
+  defaultShoulderOffset: {x: 0.18, y: 0.04, z: 0}
+  dadDefaultShoulderOffset: {x: 0.18, y: -0.22, z: 0}
+  dadAimShoulderOffset: {x: 0.68, y: -0.16, z: 0}
+  childAimShoulderOffset: {x: 0.55, y: 0.05, z: 0}
+  zoomSmoothTime: 0.18
+  enableWallCollision: 1
+  collisionSphereRadius: 0.22
+  minCollisionDistance: 0.7
+  obstacleLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
   onLookInput: {fileID: 11400000, guid: 8af931367978e4bc9bae53b88856ff5b, type: 2}
 --- !u!114 &8754785922802519086
 MonoBehaviour:
@@ -404,6 +425,26 @@ MonoBehaviour:
   soundDefPlayerEliminated: {fileID: 11400000, guid: f94375e27624be640bcec5f9f675346c, type: 2}
   useRagdollOnElimination: 0
   ragdollRoot: {fileID: 0}
+--- !u!114 &3450668103084347484
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d128db7f992d2448aa80303f8e78aca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.PlayerPushAbility
+  ShowTopMostFoldoutHeaderGroup: 1
+  pushCooldown: 0.55
+  dadPushForce: 15
+  childPushForce: 7.5
+  pushRange: 2.8
+  pushConeAngle: 75
+  pushWhooshSound: {fileID: 8300000, guid: fae415c7754fc1a44904a439e38cdfaa, type: 3}
+  pushHitSound: {fileID: 8300000, guid: 6f056d33e6be9c544b4625027ab9497f, type: 3}
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0

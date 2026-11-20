@@ -57,7 +57,7 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float speedBoostPerSpam = 1.2f;
 
         [Tooltip("Tốc độ tiến tối đa khi Ba spam chèo thuyền (mét/giây)")]
-        [SerializeField] private float maxRowSpeed = 7.5f;
+        [SerializeField] private float maxRowSpeed = 5.8f;
 
         [Tooltip("Thời lượng của 1 nhịp chèo mái chèo (giây)")]
         [SerializeField] private float strokeDuration = 0.55f;
@@ -68,7 +68,7 @@ namespace Blocks.Gameplay.Core
 #pragma warning restore 0414
 
         [Tooltip("Lực cản nước làm giảm tốc độ khi thuyền trôi theo quán tính (mét/giây^2). Giá trị càng nhỏ thuyền trôi quán tính càng xa và lâu.")]
-        [SerializeField] private float waterDrag = 1.6f;
+        [SerializeField] private float waterDrag = 1.5f;
 
 #pragma warning disable 0414
         [Tooltip("Tốc độ lùi tối đa khi chèo lùi (mét/giây)")]
@@ -919,8 +919,11 @@ namespace Blocks.Gameplay.Core
                     {
                         // Client prediction visual tức thì cho người chèo
                         m_IsStrokeActive = true;
-                        m_StrokePhase = 0f;
                         m_IsDadRowing = true;
+                        if (m_StrokePhase >= 0.5f || Time.time - m_LastStrokeAt > 0.4f)
+                        {
+                            m_StrokePhase = 0f;
+                        }
 
                         if (IsSpawned && !IsServer)
                         {
@@ -969,8 +972,11 @@ namespace Blocks.Gameplay.Core
                         else
                         {
                             m_IsStrokeActive = true;
-                            m_StrokePhase = 0f;
                             m_IsDadRowing = true;
+                            if (m_StrokePhase >= 0.5f || Time.time - m_LastStrokeAt > 0.4f)
+                            {
+                                m_StrokePhase = 0f;
+                            }
 
                             if (IsSpawned && !IsServer)
                             {
@@ -989,14 +995,15 @@ namespace Blocks.Gameplay.Core
         /// <summary>
         /// Kích hoạt một nhịp chèo bằng phím Space:
         /// - Nhấn Space 1 lần -> Tăng tốc độ tức thì cho thuyền.
-        /// - Càng spam Space nhanh -> Vận tốc thuyền tăng cao (lên tối đa maxRowSpeed).
-        /// - Khi dừng Space -> Thuyền tiếp tục lướt trôi theo quán tính tốc độ hiện tại.
+        /// - Càng spam Space nhanh -> Vận tốc thuyền tăng cao theo nhịp bấm (lên tối đa maxRowSpeed).
+        /// - Khi bấm chậm lại -> Thuyền tự động điều chỉnh về dải tốc độ tương ứng với nhịp bấm.
+        /// - Khi dừng Space -> Thuyền tiếp tục lướt trôi theo quán tính tốc độ hiện tại rồi dừng lại.
         /// - Nếu thuyền đã mắc cạn trên bờ đất -> Không thể di chuyển được nữa!
         /// </summary>
         public void TriggerRowStroke()
         {
             if (!HasSimulationAuthority) return;
-            m_LastStrokeAt = Time.time;
+
             // Kiểm tra trạng thái mắc cạn trên đất liền:
             if (m_IsGroundedOnLand)
             {
@@ -1004,19 +1011,47 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            // Kích hoạt nhịp chèo mới tức thì
-            m_IsStrokeActive = true;
-            m_StrokePhase = 0f;
-            m_IsDadRowing = true;
+            float now = Time.time;
+            float interval = m_LastStrokeAt >= 0f ? (now - m_LastStrokeAt) : 1.5f;
+            m_LastStrokeAt = now;
 
-            // Tăng tốc độ: mỗi lần nhấn Space tăng thêm vận tốc tức thì
-            if (m_CurrentSpeed < minStrokeSpeed)
+            // Kích hoạt nhịp chèo mới
+            m_IsStrokeActive = true;
+            m_IsDadRowing = true;
+            if (m_StrokePhase >= 0.5f || interval > 0.4f)
             {
-                m_CurrentSpeed = minStrokeSpeed;
+                m_StrokePhase = 0f;
+            }
+
+            // Tính hệ số nhịp gõ phím Space (Cadence Factor):
+            // interval <= 0.001f: Cùng frame (ví dụ QA test loop) -> tốc độ tối đa
+            // interval <= 0.22s (~4.5 lần/giây): Nhấn cực nhanh -> cadenceFactor = 1.0 (sprint tối đa)
+            // interval ~ 0.50s (~2 lần/giây): Nhấn nhịp nhàng -> cadenceFactor ~ 0.64 (tốc độ trung bình)
+            // interval >= 1.00s (<= 1 lần/giây): Nhấn chậm rãi -> cadenceFactor = 0.0 (tốc độ tà tà)
+            float cadenceFactor;
+            if (interval <= 0.001f)
+            {
+                cadenceFactor = 1.0f;
             }
             else
             {
-                m_CurrentSpeed = Mathf.Min(m_CurrentSpeed + speedBoostPerSpam, maxRowSpeed);
+                cadenceFactor = Mathf.Clamp01((1.0f - interval) / (1.0f - 0.22f));
+            }
+
+            // Trần tốc độ tương ứng với nhịp bấm hiện tại (càng bấm nhanh trần càng cao)
+            float cadenceCeiling = Mathf.Lerp(minStrokeSpeed, maxRowSpeed, cadenceFactor);
+
+            // Xung lực tức thời mỗi nhịp chèo: nhịp nhanh dồn lực mạnh hơn
+            float impulse = Mathf.Lerp(speedBoostPerSpam * 0.6f, speedBoostPerSpam * 1.2f, cadenceFactor);
+
+            if (m_CurrentSpeed < minStrokeSpeed)
+            {
+                m_CurrentSpeed = Mathf.Min(minStrokeSpeed + impulse * 0.3f, cadenceCeiling);
+            }
+            else
+            {
+                float target = Mathf.Min(m_CurrentSpeed + impulse, cadenceCeiling);
+                m_CurrentSpeed = Mathf.Max(m_CurrentSpeed, target);
             }
 
             if (CanWriteNetVars)
@@ -1161,8 +1196,11 @@ namespace Blocks.Gameplay.Core
                     transform.position += desiredMove;
                 }
 
-                // Cản nước làm giảm tốc độ
-                float currentDrag = m_IsStrokeActive ? (waterDrag * 0.35f) : waterDrag;
+                // Cản nước thực tế: ở tốc độ cao, sức cản nước tăng lên để duy trì tốc độ cao cần giữ nhịp bấm nhanh;
+                // khi giảm nhịp bấm, thuyền sẽ tự động hạ về tốc độ vừa phải.
+                float speedRatio = Mathf.Clamp01(m_CurrentSpeed / Mathf.Max(maxRowSpeed, 1f));
+                float dynamicDrag = waterDrag * (0.65f + 1.1f * speedRatio);
+                float currentDrag = m_IsStrokeActive ? (dynamicDrag * 0.35f) : dynamicDrag;
                 m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, currentDrag * dt);
 
                 if (m_CurrentSpeed <= 0.05f)
@@ -1709,8 +1747,11 @@ namespace Blocks.Gameplay.Core
         private void NotifyRowStrokeClientRpc()
         {
             m_IsStrokeActive = true;
-            m_StrokePhase = 0f;
             m_IsDadRowing = true;
+            if (m_StrokePhase >= 0.5f)
+            {
+                m_StrokePhase = 0f;
+            }
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
