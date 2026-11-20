@@ -110,8 +110,8 @@ namespace Blocks.Gameplay.Core
                 objectives.Add(new LevelStageObjective
                 {
                     id = "boat_key_and_stairs",
-                    title = "🎯 Mục Tiêu 4: Lấy Chìa Khóa Cổ Thành Dưới Thuyền & Leo Tháp Canh",
-                    hint = "🔑 Tiến xuống sàn tàu đắm nhặt Chìa Khóa Cổ Thành, sau đó bước qua cầu rút leo cầu thang lên Tháp Canh!",
+                    title = "🎯 Mục Tiêu 4: Hải Đăng Tàu Sao Bắc Đẩu & Lên Tháp Canh",
+                    hint = "⚓ Ba ghì đối trọng để Con leo lấy Thấu Kính Mặt Trời hạ cầu, sau đó xoay bánh lái chiếu tia sáng phá phong ấn mở đường lên Tháp Canh!",
                     targetPosition = new Vector3(44.50f, 4.20f, -54.00f),
                     completeRadius = 6.0f
                 });
