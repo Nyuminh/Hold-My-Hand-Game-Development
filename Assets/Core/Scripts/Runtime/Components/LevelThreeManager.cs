@@ -57,17 +57,17 @@ namespace Blocks.Gameplay.Core
             if (Time.time < recoverAfter) return;
             switch (progress.Value)
             {
-                case 0: if (bridge.Open && BothBeyond(15)) progress.Value = 1; break;
-                case 1: if (gate.Open && BothBeyond(36)) progress.Value = 2; break;
-                case 2: if (BothBeyond(64)) { progress.Value = 3; altar.Armed = true; } break;
+                case 0: if (bridge.Open && BothBeyond(bridge.landing)) progress.Value = 1; break;
+                case 1: if (gate.Open && BothBeyond(gate.lever)) progress.Value = 2; break;
+                case 2: if (BothBeyond(checkpoints[6])) { progress.Value = 3; altar.Armed = true; } break;
                 case 3: if (altar.Lit) progress.Value = 4; break;
             }
         }
-        static bool BothBeyond(float z)
+        static bool BothBeyond(Transform marker)
         {
             bool dad = false, child = false;
             foreach (var actor in LevelTwoActors.All)
-                if (actor.transform.position.z >= z && actor.transform.position.y >= -.25f)
+                if (actor.transform.position.z >= marker.position.z - .25f && actor.transform.position.y >= marker.position.y - 1f)
                 {
                     if (LevelOnePlayer.IsDad(actor)) dad = true; else child = true;
                 }

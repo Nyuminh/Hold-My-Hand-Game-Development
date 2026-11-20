@@ -50,10 +50,11 @@ namespace Blocks.Gameplay.Core
             var tether = FindAnyObjectByType<CoopTetherChain>();
             deadline = Time.realtimeSinceStartup + 75;
             var actor = net.LocalClient.PlayerObject.GetComponent<CorePlayerManager>();
+            var launch = FindAnyObjectByType<LevelThreeDrawbridgePulley>().launch.position;
             yield return new WaitForSeconds(1);
-            actor.CoreMovement.SetPosition(new Vector3(host ? -1 : 1, .1f, 8));
+            actor.CoreMovement.SetPosition(launch + new Vector3(host ? -2 : 0, .12f, -.7f));
             yield return new WaitForSeconds(1);
-            if (!host) actor.CoreMovement.SetPosition(new Vector3(0, -3, 12.5f));
+            if (!host) actor.CoreMovement.SetPosition(launch + new Vector3(-2, -3.2f, 3.8f));
             bool caught = false;
             while (Time.realtimeSinceStartup < deadline)
             {
@@ -63,7 +64,7 @@ namespace Blocks.Gameplay.Core
                     Debug.Log("PASS replicated catch on " + (host ? "host" : "client"));
                     if (host) { yield return new WaitForSeconds(1); tether.RequestHaul(); }
                 }
-                if (caught && !tether.IsSuspended && actor.transform.position.y > -.5f &&
+                if (caught && !tether.IsSuspended && actor.transform.position.y > launch.y - .5f &&
                     tether.GetComponent<LineRenderer>().enabled)
                 {
                     Debug.Log("PASS replicated rescue on " + (host ? "host" : "client"));
@@ -83,43 +84,44 @@ namespace Blocks.Gameplay.Core
             var altar = FindAnyObjectByType<DualAltarPortal>();
             var campaign = FindAnyObjectByType<LevelThreeManager>();
             var pillar = FindObjectsByType<CollapsingPlatform>().OrderBy(p => p.stone.position.z).First();
-            actor.CoreMovement.SetPosition(new Vector3(host ? 1.6f : -1, .12f, 17));
+            actor.CoreMovement.SetPosition(bridge.pulley.position + new Vector3(host ? -.2f : -2.8f, -.53f, 0));
             yield return new WaitForSeconds(.6f);
             if (host) bridge.RequestTurn();
             yield return new WaitForSeconds(.5f);
             if (bridge.Open) { Fail("Dad opened child winch"); yield break; }
-            if (!host) { actor.CoreMovement.SetPosition(new Vector3(1.4f, .12f, 16.4f)); }
+            if (!host) actor.CoreMovement.SetPosition(bridge.pulley.position + new Vector3(-.4f, -.53f, -.6f));
             yield return new WaitForSeconds(.5f);
             if (!host) bridge.RequestTurn();
             yield return new WaitForSeconds(1.7f);
             if (!bridge.Open || Quaternion.Angle(bridge.hinge.localRotation, Quaternion.identity) > 1)
             { Fail("drawbridge"); yield break; }
             Debug.Log("PASS drawbridge lowered by Child");
-            actor.CoreMovement.SetPosition(new Vector3(host ? -1 : 2.8f, .1f, host ? 31 : 33));
+            actor.CoreMovement.SetPosition(gate.crawl.transform.position + new Vector3(host ? -3.8f : 0, -.7f, host ? -2.8f : -.8f));
             yield return new WaitForSeconds(1);
-            if (!host) actor.CoreMovement.SetPosition(new Vector3(2.6f, .1f, 37));
+            if (!host) actor.CoreMovement.SetPosition(gate.lever.position + new Vector3(.6f, -.45f, -.4f));
             yield return new WaitForSeconds(.7f);
             if (!host) gate.RequestUnlock();
             yield return new WaitForSeconds(1.5f);
             if (!gate.Open) { Fail("crawl lever"); yield break; }
             Debug.Log("PASS crypt opened after crawl");
-            actor.CoreMovement.SetPosition(new Vector3(host ? -1 : 1, .15f, 40));
+            var checkpoint = campaign.checkpoints[host ? 4 : 5];
+            actor.CoreMovement.SetPosition(checkpoint.position);
             yield return new WaitForSeconds(.7f);
             if (campaign.Checkpoint != 2 || string.IsNullOrEmpty(campaign.objective.text)) { Fail("crypt checkpoint or objective"); yield break; }
-            actor.CoreMovement.SetPosition(new Vector3(host ? -1 : 1, -7, 44));
+            actor.CoreMovement.SetPosition(checkpoint.position + new Vector3(12, -7, 4));
             yield return new WaitForSeconds(1.6f);
-            var checkpoint = campaign.checkpoints[host ? 4 : 5];
             if (Vector3.Distance(actor.transform.position, checkpoint.position) > 1.5f) { Fail("paired checkpoint recovery"); yield break; }
             Debug.Log("PASS both-fall checkpoint and objective");
-            if (!host) actor.CoreMovement.SetPosition(pillar.stone.position + Vector3.up * .12f);
+            float pillarTop = pillar.stone.position.y;
+            actor.CoreMovement.SetPosition(host ? pillar.stone.position + new Vector3(1, .12f, -4) : pillar.stone.position + Vector3.up * .12f);
             yield return new WaitForSeconds(.6f);
-            if (pillar.stone.position.y < -.2f) { Fail("pillar fell early"); yield break; }
+            if (pillar.stone.position.y < pillarTop - .2f) { Fail("pillar fell early"); yield break; }
             yield return new WaitForSeconds(1.8f);
-            if (pillar.stone.position.y > -.25f) { Fail("pillar stayed up"); yield break; }
+            if (pillar.stone.position.y > pillarTop - .25f) { Fail("pillar stayed up"); yield break; }
             Debug.Log("PASS collapsing stone");
-            actor.CoreMovement.SetPosition(new Vector3(host ? -1 : 1, 1.2f, 66));
+            actor.CoreMovement.SetPosition(campaign.checkpoints[host ? 6 : 7].position + Vector3.forward * .5f);
             yield return new WaitForSeconds(1);
-            actor.CoreMovement.SetPosition(host ? altar.dadPad.position + Vector3.up * .2f : new Vector3(2, 1.2f, 81));
+            actor.CoreMovement.SetPosition(host ? altar.dadPad.position + Vector3.up * .2f : altar.childPad.position + new Vector3(0, .1f, -4));
             yield return new WaitForSeconds(.8f);
             if (altar.Lit) { Fail("single altar activation"); yield break; }
             if (!host) actor.CoreMovement.SetPosition(altar.childPad.position + Vector3.up * .2f);

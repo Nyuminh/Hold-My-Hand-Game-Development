@@ -59,9 +59,30 @@ namespace Blocks.Gameplay.Core
                 Piece(tower, "HightTower", "Belfry", -10, 19, 83, 8, 25, 8);
                 Piece(tower, "Ramp", "Belfry Buttress", -8, 1, 75, 5, 6, 8);
                 foreach (int z in new[] { 4, 22, 30, 40, 70, 86 })
-                    Piece(root, "FloorTorch", "Torch " + z, 3, z >= 70 ? 3 : 2, z, .6f, 2, .6f);
+                    Piece(z < 25 ? gorge : z < 43 ? crypt : tower, "FloorTorch", "Torch " + z, 3, z >= 70 ? 3 : 2, z, .6f, 2, .6f);
 
                 BuildPuzzles(gorge, crypt, pillars, tower);
+                // Keep the cooperative puzzle dimensions local to each terrace.
+                gorge.position = new Vector3(0, 22, 85);
+                crypt.position = new Vector3(0, 46, 170);
+                pillars.position = new Vector3(0, 70, 255);
+                tower.position = new Vector3(0, 95, 340);
+                Piece(root, "Platform", "Valley Entrance", 0, 0, 0, 10, 4, 8);
+                Ascent(root, "Outer Stair", 4, 0, 81, 22, 7, 5);
+                Ascent(root, "Curtain Wall Walk", 110, 22, 195, 46, -11, 5);
+                Ascent(root, "Broken Aqueduct", 213, 46, 298, 70, 9, 6);
+                Piece(root, "Platform", "Upper Watch Post", 0, 71, 320, 7, 7, 5);
+                Ascent(root, "Belfry Approach", 322.5f, 71, 403, 96, -10, 6);
+                tether.abyss.courseElevation = new AnimationCurve();
+                foreach (var point in new[] {new Vector2(4,0),new Vector2(81,22),new Vector2(110,22),
+                    new Vector2(195,46),new Vector2(213,46),new Vector2(298,70),new Vector2(322.5f,71),
+                    new Vector2(403,96),new Vector2(431,96)})
+                    tether.abyss.courseElevation.AddKey(point.x, point.y);
+                for (int i = 0; i < tether.abyss.courseElevation.length; i++)
+                {
+                    AnimationUtility.SetKeyLeftTangentMode(tether.abyss.courseElevation, i, AnimationUtility.TangentMode.Linear);
+                    AnimationUtility.SetKeyRightTangentMode(tether.abyss.courseElevation, i, AnimationUtility.TangentMode.Linear);
+                }
                 BuildCampaign(root, tether);
                 var gm = scene.GetRootGameObjects().SelectMany(o => o.GetComponentsInChildren<GameManager>(true)).Single();
                 var settings = new SerializedObject(gm);
@@ -69,7 +90,7 @@ namespace Blocks.Gameplay.Core
                 spawns.arraySize = 2;
                 for (int i = 0; i < 2; i++)
                 {
-                    var spawn = Group(i == 0 ? "Dad Spawn" : "Child Spawn", gorge);
+                    var spawn = Group(i == 0 ? "Dad Spawn" : "Child Spawn", root);
                     spawn.position = new Vector3(i == 0 ? -1 : 1, .2f, 0);
                     spawns.GetArrayElementAtIndex(i).objectReferenceValue = spawn;
                 }
@@ -81,11 +102,48 @@ namespace Blocks.Gameplay.Core
                 RenderSettings.fog = true;
                 RenderSettings.fogColor = new Color(.65f, .53f, .55f);
                 RenderSettings.fogMode = FogMode.ExponentialSquared;
-                RenderSettings.fogDensity = .008f;
+                RenderSettings.fogDensity = .003f;
                 EditorSceneManager.MarkSceneDirty(scene);
                 if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Could not save PlayScene4.");
             }
             finally { if (previous.isLoaded) SceneManager.SetActiveScene(previous); }
+        }
+
+        static void Ascent(Transform root, string name, float startZ, float startY, float endZ, float endY,
+            float bend, int flights)
+        {
+            var section = Group(name, root);
+            Vector3 Point(float t) => new Vector3(bend * Mathf.Sin(t * Mathf.PI * 2), Mathf.Lerp(startY, endY, t), Mathf.Lerp(startZ, endZ, t));
+            for (int i = 0; i < flights; i++)
+            {
+                Vector3 a = Point((float)i / flights), b = Point((i + 1f) / flights);
+                Vector3 along = Vector3.ProjectOnPlane(b - a, Vector3.up).normalized;
+                Vector3 lip = Vector3.Lerp(a, b, .48f);
+                lip.y = b.y - 1.25f;
+                var slope = Quaternion.LookRotation(lip - a);
+                var deck = Block("Incline", section, (a + lip) * .5f - slope * Vector3.up * .4f,
+                    new Vector3(i % 2 == 0 ? 4.4f : 3.4f, .8f, Vector3.Distance(a, lip) + .16f));
+                deck.transform.rotation = slope;
+                deck.GetComponent<MeshRenderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL1_Stone.mat");
+                // Two uphill jumps, with broad landings for a tethered pair to regroup.
+                Vector3 middle = Vector3.Lerp(lip, b, .46f);
+                middle.y = b.y - .62f;
+                Landing(lip + along * .85f, middle, middle.y, 3.8f, "Stepping Stone");
+                Landing(middle + along * 1.05f, b + along * .25f, b.y, 5, "Battlement");
+                if (i == flights / 2)
+                {
+                    Vector3 side = Vector3.Cross(Vector3.up, along) * Mathf.Sign(bend);
+                    var watch = b + side * 10;
+                    Piece(section, "WallTower", "Watchtower", watch.x, b.y + 4, watch.z, 7, 18, 7);
+                }
+                void Landing(Vector3 from, Vector3 to, float top, float width, string label)
+                {
+                    var centre = (from + to) * .5f;
+                    float depth = Vector3.ProjectOnPlane(to - from, Vector3.up).magnitude;
+                    Piece(section, "Platform", label, centre.x, top, centre.z, width, 4.5f, depth);
+                    section.GetChild(section.childCount - 1).rotation = Quaternion.LookRotation(along);
+                }
+            }
         }
 
         static void BuildCampaign(Transform root, CoopTetherChain tether)
@@ -97,10 +155,11 @@ namespace Blocks.Gameplay.Core
             campaign.altar = root.GetComponentInChildren<DualAltarPortal>();
             campaign.pillars = root.GetComponentsInChildren<CollapsingPlatform>();
             campaign.checkpoints = new Transform[10];
-            float[] stations = { 0, 22, 40, 65, 85 };
+            float[] stations = { 0, 107, 210, 320, 425 };
+            float[] elevations = { 0, 22, 46, 71, 96 };
             for (int i = 0; i < stations.Length; i++)
             {
-                float y = i >= 3 ? 1.35f : .3f;
+                float y = elevations[i] + .3f;
                 campaign.checkpoints[i * 2] = Mark("CP" + i + " Dad", campaign.transform, -1, y, stations[i]);
                 campaign.checkpoints[i * 2 + 1] = Mark("CP" + i + " Child", campaign.transform, 1, y, stations[i]);
             }
