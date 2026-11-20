@@ -3126,6 +3126,10 @@ MonoBehaviour:
   lobbyCanvas: {fileID: 606284777}
   player1Preview: {fileID: 2025194673}
   player2Preview: {fileID: 2069772366}
+  lobbyIdleClips:
+  - {fileID: 7400000, guid: 3291da7f542343d47a4b82e039cb027d, type: 3}
+  - {fileID: 7400000, guid: 619be4392f6c127429753d22b9ba76a8, type: 3}
+  - {fileID: 7400000, guid: aa634cad1bdf54b41bf3ff57dd763a83, type: 3}
   gameSceneName: PlayScene3
   pollInterval: 15
   voiceServerUrl: wss://hold-my-hand-backend.vercel.app/voice
