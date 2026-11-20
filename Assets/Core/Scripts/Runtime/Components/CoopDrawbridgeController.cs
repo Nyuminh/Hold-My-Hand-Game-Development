@@ -16,6 +16,7 @@ namespace Blocks.Gameplay.Core
     /// Dây xích sắt bám dính chính xác 100% từ ròng rọc trên trụ tới mép cầu ở mọi góc độ.
     /// Hỗ trợ NetworkBehaviour đồng bộ hoàn toàn giữa Host và Client qua NetworkVariable & ServerRpc.
     /// </summary>
+    [ExecuteAlways]
     public class CoopDrawbridgeController : NetworkBehaviour
     {
         private static CoopDrawbridgeController instance;
@@ -69,8 +70,8 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Góc khi gạt 1 cần (hạ xuống nghiêng ~40-45 độ)")]
         [SerializeField] private float halfLowerAngleOffset = 38f;
 
-        [Tooltip("Góc khi gạt đủ 2 cần (hạ phẳng lì tiếp đất ~78 độ)")]
-        [SerializeField] private float fullLowerAngleOffset = 78f;
+        [Tooltip("Góc khi gạt đủ 2 cần (hạ phẳng lì tiếp đất ~75.5 độ)")]
+        [SerializeField] private float fullLowerAngleOffset = 75.5f;
 
         [Tooltip("Thời gian chuyển động nâng/hạ cầu (giây)")]
         [SerializeField] private float transitionDuration = 2.0f;
@@ -232,6 +233,12 @@ namespace Blocks.Gameplay.Core
 
         private void Update()
         {
+            if (!Application.isPlaying)
+            {
+                UpdateChains();
+                return;
+            }
+
             currentPrompt = "";
 
             Transform player = FindLocalPlayer();
@@ -454,11 +461,10 @@ namespace Blocks.Gameplay.Core
             }
 
             float currentDist = dir.magnitude;
-            if (initialDist > 0.1f)
-            {
-                float scaleZ = currentDist / initialDist;
-                chain.localScale = new Vector3(chain.localScale.x, chain.localScale.y, scaleZ);
-            }
+            // Chiều dài mesh xích gốc trong FBX là chính xác 1.78m
+            // Dùng currentDist / 1.78f để 2 đầu xích luôn gắn dính 100% vào ròng rọc và khuyên sắt trên mép cầu ở mọi góc độ
+            float scaleZ = currentDist / 1.78f;
+            chain.localScale = new Vector3(chain.localScale.x, chain.localScale.y, scaleZ);
         }
 
         private Transform FindLocalPlayer()

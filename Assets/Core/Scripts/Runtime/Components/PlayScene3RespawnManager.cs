@@ -115,8 +115,7 @@ namespace Blocks.Gameplay.Core
 
         private void Update()
         {
-            TrackPlayerProgress();
-            CheckFallHazardZones();
+            // Cơ chế rơi vực / chết đã được loại bỏ theo yêu cầu của người chơi
         }
 
         /// <summary>
@@ -282,56 +281,8 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public void HandlePlayerFall(Transform playerTransform)
         {
-            if (playerTransform == null) return;
-
-            if (lastRespawnTime.TryGetValue(playerTransform, out float lastTime))
-            {
-                if (Time.time - lastTime < respawnCooldown) return;
-            }
-            lastRespawnTime[playerTransform] = Time.time;
-
-            Vector3 spawnPoint = GetCheckpointPosition(CurrentCheckpoint);
-            string pName = playerTransform.gameObject.name;
-
-            flashUntil = Time.unscaledTime + 0.3f;
-            flashColor = new Color(0.7f, 0.05f, 0.05f, 0.4f);
-            reviveCenterText = "Đang hồi sinh...";
-            reviveCenterColor = new Color(1f, 0.85f, 0.85f);
-            reviveCenterUntil = Time.unscaledTime + 1.5f;
-            Debug.Log($"<color=orange>[RespawnManager] ⚠️ '{pName}' rơi xuống vực (Y: {playerTransform.position.y:F1})! Đang hồi sinh tại Checkpoint {CurrentCheckpoint} ({spawnPoint})...</color>");
-            ShowPrompt($"⚠️ <color=#FF6666>Rơi xuống vực!</color> Đang hồi sinh tại: <color=#FFEE55>{checkpoints[CurrentCheckpoint].name}</color>", 2.5f);
-
-            // 1. Tắt tạm thời CharacterController để định vị lại tọa độ mượt mà
-            if (playerTransform.TryGetComponent<CharacterController>(out var cc))
-            {
-                cc.enabled = false;
-                playerTransform.position = spawnPoint;
-                cc.enabled = true;
-            }
-            else
-            {
-                playerTransform.position = spawnPoint;
-            }
-
-            // 2. Reset quán tính di chuyển nếu có CoreMovement
-            if (playerTransform.TryGetComponent<CoreMovement>(out var movement))
-            {
-                movement.SetPosition(spawnPoint);
-                movement.ResetMovementForces();
-            }
-
-            // 3. Phục hồi 100% máu
-            if (playerTransform.TryGetComponent<CoreStatsHandler>(out var stats))
-            {
-                stats.ModifyStat(StatKeys.Health, 100, 0, ModificationSource.Healing);
-            }
-
-            // 4. Cập nhật LifeState sang Respawned
-            if (playerTransform.TryGetComponent<CorePlayerState>(out var pState))
-            {
-                pState.SetLifeState(PlayerLifeState.Respawned);
-            }
-            StartCoroutine(ShowRespawnComplete());
+            // Cơ chế chết đã được loại bỏ theo yêu cầu của người chơi
+            return;
         }
 
         private IEnumerator ShowRespawnComplete()

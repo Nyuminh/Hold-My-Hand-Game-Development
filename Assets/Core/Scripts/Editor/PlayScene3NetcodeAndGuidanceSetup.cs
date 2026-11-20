@@ -1,175 +1,164 @@
-using UnityEditor;
-using UnityEditor.SceneManagement;
-using UnityEngine;
-using UnityEngine.UIElements;
-using Unity.Netcode;
-using Blocks.Gameplay.Core;
-
-namespace Blocks.Gameplay.Core
-{
-    public static class PlayScene3NetcodeAndGuidanceSetup
-    {
-        [MenuItem("Tools/Coop/Setup PlayScene3 Netcode and Guidance")]
-        public static void ExecuteSetup()
-        {
-            string scenePath = "Assets/Core/Scenes/PlayScene3.unity";
-            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
-            if (!scene.IsValid())
-            {
-                Debug.LogError($"Could not open scene {scenePath}");
-                return;
-            }
-
-            Debug.Log("[Setup] Setting up PlayScene3 Netcode & Objective Director...");
-
-            // 1. Move Zone3_Electrical_Box onto deck to clear the rock obstruction
-            var electricBox = GameObject.Find("Zone3_Electrical_Box");
-            if (electricBox != null)
-            {
-                electricBox.transform.position = new Vector3(0.15f, 14.35f, -45.50f);
-                Debug.Log($"[Setup] Moved Zone3_Electrical_Box to {electricBox.transform.position} (clear of all rocks)");
-            }
-
-            // 2. Adjust Pushable_Boulder position and ensure it doesn't block the walkway
-            var boulder = GameObject.Find("Pushable_Boulder");
-            if (boulder != null)
-            {
-                boulder.transform.position = new Vector3(-4.20f, 15.40f, -54.00f);
-                var sphereCol = boulder.GetComponent<SphereCollider>();
-                if (sphereCol != null)
-                {
-                    sphereCol.radius = 0.5f;
-                }
-                Debug.Log($"[Setup] Adjusted Pushable_Boulder at {boulder.transform.position}");
-            }
-
-            // 3. Add NetworkObject to all interactive GameObjects that require Netcode
-            EnsureNetworkObject("Zone1_Drawbridge_System");
-            EnsureNetworkObject("Stage3_Landing_Deck");
-            EnsureNetworkObject("Cove_Drawbridge_CoopController");
-            EnsureNetworkObject("Crane_Elevator_System");
-            EnsureNetworkObject("Zone3_Gear_Turntable_Pivot");
-            EnsureNetworkObject("Giant_Stone_Gear_Body");
-            EnsureNetworkObject("Stage3_Winch_Assembly");
-            EnsureNetworkObject("Cove_Winch_Assembly");
-            EnsureNetworkObject("Pushable_Boulder");
-
-            // Also check for any GameObject with NetworkBehaviour that doesn't have NetworkObject
-            var allNetworkBehaviours = Object.FindObjectsByType<NetworkBehaviour>(FindObjectsSortMode.None);
-            foreach (var nb in allNetworkBehaviours)
-            {
-                if (nb.GetComponent<NetworkObject>() == null)
-                {
-                    var no = nb.gameObject.AddComponent<NetworkObject>();
-                    Debug.Log($"[Setup] Added NetworkObject to {nb.gameObject.name} for {nb.GetType().Name}");
-                }
-            }
-
-            // 4. Add Directional Guidance (TutorialObjectiveDirector + UIDocument)
-            var existingDirector = Object.FindObjectsByType<TutorialObjectiveDirector>(FindObjectsSortMode.None);
-            GameObject directorGo;
-            TutorialObjectiveDirector directorComp;
-            if (existingDirector.Length > 0)
-            {
-                directorComp = existingDirector[0];
-                directorGo = directorComp.gameObject;
-            }
-            else
-            {
-                directorGo = new GameObject("PlayScene3_ObjectiveDirector");
-                directorComp = directorGo.AddComponent<TutorialObjectiveDirector>();
-            }
-
-            // Ensure UIDocument with TutorialHUD.uxml
-            var uiDoc = directorGo.GetComponent<UIDocument>();
-            if (uiDoc == null) uiDoc = directorGo.AddComponent<UIDocument>();
-            var hudAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Core/UI/TutorialHUD.uxml");
-            if (hudAsset != null)
-            {
-                uiDoc.visualTreeAsset = hudAsset;
-                Debug.Log("[Setup] Assigned TutorialHUD.uxml to UIDocument");
-            }
-            var panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/Core/UI/UI Toolkit Panel Settings.asset");
-            if (panelSettings != null)
-            {
-                uiDoc.panelSettings = panelSettings;
-            }
-
-            // 5. Ensure WaitRoomUI & WaitRoomManager on GameManager
-            var gm = Object.FindAnyObjectByType<GameManager>();
-            if (gm != null)
-            {
-                var wrm = gm.GetComponent<WaitRoomManager>();
-                if (wrm == null) wrm = gm.gameObject.AddComponent<WaitRoomManager>();
-
-                var waitRoomGo = GameObject.Find("WaitRoomUI");
-                if (waitRoomGo == null)
-                {
-                    waitRoomGo = new GameObject("WaitRoomUI");
-                    waitRoomGo.layer = LayerMask.NameToLayer("UI") >= 0 ? LayerMask.NameToLayer("UI") : 5;
-                }
-
-                var wrmDoc = waitRoomGo.GetComponent<UIDocument>();
-                if (wrmDoc == null) wrmDoc = waitRoomGo.AddComponent<UIDocument>();
-
-                var bPanel = AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/Blocks/Common/BlocksPanelSettings.asset");
-                if (bPanel != null) wrmDoc.panelSettings = bPanel;
-
-                var wrmUxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Core/UI/WaitRoomScreen.uxml");
-                if (wrmUxml != null) wrmDoc.visualTreeAsset = wrmUxml;
-
-                var soWrm = new SerializedObject(wrm);
-                var wrmUiProp = soWrm.FindProperty("waitRoomUI");
-                if (wrmUiProp != null)
-                {
-                    wrmUiProp.objectReferenceValue = wrmDoc;
-                    soWrm.ApplyModifiedProperties();
-                }
-
-                var soGm = new SerializedObject(gm);
-                var gmWrmProp = soGm.FindProperty("waitRoomManager");
-                if (gmWrmProp != null)
-                {
-                    gmWrmProp.objectReferenceValue = wrm;
-                    soGm.ApplyModifiedProperties();
-                }
-                Debug.Log("[Setup] Configured WaitRoomManager and WaitRoomUI in PlayScene3.");
-            }
-
-            // 6. Ensure PlayScene3RespawnManager (Checkpoints & Fall Damage Zone)
-            var existingRespawn = Object.FindObjectsByType<PlayScene3RespawnManager>(FindObjectsSortMode.None);
-            if (existingRespawn.Length == 0)
-            {
-                var respawnGo = new GameObject("PlayScene3_RespawnManager");
-                respawnGo.AddComponent<PlayScene3RespawnManager>();
-                if (respawnGo.GetComponent<NetworkObject>() == null)
-                {
-                    respawnGo.AddComponent<NetworkObject>();
-                }
-                Debug.Log("[Setup] Added PlayScene3RespawnManager for Checkpoints and Fall Damage Respawn.");
-            }
-
-            // Save Scene
-            EditorSceneManager.MarkSceneDirty(scene);
-            bool saved = EditorSceneManager.SaveScene(scene);
-            Debug.Log($"[Setup] PlayScene3 saved: {saved}!");
-        }
-
-        private static void EnsureNetworkObject(string goName)
-        {
-            var go = GameObject.Find(goName);
-            if (go != null)
-            {
-                if (go.GetComponent<NetworkObject>() == null)
-                {
-                    go.AddComponent<NetworkObject>();
-                    Debug.Log($"[Setup] Added NetworkObject to '{goName}'");
-                }
-            }
-            else
-            {
-                Debug.LogWarning($"[Setup] GameObject '{goName}' not found.");
-            }
-        }
-    }
-}
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.UIElements;
+using Unity.Netcode;
+using Blocks.Gameplay.Core;
+
+namespace Blocks.Gameplay.Core
+{
+    public static class PlayScene3NetcodeAndGuidanceSetup
+    {
+        [MenuItem("Tools/Coop/Setup PlayScene3 Netcode and Guidance")]
+        public static void ExecuteSetup()
+        {
+            string scenePath = "Assets/Core/Scenes/PlayScene3.unity";
+            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+            if (!scene.IsValid())
+            {
+                Debug.LogError($"Could not open scene {scenePath}");
+                return;
+            }
+
+            Debug.Log("[Setup] Setting up PlayScene3 Netcode & Objective Director...");
+
+            // 1. Move Zone3_Electrical_Box onto deck to clear the rock obstruction
+            var electricBox = GameObject.Find("Zone3_Electrical_Box");
+            if (electricBox != null)
+            {
+                electricBox.transform.position = new Vector3(0.15f, 14.35f, -45.50f);
+                Debug.Log($"[Setup] Moved Zone3_Electrical_Box to {electricBox.transform.position} (clear of all rocks)");
+            }
+
+            // 2. Adjust Pushable_Boulder position and ensure it doesn't block the walkway
+            var boulder = GameObject.Find("Pushable_Boulder");
+            if (boulder != null)
+            {
+                boulder.transform.position = new Vector3(-4.20f, 15.40f, -54.00f);
+                var sphereCol = boulder.GetComponent<SphereCollider>();
+                if (sphereCol != null)
+                {
+                    sphereCol.radius = 0.5f;
+                }
+                Debug.Log($"[Setup] Adjusted Pushable_Boulder at {boulder.transform.position}");
+            }
+
+            // 3. Add NetworkObject to all interactive GameObjects that require Netcode
+            EnsureNetworkObject("Zone1_Drawbridge_System");
+            EnsureNetworkObject("Stage3_Landing_Deck");
+            EnsureNetworkObject("Cove_Drawbridge_CoopController");
+            EnsureNetworkObject("Crane_Elevator_System");
+            EnsureNetworkObject("Zone3_Gear_Turntable_Pivot");
+            EnsureNetworkObject("Giant_Stone_Gear_Body");
+            EnsureNetworkObject("Stage3_Winch_Assembly");
+            EnsureNetworkObject("Cove_Winch_Assembly");
+            EnsureNetworkObject("Pushable_Boulder");
+
+            // Also check for any GameObject with NetworkBehaviour that doesn't have NetworkObject
+            var allNetworkBehaviours = Object.FindObjectsByType<NetworkBehaviour>(FindObjectsSortMode.None);
+            foreach (var nb in allNetworkBehaviours)
+            {
+                if (nb.GetComponent<NetworkObject>() == null)
+                {
+                    var no = nb.gameObject.AddComponent<NetworkObject>();
+                    Debug.Log($"[Setup] Added NetworkObject to {nb.gameObject.name} for {nb.GetType().Name}");
+                }
+            }
+
+            // 4. Add Directional Guidance (TutorialObjectiveDirector + UIDocument)
+            var existingDirector = Object.FindObjectsByType<TutorialObjectiveDirector>(FindObjectsSortMode.None);
+            GameObject directorGo;
+            TutorialObjectiveDirector directorComp;
+            if (existingDirector.Length > 0)
+            {
+                directorComp = existingDirector[0];
+                directorGo = directorComp.gameObject;
+            }
+            else
+            {
+                directorGo = new GameObject("PlayScene3_ObjectiveDirector");
+                directorComp = directorGo.AddComponent<TutorialObjectiveDirector>();
+            }
+
+            // Ensure UIDocument with TutorialHUD.uxml
+            var uiDoc = directorGo.GetComponent<UIDocument>();
+            if (uiDoc == null) uiDoc = directorGo.AddComponent<UIDocument>();
+            var hudAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Core/UI/TutorialHUD.uxml");
+            if (hudAsset != null)
+            {
+                uiDoc.visualTreeAsset = hudAsset;
+                Debug.Log("[Setup] Assigned TutorialHUD.uxml to UIDocument");
+            }
+            var panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/Core/UI/UI Toolkit Panel Settings.asset");
+            if (panelSettings != null)
+            {
+                uiDoc.panelSettings = panelSettings;
+            }
+
+            // 5. Ensure WaitRoomUI & WaitRoomManager on GameManager
+            var gm = Object.FindAnyObjectByType<GameManager>();
+            if (gm != null)
+            {
+                var wrm = gm.GetComponent<WaitRoomManager>();
+                if (wrm == null) wrm = gm.gameObject.AddComponent<WaitRoomManager>();
+
+                var waitRoomGo = GameObject.Find("WaitRoomUI");
+                if (waitRoomGo == null)
+                {
+                    waitRoomGo = new GameObject("WaitRoomUI");
+                    waitRoomGo.layer = LayerMask.NameToLayer("UI") >= 0 ? LayerMask.NameToLayer("UI") : 5;
+                }
+
+                var wrmDoc = waitRoomGo.GetComponent<UIDocument>();
+                if (wrmDoc == null) wrmDoc = waitRoomGo.AddComponent<UIDocument>();
+
+                var bPanel = AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/Blocks/Common/BlocksPanelSettings.asset");
+                if (bPanel != null) wrmDoc.panelSettings = bPanel;
+
+                var wrmUxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Core/UI/WaitRoomScreen.uxml");
+                if (wrmUxml != null) wrmDoc.visualTreeAsset = wrmUxml;
+
+                var soWrm = new SerializedObject(wrm);
+                var wrmUiProp = soWrm.FindProperty("waitRoomUI");
+                if (wrmUiProp != null)
+                {
+                    wrmUiProp.objectReferenceValue = wrmDoc;
+                    soWrm.ApplyModifiedProperties();
+                }
+
+                var soGm = new SerializedObject(gm);
+                var gmWrmProp = soGm.FindProperty("waitRoomManager");
+                if (gmWrmProp != null)
+                {
+                    gmWrmProp.objectReferenceValue = wrm;
+                    soGm.ApplyModifiedProperties();
+                }
+                Debug.Log("[Setup] Configured WaitRoomManager and WaitRoomUI in PlayScene3.");
+            }
+
+            // 6. PlayScene3RespawnManager removed as requested by player.
+
+            // Save Scene
+            EditorSceneManager.MarkSceneDirty(scene);
+            bool saved = EditorSceneManager.SaveScene(scene);
+            Debug.Log($"[Setup] PlayScene3 saved: {saved}!");
+        }
+
+        private static void EnsureNetworkObject(string goName)
+        {
+            var go = GameObject.Find(goName);
+            if (go != null)
+            {
+                if (go.GetComponent<NetworkObject>() == null)
+                {
+                    go.AddComponent<NetworkObject>();
+                    Debug.Log($"[Setup] Added NetworkObject to '{goName}'");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"[Setup] GameObject '{goName}' not found.");
+            }
+        }
+    }
+}

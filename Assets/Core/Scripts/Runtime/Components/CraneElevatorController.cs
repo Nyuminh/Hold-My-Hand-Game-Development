@@ -2267,26 +2267,40 @@ namespace Blocks.Gameplay.Core
             lastPlatformPos = platformRoot.position;
         }
 
-        private void OnTriggerEnter(Collider other)
+        public void OnEnable()
+        {
+            if (platformRoot != null)
+            {
+                lastPlatformPos = platformRoot.position;
+            }
+        }
+
+        public void OnTriggerEnter(Collider other)
         {
             // Kiểm tra CharacterController (Player Dad/Son)
             CharacterController cc = other.GetComponent<CharacterController>();
+            if (cc == null)
+            {
+                cc = other.GetComponentInParent<CharacterController>();
+            }
+
             if (cc != null)
             {
                 if (!passengerCCs.Contains(cc))
                 {
                     passengerCCs.Add(cc);
-                    Debug.Log($"<color=cyan>[Elevator] Người chơi '{other.name}' đã bước lên thang máy!</color>");
+                    Debug.Log($"<color=cyan>[Elevator] Người chơi '{cc.gameObject.name}' đã bước lên thang máy!</color>");
                 }
                 return;
             }
 
-            // Nếu nhân vật không có CharacterController (hoặc vật thể khác)
+            // Nếu vật thể khác không dùng CharacterController (ví dụ vật phẩm, companion)
             if (other.CompareTag("Player") || other.name.Contains("Dad") || other.name.Contains("Son"))
             {
-                if (!nonCcPassengers.Contains(other.transform))
+                Transform targetRoot = other.transform.root != null ? other.transform.root : other.transform;
+                if (!nonCcPassengers.Contains(targetRoot))
                 {
-                    nonCcPassengers.Add(other.transform);
+                    nonCcPassengers.Add(targetRoot);
                 }
             }
         }
@@ -2294,35 +2308,72 @@ namespace Blocks.Gameplay.Core
         private void OnTriggerExit(Collider other)
         {
             CharacterController cc = other.GetComponent<CharacterController>();
-            if (cc != null && passengerCCs.Contains(cc))
+            if (cc == null)
             {
-                passengerCCs.Remove(cc);
-                Debug.Log($"<color=gray>[Elevator] Người chơi '{other.name}' đã rời khỏi thang máy.</color>");
+                cc = other.GetComponentInParent<CharacterController>();
+            }
+
+            if (cc != null)
+            {
+                // Nếu thang máy đang bay qua vực, kiểm tra xem người chơi có thực sự ở ngoài không
+                // Tránh tình trạng trigger exit giả mid-air làm rơi người chơi
+                if (platformRoot != null)
+                {
+                    Vector3 localPos = platformRoot.InverseTransformPoint(cc.transform.position);
+                    bool isInsideCabin = Mathf.Abs(localPos.x) <= 1.5f && Mathf.Abs(localPos.z) <= 1.5f && localPos.y >= -0.5f && localPos.y <= 3.0f;
+                    if (isInsideCabin && CraneElevatorController.Instance != null && CraneElevatorController.Instance.IsMoving)
+                    {
+                        return; // Vẫn đang an toàn trong cabin khi đang di chuyển
+                    }
+                }
+
+                if (passengerCCs.Contains(cc))
+                {
+                    passengerCCs.Remove(cc);
+                    Debug.Log($"<color=gray>[Elevator] Người chơi '{cc.gameObject.name}' đã rời khỏi thang máy.</color>");
+                }
                 return;
             }
 
-            if (nonCcPassengers.Contains(other.transform))
+            Transform targetRoot = other.transform.root != null ? other.transform.root : other.transform;
+            if (nonCcPassengers.Contains(targetRoot))
             {
-                nonCcPassengers.Remove(other.transform);
+                nonCcPassengers.Remove(targetRoot);
             }
         }
 
-        private void FixedUpdate()
+        public void LateUpdate()
         {
             if (platformRoot == null) return;
 
             Vector3 currentPos = platformRoot.position;
             Vector3 delta = currentPos - lastPlatformPos;
 
-            if (delta.sqrMagnitude > 0.000001f)
+            if (delta.sqrMagnitude > 1e-8f)
             {
+                bool isMovingAcross = CraneElevatorController.Instance != null && CraneElevatorController.Instance.IsMoving;
+
                 // Di chuyển tất cả CharacterController theo delta sàn
                 for (int i = passengerCCs.Count - 1; i >= 0; i--)
                 {
                     var cc = passengerCCs[i];
                     if (cc != null && cc.enabled)
                     {
+                        // 1. Áp dụng delta di chuyển sàn chính xác
                         cc.Move(delta);
+
+                        // 2. Nếu sàn đang bay ngang vực, giữ hành khách an toàn bên trong lồng cabin
+                        if (isMovingAcross)
+                        {
+                            Vector3 local = platformRoot.InverseTransformPoint(cc.transform.position);
+                            local.x = Mathf.Clamp(local.x, -0.95f, 0.95f);
+                            local.z = Mathf.Clamp(local.z, -0.90f, 0.90f);
+                            Vector3 clampedWorld = platformRoot.TransformPoint(local);
+                            cc.transform.position = new Vector3(clampedWorld.x, cc.transform.position.y, clampedWorld.z);
+
+                            // Giữ bám sàn ổn định
+                            cc.Move(Vector3.down * 0.02f);
+                        }
                     }
                     else if (cc == null)
                     {
