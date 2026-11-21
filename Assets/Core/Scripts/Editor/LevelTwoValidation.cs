@@ -35,7 +35,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
         {
             if (EditorApplication.isPlaying) throw new Exception("Stop Play Mode before validation.");
             SessionState.SetInt("LVL2.Validation.Mode", mode);
-            foreach (var key in new[] { "HMH.Level2.Completed", "HMH.Level2.Checkpoint" })
+            foreach (var key in new[] { "HMH.Level2.Completed", "HMH.Level2.Checkpoint", CampaignProgress.LastLevelKey, CampaignProgress.CheckpointKey(2) })
             { SessionState.SetBool(key + ".QA.Exists", PlayerPrefs.HasKey(key)); SessionState.SetInt(key + ".QA.Value", PlayerPrefs.GetInt(key)); }
             Directory.CreateDirectory("AI_Reports/tests/LVL2");
             File.WriteAllText(Report, "Level 2 task " + mode + ": Unity Play Mode with a local Netcode host.\n");
@@ -58,8 +58,8 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                     if (nm == null || boat == null) return;
                     var transport = nm.GetComponent<UnityTransport>();
                     transport.ConnectionData.Address = "127.0.0.1";
-                    transport.ConnectionData.Port = 7792;
-                    Check(nm.StartHost(), "Netcode host starts"); Next(); return;
+                    transport.ConnectionData.Port = 0;
+                    Check(nm.IsHost || nm.StartHost(), "Netcode host starts"); Next(); return;
                 }
                 if (step == 1 && elapsed > 2)
                 {
@@ -115,7 +115,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
         }
         private static void Finish()
         {
-            foreach (var key in new[] { "HMH.Level2.Completed", "HMH.Level2.Checkpoint" })
+            foreach (var key in new[] { "HMH.Level2.Completed", "HMH.Level2.Checkpoint", CampaignProgress.LastLevelKey, CampaignProgress.CheckpointKey(2) })
                 if (SessionState.GetBool(key + ".QA.Exists", false)) PlayerPrefs.SetInt(key, SessionState.GetInt(key + ".QA.Value", 0)); else PlayerPrefs.DeleteKey(key);
             PlayerPrefs.Save();
             SessionState.SetBool(Active, false); EditorApplication.isPlaying = false;
@@ -237,29 +237,35 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var child = LevelTwoActors.All.First(p => !LevelOnePlayer.IsDad(p));
             if (step == 2)
             {
+                if (!UnityEngine.Object.FindAnyObjectByType<CampaignCheckpointController>().Ready || elapsed < 3) return;
                 foreach (var g in UnityEngine.Object.FindObjectsByType<RiverSlalomGate>().OrderBy(g => g.gateNumber))
-                    g.TryCross(g.transform.position - Vector3.forward, g.transform.position + Vector3.forward);
+                    g.RestoreCheckpoint(true);
                 boat.DismountPlayer(true); boat.DismountPlayer(false); boat.enabled = false;
-                dad.CoreMovement.SetPosition(gate.winch.position - Vector3.forward);
+                foreach (var actor in new[] { dad, child })
+                {
+                    actor.CoreMovement.enabled = false;
+                    actor.GetComponent<CharacterController>().enabled = true;
+                }
+                dad.CoreMovement.SetPosition(gate.crawlDoor.position - Vector3.forward);
                 child.CoreMovement.SetPosition(gate.valve.position);
-                Set(gate, "nextSend", float.PositiveInfinity);
-                Check(!gate.TryOpenValve(child), "valve rejects child before Dad holds winch and crawl traversal");
-                Check(!gate.SetWinchHeld(child, true), "Child cannot operate Dad winch");
-                Check(gate.SetWinchHeld(dad, true), "Dad holds winch near station");
+                Check(!gate.TryOpenValve(child), "valve rejects child before rock and crawl");
+                Check(!gate.TryPushRock(child), "Child cannot push rock");
+                Check(gate.TryPushRock(dad), "Dad pushes rock at entrance");
                 Next(); return;
             }
-            if (step >= 3 && step <= 5) gate.SetWinchHeld(dad, true);
-            if (step == 3 && elapsed > 0.4)
+            if (step == 3 && elapsed > 0.7)
             {
-                Check(gate.Phase == 1 && Mathf.Abs(gate.Lift - 0.5f) < 0.02f, "winch raises only 0.5 m gap");
-                child.CoreMovement.SetPosition(new Vector3(109.5f, 1.1f, 72.5f));
+                Check(gate.Phase == 1 && gate.Lift == 0, "rock clears the passage while main gate stays closed");
+                child.CoreMovement.SetPosition(new Vector3(109.5f, 1.15f, 70.4f));
                 Next(); return;
             }
-            if (step == 4 && elapsed > 0.4)
+            if (step == 4 && elapsed > 0.7)
             {
-                Check(child.GetComponent<CharacterController>().height <= 0.46f, "CoopCrawlVolume lowers Child into physical conduit");
-                gate.ObserveCrawl(child);
-                child.CoreMovement.SetPosition(new Vector3(109.5f, 1.1f, 76.1f));
+                var capsule = child.GetComponent<CharacterController>();
+                capsule.Move(new Vector3(0, -.04f, .05f));
+                if (child.transform.position.z < 76.6f) return;
+                Check(capsule.height <= 1.1f, "Child physically crawled beneath roof");
+
                 gate.ObserveCrawl(child);
                 Check(gate.ChildTraversed, "server tracks Child entering and leaving conduit");
                 Next(); return;
@@ -268,12 +274,12 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             {
                 Check(!gate.TryOpenValve(dad), "Dad cannot open Child valve");
                 child.CoreMovement.SetPosition(gate.valve.position);
-                Check(gate.TryOpenValve(child), "traversed Child opens valve while Dad holds");
+                Check(gate.TryOpenValve(child), "traversed Child opens valve");
                 Next(); return;
             }
             if (step == 6 && elapsed > 3)
             {
-                Check(gate.Open && gate.Lift >= 4.99f, "iron gate fully lifts and remains open after winch release");
+                Check(gate.Open && gate.Lift >= 4.99f, "iron gate fully lifts and remains open after valve activation");
                 boat.MountPlayer(dad.gameObject, true); boat.MountPlayer(child.gameObject, false);
                 var whirl = UnityEngine.Object.FindObjectsByType<WhirlpoolHazard>().First(w => w.rotationSign > 0);
                 boat.transform.position = whirl.transform.position + Vector3.right * 4;

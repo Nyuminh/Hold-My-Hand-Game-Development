@@ -10,9 +10,10 @@ namespace Blocks.Gameplay.Core
         public static string CheckpointKey(int level) => "HMH.Campaign.Level" + level + ".Checkpoint";
         public static int LastLevel => Mathf.Clamp(PlayerPrefs.GetInt(LastLevelKey,
             PlayerPrefs.GetInt("HMH.Level1.Completed", 0) == 1 ? 2 : 1), 1, 3);
-        public static string Scene(int level) => level == 3 ? "PlayScene3" : level == 2 ? "PlayScene2" : "PlayScene1";
-        public static int Level(string scene) => scene == "PlayScene3" ? 3 : scene == "PlayScene2" ? 2 : scene == "PlayScene1" ? 1 : 0;
-        public static int Clamp(int level, int checkpoint) => Mathf.Clamp(checkpoint, 0, level == 3 ? 0 : level == 2 ? 6 : 4);
+        public static string Scene(int level) => level == 3 ? "PlayScene4" : level == 2 ? "PlayScene2" : "PlayScene1";
+        // Older rooms may still advertise PlayScene3. Resolve their level number using the current scene mapping.
+        public static int Level(string scene) => scene == "PlayScene4" || scene == "PlayScene3" ? 3 : scene == "PlayScene2" ? 2 : scene == "PlayScene1" ? 1 : 0;
+        public static int Clamp(int level, int checkpoint) => Mathf.Clamp(checkpoint, 0, level == 2 ? 6 : 4);
         public static int SavedCheckpoint(int level) => Clamp(level, PlayerPrefs.GetInt(CheckpointKey(level), 0));
         public static void Save(int level, int checkpoint)
         {

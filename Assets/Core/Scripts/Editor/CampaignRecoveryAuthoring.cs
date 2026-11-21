@@ -23,8 +23,9 @@ namespace Blocks.Gameplay.Core
             sluice.crawl.size = new Vector3(1.7f, 1.3f, 7f);
             var crawl = new SerializedObject(sluice.crawl.GetComponent<CoopCrawlVolume>());
             crawl.FindProperty("crawlHeight").floatValue = .75f; crawl.ApplyModifiedPropertiesWithoutUndo();
-            sluice.crawlDoor.position = new Vector3(109.5f, 1.6f, 73.8f);
-            sluice.crawlDoor.localScale = new Vector3(1.7f, 1.05f, .15f);
+            sluice.crawlDoor.position = new Vector3(109.5f, 1.6f, 71.3f);
+            sluice.crawlDoor.localScale = new Vector3(1.95f, 1.3f, 1f);
+            LevelTwoAuthoring.LevelTwoSceneBuilder.DressSluicePassage(sluice);
         }
         [MenuItem("Hold My Hand/Campaign/Apply recovery and lobby selection")]
         public static void Apply()

@@ -36,6 +36,10 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Optional WaitRoomManager for the PUBG-style waiting lobby.")]
         [SerializeField] private WaitRoomManager waitRoomManager;
 
+        internal bool EntryScreenVisible => (waitRoomManager && waitRoomManager.IsWaiting) ||
+            (sessionUI && sessionUI.isActiveAndEnabled && sessionUI.rootVisualElement is VisualElement root &&
+             root.style.display.value != DisplayStyle.None && root.resolvedStyle.display != DisplayStyle.None);
+
         [Tooltip("Duration in seconds for the session UI fade-out animation.")]
         [SerializeField] private float fadeDuration = 0.5f;
 

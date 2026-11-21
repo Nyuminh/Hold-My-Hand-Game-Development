@@ -31,6 +31,10 @@ namespace Blocks.Gameplay.Core
         private CorePlayerManager m_PlayerManager;
         private CoreCameraController m_PlayerCamera;
         private bool m_MovementWasEnabled;
+        private bool m_InputWasEnabled;
+        private bool m_Panorama;
+        private string m_Title;
+        private Vector3 m_PanoramaFrom, m_PanoramaTo;
         private CinemachineCamera m_Camera;
         private CinemachineBrain m_Brain;
         private CinemachineBlendDefinition m_PreviousBlend;
@@ -56,6 +60,19 @@ namespace Blocks.Gameplay.Core
 
         private static bool ValidRoute(Transform[] route) => route != null && route.Length == 2 && route[0] != null && route[1] != null;
 
+        internal void PlayPanorama(NetworkObject player, UIDocument hud, string title, Vector3 focus, Vector3 from, Vector3 to)
+        {
+            m_HasPlayed = true;
+            m_Panorama = true;
+            m_Title = title;
+            courseFocus = focus;
+            m_PanoramaFrom = from;
+            m_PanoramaTo = to;
+            m_Player = player;
+            m_Hud = hud;
+            StartCoroutine(PlayRoutine(false, null));
+        }
+
         private IEnumerator PlayRoutine(bool multiplayer, GameObject companion)
         {
             IsPlaying = true;
@@ -66,12 +83,15 @@ namespace Blocks.Gameplay.Core
                 m_PlayerManager = m_Player.GetComponent<CorePlayerManager>();
                 m_PlayerCamera = m_Player.GetComponent<CoreCameraController>();
                 m_MovementWasEnabled = m_Movement != null && m_Movement.IsMovementEnabled;
+                m_InputWasEnabled = m_PlayerManager != null && m_PlayerManager.MovementInputEnabled;
                 m_PlayerLocked = true;
                 m_PlayerManager?.SetMovementInputEnabled(false);
-                if (m_Movement != null) m_Movement.IsMovementEnabled = false;
+                if (m_Movement != null && !m_Panorama) m_Movement.IsMovementEnabled = false;
                 m_PlayerCamera?.SetCutsceneInputBlocked(true);
                 DisableAbility(m_Player.GetComponent<CoopHoldHandAbility>());
                 DisableAbility(m_Player.GetComponent<CoopBoostThrowAbility>());
+                if (m_Panorama && FindAnyObjectByType<LevelThreeManager>() is LevelThreeManager level && level.objective)
+                    DisableAbility(level.objective.canvas);
                 CreateOverlay();
 
                 // A network connection callback can precede PlayerObject replication by several frames.
@@ -99,20 +119,33 @@ namespace Blocks.Gameplay.Core
                 m_PreviousIgnoreTimeScale = m_Brain.IgnoreTimeScale;
                 m_Brain.IgnoreTimeScale = true;
                 m_Brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, returnBlendDuration);
-                var cameraObject = new GameObject("Tutorial Intro Camera (local)");
+                var cameraObject = new GameObject("Intro Camera (local)");
                 cameraObject.SetActive(false);
                 m_Camera = cameraObject.AddComponent<CinemachineCamera>();
                 m_Camera.Priority = 1000;
                 m_Camera.Lens.FieldOfView = 55;
                 Vector3 focus = (m_Player.transform.position + (partner != null ? partner.position : m_Player.transform.position)) * 0.5f + Vector3.up;
-                SetPose(focus + new Vector3(5, 3, -5), focus);
+                Vector3 orbitStart = Quaternion.Euler(0, 42, 0) * Vector3.back * 5;
+                SetPose(focus + orbitStart + Vector3.up * 2.5f, focus);
                 cameraObject.SetActive(true);
 
                 float start = Time.realtimeSinceStartup;
-                while (!m_SkipRequested && m_Player != null && Time.realtimeSinceStartup - start < 9.5f)
+                float duration = m_Panorama ? 4.5f : 9.5f;
+                while (!m_SkipRequested && m_Player != null && m_Player.IsSpawned && Time.realtimeSinceStartup - start < duration)
                 {
                     float elapsed = Time.realtimeSinceStartup - start;
-                    if (elapsed < 3f)
+                    if (m_Panorama)
+                    {
+                        focus = m_Player.transform.position + Vector3.up;
+                        float orbit = Mathf.SmoothStep(0, 1, elapsed / 2f);
+                        Vector3 offset = Quaternion.Euler(0, -100 * orbit, 0) * orbitStart;
+                        Vector3 close = focus + offset + Vector3.up * 2.5f;
+                        float reveal = Mathf.SmoothStep(0, 1, (elapsed - 2f) / 2.5f);
+                        // Cut to the wide shot rather than flying through scenery between locations.
+                        if (elapsed < 2f) SetPose(close, focus);
+                        else SetPose(Vector3.Lerp(m_PanoramaFrom, m_PanoramaTo, reveal), courseFocus);
+                    }
+                    else if (elapsed < 3f)
                     {
                         float angle = Mathf.Lerp(-45, 70, Mathf.SmoothStep(0, 1, elapsed / 3f)) * Mathf.Deg2Rad;
                         SetPose(focus + new Vector3(Mathf.Sin(angle) * 6, 3, -Mathf.Cos(angle) * 6), focus);
@@ -171,8 +204,13 @@ namespace Blocks.Gameplay.Core
         {
             if (!m_PlayerLocked) return;
             m_PlayerLocked = false;
-            if (m_Movement != null) { m_Movement.SetMoveInput(Vector2.zero); m_Movement.SetSprintState(false); m_Movement.IsMovementEnabled = m_MovementWasEnabled; }
-            m_PlayerManager?.SetMovementInputEnabled(m_MovementWasEnabled);
+            if (m_Movement != null)
+            {
+                m_Movement.SetMoveInput(Vector2.zero);
+                m_Movement.SetSprintState(false);
+                if (!m_Panorama) m_Movement.IsMovementEnabled = m_MovementWasEnabled;
+            }
+            m_PlayerManager?.SetMovementInputEnabled(m_InputWasEnabled);
             m_PlayerCamera?.SetCutsceneInputBlocked(false);
             foreach (var ability in m_DisabledAbilities) if (ability.Key != null) ability.Key.enabled = ability.Value;
             m_DisabledAbilities.Clear();
@@ -207,15 +245,15 @@ namespace Blocks.Gameplay.Core
                 if (top) bar.style.top = 0; else bar.style.bottom = 0;
                 bar.style.backgroundColor = Color.black;
                 root.Add(bar);
-                if (!top)
+                if (!top || m_Panorama)
                 {
-                    var label = new Label("[Space/ESC] Để bỏ qua  •  Chuột trái") { pickingMode = PickingMode.Ignore };
+                    var label = new Label(top ? m_Title : "[Space/ESC] Để bỏ qua  •  Chuột trái") { pickingMode = PickingMode.Ignore };
                     label.style.color = Color.white;
-                    label.style.fontSize = 20;
+                    label.style.fontSize = top ? 28 : 20;
                     label.style.unityFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                    label.style.unityTextAlign = TextAnchor.MiddleRight;
+                    label.style.unityTextAlign = top ? TextAnchor.MiddleCenter : TextAnchor.MiddleRight;
                     label.style.flexGrow = 1;
-                    label.style.paddingRight = 30;
+                    if (!top) label.style.paddingRight = 30;
                     bar.Add(label);
                 }
             }

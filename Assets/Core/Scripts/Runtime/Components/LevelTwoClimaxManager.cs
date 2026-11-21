@@ -12,7 +12,7 @@ namespace Blocks.Gameplay.Core
         public MarshBeaconTrigger west, east;
         public Transform altar;
         public BoxCollider harbor;
-        public string nextLevelScene = "PlayScene3";
+        public string nextLevelScene = "PlayScene4";
         private readonly NetworkVariable<bool> docked = new NetworkVariable<bool>();
         private readonly NetworkVariable<bool> completed = new NetworkVariable<bool>();
         private bool presented, transitioning;

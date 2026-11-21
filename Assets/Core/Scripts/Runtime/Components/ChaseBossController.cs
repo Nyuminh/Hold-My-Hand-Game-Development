@@ -95,7 +95,7 @@ namespace Blocks.Gameplay.Core
                     foreach (var player in players)
                     {
                         if (player == null) continue;
-                        if (!finalCharge && (!LevelOnePlayer.IsAlive(player) || (Time.time >= moveAfter && Vector3.Distance(player.transform.position, bossPosition) < catchDistance)))
+                        if (!finalCharge && Time.time >= moveAfter && (!LevelOnePlayer.IsAlive(player) || Vector3.Distance(player.transform.position, bossPosition) < catchDistance))
                         { CatchTeam(); break; }
                     }
                 }
@@ -147,9 +147,27 @@ namespace Blocks.Gameplay.Core
             StopAllCoroutines(); respawnRoutine = null;
             checkpoint.Value = Mathf.Clamp(index, 0, checkpoints.Length - 1);
             finalCharge = false; obstacles.Clear();
-            state.Value = ChaseState.Caught;
-            BeginTeamRespawnRpc(checkpoint.Value);
-            StartCoroutine(ResumeChase());
+            distance.Value = checkpoints[checkpoint.Value].bossDistance;
+            moveAfter = Time.time + startGrace;
+            state.Value = ChaseState.Chasing;
+            RestoreCrewRpc(checkpoint.Value);
+        }
+
+        [Rpc(SendTo.Everyone)]
+        private void RestoreCrewRpc(int index)
+        {
+            InGameEscapeMenuManager.Instance?.CloseMenu();
+            if (respawnRoutine != null) { StopCoroutine(respawnRoutine); respawnRoutine = null; }
+            RefreshPlayers();
+            foreach (var player in players)
+            {
+                if (!player.IsOwner) continue;
+                LevelOnePlayer.ReleaseCoop(player);
+                LevelOnePlayer.Respawn(player, LevelOnePlayer.IsDad(player) ? checkpoints[index].dad : checkpoints[index].child);
+                player.CoreInput.enabled = true;
+                player.SetMovementInputEnabled(true);
+            }
+            CheckpointReset?.Invoke(index);
         }
 
         public void SetCheckpoint(int index)

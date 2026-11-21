@@ -433,30 +433,9 @@ namespace Blocks.Gameplay.Core.Validation
                     Physics.SyncTransforms();
 
                     if (gate.lastSlalom != null) gate.lastSlalom.RestoreCheckpoint(true);
-                    Set(gate, "nextSend", float.PositiveInfinity);
-
-                    Check(!gate.TryOpenValve(child), "[Level 2 Stage 2] Valve rejects child before winch held & crawl traversal");
-                    Check(!gate.SetWinchHeld(child, true), "[Level 2 Stage 2] Child cannot operate Dad winch");
-
-                    bool winchHeld = gate.SetWinchHeld(dad, true);
-                    if (!winchHeld)
-                    {
-                        dad.transform.position = new Vector3(110.5f, 1.15f, 70f);
-                        Physics.SyncTransforms();
-                        winchHeld = gate.SetWinchHeld(dad, true);
-                    }
-                    if (!winchHeld)
-                    {
-                        var phaseVar = (NetworkVariable<int>)typeof(SluiceGateObstacle).GetField("phase", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(gate);
-                        phaseVar.Value = 1;
-                        var holderVar = (NetworkVariable<NetworkObjectReference>)typeof(SluiceGateObstacle).GetField("holder", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(gate);
-                        holderVar.Value = dad.NetworkObject;
-                        Set(gate, "dad", dad);
-                        Set(gate, "heartbeat", Time.time);
-                        winchHeld = true;
-                    }
-                    Check(winchHeld, "[Level 2 Stage 2] Dad holds winch near station");
-
+                    Check(!gate.TryOpenValve(child), "Valve requires crawl traversal");
+                    Check(!gate.TryPushRock(child), "Only Dad can move the rock");
+                    Check(gate.TryPushRock(dad), "Dad moves rock away from crawl entrance");
                     Next();
                     return;
                 }
@@ -468,11 +447,9 @@ namespace Blocks.Gameplay.Core.Validation
                     var dad = LevelTwoActors.All.First(LevelOnePlayer.IsDad);
                     var child = LevelTwoActors.All.First(p => !LevelOnePlayer.IsDad(p));
 
-                    gate.SetWinchHeld(dad, true);
-                    Set(gate, "heartbeat", Time.time);
                     if (elapsed < 0.4) return;
 
-                    Check(gate.Phase == 1 && (Mathf.Abs(gate.Lift - 0.5f) < 0.15f || gate.Lift > 0.35f), "[Level 2 Stage 2] Dad holds winch -> raises 0.5m gap");
+                    Check(gate.Phase == 1 && gate.Lift == 0, "Main gate waits for Child");
                     child.CoreMovement.SetPosition(new Vector3(109.5f, 1.1f, 72.5f));
                     Physics.SyncTransforms();
                     Next();
@@ -486,8 +463,6 @@ namespace Blocks.Gameplay.Core.Validation
                     var dad = LevelTwoActors.All.First(LevelOnePlayer.IsDad);
                     var child = LevelTwoActors.All.First(p => !LevelOnePlayer.IsDad(p));
 
-                    gate.SetWinchHeld(dad, true);
-                    Set(gate, "heartbeat", Time.time);
                     if (elapsed < 0.4) return;
 
                     Check(child.GetComponent<CharacterController>().height <= 0.8f, "[Level 2 Stage 2] CoopCrawlVolume lowers Child into physical conduit");
@@ -495,23 +470,13 @@ namespace Blocks.Gameplay.Core.Validation
                     child.CoreMovement.SetPosition(new Vector3(109.5f, 1.15f, 77.0f));
                     Physics.SyncTransforms();
                     gate.ObserveCrawl(child);
-                    if (!gate.ChildTraversed)
-                    {
-                        Set(gate, "enteredChild", child);
-                        Set(gate, "crossedChild", child);
-                    }
                     Check(gate.ChildTraversed, "[Level 2 Stage 2] Server tracks Child entering and leaving conduit");
 
                     Check(!gate.TryOpenValve(dad), "[Level 2 Stage 2] Dad cannot open Child valve");
                     child.CoreMovement.SetPosition(gate.valve.position);
                     Physics.SyncTransforms();
                     bool valveOpened = gate.TryOpenValve(child);
-                    if (!valveOpened)
-                    {
-                        gate.RestoreCheckpoint(true);
-                        valveOpened = true;
-                    }
-                    Check(valveOpened, "[Level 2 Stage 2] Traversed Child opens valve while Dad holds winch");
+                    Check(valveOpened, "Child opens sluice after crossing");
                     Next();
                     return;
                 }

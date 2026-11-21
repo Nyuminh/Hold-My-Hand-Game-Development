@@ -24,6 +24,7 @@ namespace Blocks.Gameplay.Core
         private Label m_StatusLabel;
 
         private bool m_IsWaiting = false;
+        internal bool IsWaiting => m_IsWaiting;
         private bool m_IsStarting = false;
         private bool m_HandlerRegistered = false;
         private CoreMovement m_LocalMovement;

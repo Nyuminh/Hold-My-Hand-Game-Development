@@ -182,6 +182,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 if (Find("04_RapidsWhirlpools_Stage3").Find(coreName) == null)
                     Box(coreName, Find("04_RapidsWhirlpools_Stage3"), new Vector3(vortex.position.x, 0.9f, vortex.position.z), new Vector3(1.2f, 1.8f, 1.2f), stone).AddComponent<RiverRockHazard>();
             }
+            DressRapidsRocks(Find("04_RapidsWhirlpools_Stage3"));
             Dock("Start_DockLanding", new Vector3(96, 0.5f, 31), new Vector3(94, 1.15f, 30), new Vector3(94, 1.15f, 32));
             Dock("Sluice_DockLanding", new Vector3(106, 0.5f, 70), new Vector3(108, 1.15f, 70), new Vector3(109.5f, 1.15f, 71));
             Save();
@@ -221,7 +222,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 if (i == 0) crystal = Find("LuminaCrystal_Gem").gameObject;
                 else crystal = root.Find("LuminaCrystal_East") != null ? root.Find("LuminaCrystal_East").gameObject : Box("LuminaCrystal_East", root, new Vector3(x, 3.4f, z), new Vector3(0.5f, 0.6f, 0.5f), gold);
                 crystal.transform.position = new Vector3(x, 3.4f, z); crystal.GetComponent<Collider>().enabled = false; beacon.crystal = crystal;
-                beacon.flame = Find(side + "Beacon_Flame").gameObject; beacon.flame.GetComponent<Collider>().enabled = false;
+                beacon.flame = Find(side + "Beacon_Tower").GetComponentInChildren<Light>(true).gameObject;
                 beacon.beaconLight = Ensure<Light>(beacon.flame); beacon.beaconLight.type = LightType.Point;
                 beacon.beaconLight.color = new Color(1, 0.85f, 0.4f); beacon.beaconLight.range = 35; beacon.beaconLight.intensity = 6;
                 beacon.flame.SetActive(false);
@@ -318,6 +319,179 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             obj.transform.localScale = size;
             if (material != null) obj.GetComponent<Renderer>().sharedMaterial = material;
             return obj;
+        }
+
+        public static void DressRapidsRocks(Transform stage)
+        {
+            for (int i = 1; i <= 2; i++)
+            {
+                var prefix = "Whirlpool_" + i + "_";
+                Dress(stage.Find(prefix + "Rock1"), i == 1 ? 10 : 9, i * 90);
+                Dress(stage.Find(prefix + "Rock2"), i == 1 ? 9 : 10, i * 180);
+                Dress(stage.Find(prefix + "CoreRock"), 2, i * 180);
+            }
+            Dress(stage.Find("Canyon_Cliff_Left"), 11, 90, 9);
+            Dress(stage.Find("Canyon_Cliff_Right"), 11, 270, 9);
+        }
+
+        static void Dress(Transform obstacle, int rock, int yaw, int count = 1)
+        {
+            // Core rocks are created when the gameplay pass wires the whirlpools.
+            if (!obstacle || obstacle.Find("Rock Visuals")) return;
+            var cover = new GameObject("Rock Visuals").transform;
+            cover.SetParent(obstacle, false);
+            var target = obstacle.GetComponent<BoxCollider>().bounds;
+            float pitch = target.size.z / count;
+            for (int i = 0; i < count; i++)
+            {
+                int model = count > 1 && i % 3 == 1 ? 4 : rock;
+                var path = "Assets/Map Material/FlipGameDev/Terrain&GrassPack/Prefabs/Rocks/Rock_" + model + ".prefab";
+                var fit = new GameObject("Rock " + (i + 1)).transform;
+                fit.SetParent(cover, false);
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(path), fit);
+                instance.transform.localRotation = Quaternion.Euler(0, yaw + 180 * (i % 2), 0) * instance.transform.localRotation;
+                PrefabUtility.RecordPrefabInstancePropertyModifications(instance.transform);
+                foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
+                {
+                    collider.enabled = false;
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(collider);
+                }
+                var renderers = instance.GetComponentsInChildren<MeshRenderer>();
+                Bounds BoundsOfRock()
+                {
+                    var bounds = renderers[0].bounds;
+                    foreach (var renderer in renderers) bounds.Encapsulate(renderer.bounds);
+                    return bounds;
+                }
+                var size = BoundsOfRock().size;
+                // Interlock neighbouring cliff rocks while keeping the two ends on the original bank.
+                float overlap = count == 1 ? 0 : pitch * .16f;
+                float start = target.min.z + pitch * i - (i > 0 ? overlap : 0);
+                float end = target.min.z + pitch * (i + 1) + (i + 1 < count ? overlap : 0);
+                float height = target.size.y * (count > 1 && i % 3 == 1 ? .88f : 1f);
+                fit.localScale = new Vector3(target.size.x / size.x, height / size.y, (end - start) / size.z);
+                fit.position += new Vector3(target.center.x, target.min.y + height * .5f, (start + end) * .5f) - BoundsOfRock().center;
+            }
+            Object.DestroyImmediate(obstacle.GetComponent<MeshRenderer>());
+            Object.DestroyImmediate(obstacle.GetComponent<MeshFilter>());
+        }
+
+        public static GameObject PlaceLighthouse(Transform stage, string side, Renderer island)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Core/Prefabs/Environment/Lighthouse.prefab");
+            var tower = (GameObject)PrefabUtility.InstantiatePrefab(prefab, stage);
+            tower.name = side + "Beacon_Tower";
+            tower.transform.localRotation = Quaternion.Euler(0, side == "West" ? 0 : 180, 0);
+            var meshes = tower.GetComponentsInChildren<MeshRenderer>(true);
+            var body = meshes.Single(r => r.name == "Boole_1");
+            float bottom = meshes.Min(r => r.bounds.min.y);
+            float height = meshes.Max(r => r.bounds.max.y) - bottom;
+            tower.transform.localScale *= 6.8f / height;
+            var centre = body.bounds.center;
+            var bank = island.bounds;
+            tower.transform.position += new Vector3(bank.center.x - centre.x,
+                bank.max.y - meshes.Min(r => r.bounds.min.y), bank.center.z - centre.z);
+            var lamp = tower.GetComponentInChildren<Light>(true).gameObject;
+            lamp.SetActive(false);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(lamp);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(tower.transform);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(tower);
+            return tower;
+        }
+
+        public static void DressSluicePassage(SluiceGateObstacle sluice)
+        {
+            Dress(sluice.crawlDoor, 2, 40);
+            sluice.winch.gameObject.SetActive(false);
+            var stone = GateMasonry();
+            var stage = sluice.transform;
+            var facade = stage.Find("Castle Gatehouse");
+            if (facade)
+                foreach (var r in facade.GetComponentsInChildren<MeshRenderer>())
+                    if (r.name == "Bank Masonry" || r.transform.parent.name == "Front_Gatehouse_Stone")
+                        r.sharedMaterial = stone;
+            var grid = sluice.gate.Find("Front_Harrow_Portcullis");
+            if (grid) grid.GetComponentInChildren<MeshRenderer>().sharedMaterial =
+                AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Iron.mat");
+        }
+
+        static Material GateMasonry()
+        {
+            var stone = Material("GateMasonry", Color.white, 0, .18f);
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Models/ForestMap/Textures/cobblestone/cobblestone_diff.jpg");
+            stone.SetTexture("_BaseMap", texture);
+            stone.SetTextureScale("_BaseMap", new Vector2(8, 4));
+            // Keep the shaded river-facing wall legible even before the scene lighting starts.
+            stone.EnableKeyword("_EMISSION");
+            stone.SetTexture("_EmissionMap", texture);
+            stone.SetColor("_EmissionColor", new Color(.17f, .17f, .17f));
+            EditorUtility.SetDirty(stone);
+            return stone;
+        }
+
+        public static void DressSluiceGate(Transform stage)
+        {
+            if (stage.Find("Castle Gatehouse")) return;
+            const string path = "Assets/Castle_Fortress_v2.fbx";
+            // Prefer the material overrides on the castle in this map.
+            var castle = stage.gameObject.scene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<Transform>(true))
+                .FirstOrDefault(t => t.name == "Castle_Fortress_v2");
+            if (!castle) castle = AssetDatabase.LoadAssetAtPath<GameObject>(path).transform;
+            var gate = stage.Find("SluiceGate_IronPortcullis");
+            var barrier = gate.GetComponent<BoxCollider>().bounds;
+            var centre = barrier.center;
+            var facade = Marker("Castle Gatehouse", stage, centre);
+            var stone = GateMasonry();
+
+            // The fortress opening is about one third of the full facade. Raise its
+            // sill above the crawl roof and carry the flanks down to the river banks.
+            float baseY = stage.Find("Crawl_Roof") is Transform roof
+                ? roof.GetComponent<BoxCollider>().bounds.max.y : 2.73f;
+            float width = barrier.size.x * 3.45f;
+            Fit("Front_Gatehouse_Stone", facade, new Vector3(centre.x, baseY + 5.5f, centre.z), new Vector3(width, 11, 4));
+            Fit("Front_Harrow_Portcullis", gate, centre, barrier.size);
+            float crawlX = stage.Find("Sluice_RightTower").position.x;
+            Foundation(centre.x - width / 2, barrier.min.x);
+            Foundation(barrier.max.x, crawlX - .95f);
+            Foundation(crawlX + .95f, centre.x + width / 2);
+            foreach (var side in new[] { "Left", "Right" })
+            {
+                string torch = "Torch_Gate_Front_" + side;
+                var pos = new Vector3(centre.x + (side == "Left" ? -1 : 1) * (barrier.extents.x + 1.4f), baseY + 4, centre.z - 2.15f);
+                Fit(torch, facade, pos, new Vector3(.48f, 1.3f, .6f));
+                Fit(torch + "_Flame", facade, pos + new Vector3(0, .12f, -.15f), new Vector3(.4f, .7f, .4f));
+            }
+            foreach (var name in new[] { "Sluice_LeftTower", "Sluice_RightTower", "Sluice_ArchBeam", "SluiceGate_IronPortcullis" })
+                stage.Find(name).GetComponent<MeshRenderer>().enabled = false;
+
+            void Foundation(float left, float right)
+            {
+                var obj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                obj.name = "Bank Masonry";
+                obj.transform.SetParent(facade, false);
+                obj.transform.position = new Vector3((left + right) / 2, baseY / 2, centre.z);
+                obj.transform.localScale = new Vector3(right - left, baseY, 4);
+                obj.GetComponent<MeshRenderer>().sharedMaterial = stone;
+                Object.DestroyImmediate(obj.GetComponent<BoxCollider>());
+            }
+            void Fit(string part, Transform parent, Vector3 position, Vector3 size)
+            {
+                var source = castle.Find(part);
+                var fit = new GameObject(part).transform;
+                fit.SetParent(stage, false);
+                var model = new GameObject(source.GetComponent<MeshFilter>().sharedMesh.name);
+                model.transform.SetParent(fit, false);
+                model.transform.localRotation = Quaternion.Euler(0, 180, 0) * Quaternion.Inverse(castle.rotation) * source.rotation;
+                model.AddComponent<MeshFilter>().sharedMesh = source.GetComponent<MeshFilter>().sharedMesh;
+                var renderer = model.AddComponent<MeshRenderer>();
+                renderer.sharedMaterials = source.GetComponent<MeshRenderer>().sharedMaterials;
+                if (part == "Front_Gatehouse_Stone") renderer.sharedMaterial = stone;
+                var measured = renderer.bounds.size;
+                fit.localScale = new Vector3(size.x / measured.x, size.y / measured.y, size.z / measured.z);
+                fit.position += position - renderer.bounds.center;
+                fit.SetParent(parent, true);
+            }
         }
 
         public static Material Material(string name, Color color, float metallic = 0f, float smoothness = 0.4f)
@@ -453,6 +627,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             Box("Sluice_ArchBeam", stage2, new Vector3(100.5f, 7.6f, 74.0f), new Vector3(17.5f, 1.2f, 3.0f), stoneMat);
             // Movable Iron Portcullis Gate
             var gateBarrier = Box("SluiceGate_IronPortcullis", stage2, new Vector3(100.5f, 2.2f, 74.0f), new Vector3(14.5f, 4.2f, 0.6f), ironMat);
+            DressSluiceGate(stage2);
 
             // Side Dock for puzzle landing (Right bank)
             Box("Sluice_SideDock", stage2, new Vector3(107.5f, 0.95f, 70.0f), new Vector3(4.0f, 0.25f, 5.0f), woodMat);
@@ -510,6 +685,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             // Canyon Gorge Clifflines
             Box("Canyon_Cliff_Left", stage3, new Vector3(85.0f, 3.0f, 115.0f), new Vector3(4.0f, 6.0f, 65.0f), stoneMat);
             Box("Canyon_Cliff_Right", stage3, new Vector3(116.0f, 3.0f, 115.0f), new Vector3(4.0f, 6.0f, 65.0f), stoneMat);
+            DressRapidsRocks(stage3);
 
             // ==========================================
             // 5. STAGE 4: MISTY MARSH & TWIN BEACONS (Z: 155 - 215)
@@ -525,15 +701,11 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
 
             // West Beacon Tower & Island (Left)
             var westIsland = Cylinder("WestBeacon_Island", stage4, new Vector3(83.0f, 0.9f, 175.0f), new Vector3(9.0f, 0.8f, 9.0f), stoneMat);
-            Cylinder("WestBeacon_Tower", stage4, new Vector3(83.0f, 3.5f, 175.0f), new Vector3(2.5f, 5.0f, 2.5f), stoneMat);
-            Cylinder("WestBeacon_Brazier", stage4, new Vector3(83.0f, 6.2f, 175.0f), new Vector3(1.4f, 0.8f, 1.4f), ironMat);
-            var westLight = Box("WestBeacon_Flame", stage4, new Vector3(83.0f, 6.8f, 175.0f), new Vector3(0.8f, 0.8f, 0.8f), goldMat);
+            PlaceLighthouse(stage4, "West", westIsland.GetComponent<Renderer>());
 
             // East Beacon Tower & Island (Right)
             var eastIsland = Cylinder("EastBeacon_Island", stage4, new Vector3(117.0f, 0.9f, 190.0f), new Vector3(9.0f, 0.8f, 9.0f), stoneMat);
-            Cylinder("EastBeacon_Tower", stage4, new Vector3(117.0f, 3.5f, 190.0f), new Vector3(2.5f, 5.0f, 2.5f), stoneMat);
-            Cylinder("EastBeacon_Brazier", stage4, new Vector3(117.0f, 6.2f, 190.0f), new Vector3(1.4f, 0.8f, 1.4f), ironMat);
-            var eastLight = Box("EastBeacon_Flame", stage4, new Vector3(117.0f, 6.8f, 190.0f), new Vector3(0.8f, 0.8f, 0.8f), goldMat);
+            PlaceLighthouse(stage4, "East", eastIsland.GetComponent<Renderer>());
 
             // Giant Lily Stepping Stones (BoostThrow landing area for Child)
             Cylinder("GiantLilyPad_1", stage4, new Vector3(90.0f, 0.55f, 175.0f), new Vector3(3.2f, 0.1f, 3.2f), buoyGreenMat);

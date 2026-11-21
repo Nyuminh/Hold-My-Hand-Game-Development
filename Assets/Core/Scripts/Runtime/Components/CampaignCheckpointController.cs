@@ -46,8 +46,16 @@ namespace Blocks.Gameplay.Core
             // Let GameManager finish assigning cameras/spawn points before relocating the crew.
             while (!HasBothRoles()) yield return null;
             yield return new WaitForSeconds(1f);
-            if (start > 0) Restore(start);
-            else Restore(0);
+            if (level == 1)
+            {
+                if (start > 0) Restore(start);
+                else { checkpoint.Value = 0; SaveCheckpoint(0, 0); }
+            }
+            else
+            {
+                if (start > 0) Restore(start);
+                else Restore(0);
+            }
             ready = true;
         }
         private bool HasBothRoles() => LevelTwoActors.All.Any(LevelOnePlayer.IsDad) &&
@@ -144,7 +152,7 @@ namespace Blocks.Gameplay.Core
         }
         private void OnGUI()
         {
-            if (!IsSpawned || level != 2) return;
+            if (!IsSpawned || level != 2 || TutorialIntroCutscene.IsAnyPlaying) return;
             GUI.Box(new Rect(Screen.width - 310, 20, 290, 66),
                 "Độ bền thuyền: " + BoatHealth + "/100\n" + CampaignProgress.Description(level, Checkpoint) +
                 (BoatHealth == 0 ? " · Đang cứu hộ..." : " · ESC: chơi lại"));

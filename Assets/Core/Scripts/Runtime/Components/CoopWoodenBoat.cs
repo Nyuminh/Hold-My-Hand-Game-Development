@@ -67,13 +67,10 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float rowAcceleration = 2.4f;
 #pragma warning restore 0414
 
-        [Tooltip("Lực cản nước làm giảm tốc độ khi thuyền trôi theo quán tính (mét/giây^2). Giá trị càng nhỏ thuyền trôi quán tính càng xa và lâu.")]
+        [Tooltip("Độ mạnh của cản nước (m/s²). Thuyền trôi chậm mất ít vận tốc hơn thuyền chạy nhanh.")]
         [SerializeField] private float waterDrag = 1.6f;
 
 #pragma warning disable 0414
-        [Tooltip("Tốc độ lùi tối đa khi chèo lùi (mét/giây)")]
-        [SerializeField] private float reverseSpeed = 1.5f;
-
         [Tooltip("Tốc độ nhịp chèo (chu kỳ/giây)")]
         [SerializeField] private float strokeFrequency = 3.0f;
 #pragma warning restore 0414
@@ -147,7 +144,7 @@ namespace Blocks.Gameplay.Core
         public bool IsCounterSteering(float rotationSign) => Mathf.Abs(m_ChildSteerInput) > 0.35f && Mathf.Sign(m_ChildSteerInput) == Mathf.Sign(rotationSign);
         public void LimitWhirlpoolPropulsion(bool escaping)
         {
-            if (HasSimulationAuthority && !escaping) m_CurrentSpeed = Mathf.Min(m_CurrentSpeed, 1.2f);
+            if (HasSimulationAuthority && !escaping) m_CurrentSpeed = Mathf.Clamp(m_CurrentSpeed, -1.2f, 1.2f);
         }
         public void WarnRiverHazard()
         {
@@ -202,7 +199,8 @@ namespace Blocks.Gameplay.Core
         private Animator m_ChildAnimator = null;
 
         // Trạng thái vật lý thuyền
-        private float m_CurrentSpeed = 0f;
+        private float m_CurrentSpeed = 0f; // Signed bow-relative speed (m/s).
+        private bool m_ReverseStroke;
         private float m_CurrentTillerAngle = 0f;
         private bool m_IsDadRowing = false;
         private float m_ChildSteerInput = 0f;
@@ -327,13 +325,13 @@ namespace Blocks.Gameplay.Core
             if (!IsSpawned || IsServer)
             {
                 // Server hoặc Local Singleplayer: Mô phỏng vật lý và sóng nước
-                SimulateBoatPhysics();
+                SimulateBoatPhysics(Time.deltaTime);
                 UpdateBuoyancyBobbing();
 
                 // Cập nhật tiến trình nhịp chèo theo phím Space
                 if (m_IsStrokeActive)
                 {
-                    float effectiveDuration = Mathf.Clamp(strokeDuration / (1f + m_CurrentSpeed * 0.12f), 0.22f, strokeDuration);
+                    float effectiveDuration = Mathf.Clamp(strokeDuration / (1f + Mathf.Abs(m_CurrentSpeed) * 0.12f), 0.22f, strokeDuration);
                     m_StrokePhase += Time.deltaTime / effectiveDuration;
                     if (m_StrokePhase >= 1f)
                     {
@@ -363,7 +361,7 @@ namespace Blocks.Gameplay.Core
                 // Cập nhật tiến trình nhịp chèo trên Client theo nhịp Space của Ba
                 if (m_IsStrokeActive)
                 {
-                    float effectiveDuration = Mathf.Clamp(strokeDuration / (1f + m_CurrentSpeed * 0.12f), 0.22f, strokeDuration);
+                    float effectiveDuration = Mathf.Clamp(strokeDuration / (1f + Mathf.Abs(m_CurrentSpeed) * 0.12f), 0.22f, strokeDuration);
                     m_StrokePhase += Time.deltaTime / effectiveDuration;
                     if (m_StrokePhase >= 1f)
                     {
@@ -841,7 +839,7 @@ namespace Blocks.Gameplay.Core
 
         /// <summary>
         /// Đọc phím điều khiển từ người chơi.
-        /// - 🧔 Ba: Nhấn phím [SPACE] để chèo thuyền tiến về phía trước (mỗi nhịp tiến 1m, spam càng nhanh chèo càng nhanh).
+        /// - 🧔 Ba: Mỗi lần nhấn [SPACE] cộng một xung vận tốc vào đà hiện tại.
         /// - 👶 Con: Phím [A] / [D] bẻ cần lái (Cần qua Phải -> Rẽ Trái, Cần qua Trái -> Rẽ Phải).
         /// </summary>
         private void ReadMountedPlayerControls()
@@ -871,7 +869,11 @@ namespace Blocks.Gameplay.Core
 
             // 1. Nhận diện phím [SPACE] để chèo thuyền (Dad)
             bool spacePressed = false;
+            bool reversePressed;
 #if ENABLE_INPUT_SYSTEM
+            reversePressed = Keyboard.current != null &&
+                (Keyboard.current.leftCtrlKey.wasPressedThisFrame || Keyboard.current.rightCtrlKey.wasPressedThisFrame ||
+                 Keyboard.current.downArrowKey.wasPressedThisFrame);
             if (Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.upArrowKey.wasPressedThisFrame))
             {
                 spacePressed = true;
@@ -881,6 +883,8 @@ namespace Blocks.Gameplay.Core
                 spacePressed = true;
             }
 #else
+            reversePressed = Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.RightControl) ||
+                Input.GetKeyDown(KeyCode.DownArrow);
             if (!spacePressed && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.UpArrow)))
             {
                 spacePressed = true;
@@ -907,33 +911,19 @@ namespace Blocks.Gameplay.Core
             steerInput = Mathf.Clamp(steerInput, -1f, 1f);
 
             // 3. Phân quyền vai trò nghiêm ngặt:
+            bool canRow = isMeDad || (isMeChild && soloTestMode && m_DadPlayer == null);
+            if (canRow && spacePressed != reversePressed && !m_IsGroundedOnLand)
+            {
+                if (IsSpawned && !IsServer)
+                {
+                    StartStrokeAnimation(reversePressed);
+                    SendRowStrokeServerRpc(reversePressed);
+                }
+                else ApplyRowStroke(reversePressed);
+            }
+
             if (isMeDad)
             {
-                // Ba CHỈ chèo thuyền bằng phím Space
-                if (spacePressed)
-                {
-                    if (m_IsGroundedOnLand)
-                    {
-                        Debug.LogWarning("[CoopWoodenBoat] ⚠️ Thuyền đang mắc cạn trên bờ đất! Không thể chèo tiếp dưới cạn.");
-                    }
-                    else
-                    {
-                        // Client prediction visual tức thì cho người chèo
-                        m_IsStrokeActive = true;
-                        m_StrokePhase = 0f;
-                        m_IsDadRowing = true;
-
-                        if (IsSpawned && !IsServer)
-                        {
-                            SendRowStrokeServerRpc();
-                        }
-                        else
-                        {
-                            TriggerRowStroke();
-                        }
-                    }
-                }
-
                 // Ba KHÔNG được điều khiển cần lái khi đã có Con trên thuyền
                 // Chỉ cho phép lái khi ở chế độ Solo thử nghiệm và Con chưa lên thuyền
                 if (soloTestMode && m_ChildPlayer == null)
@@ -958,32 +948,6 @@ namespace Blocks.Gameplay.Core
                 float targetAngle = m_ChildSteerInput * maxTillerAngle;
                 m_CurrentTillerAngle = Mathf.MoveTowards(m_CurrentTillerAngle, targetAngle, tillerTurnSpeed * Time.deltaTime);
 
-                // Chế độ solo: nếu Ba chưa lên thuyền thì Con mới chèo tạm để kiểm thử
-                if (soloTestMode && m_DadPlayer == null)
-                {
-                    if (spacePressed)
-                    {
-                        if (m_IsGroundedOnLand)
-                        {
-                            Debug.LogWarning("[CoopWoodenBoat] ⚠️ Thuyền đang mắc cạn trên bờ đất! Không thể chèo tiếp dưới cạn.");
-                        }
-                        else
-                        {
-                            m_IsStrokeActive = true;
-                            m_StrokePhase = 0f;
-                            m_IsDadRowing = true;
-
-                            if (IsSpawned && !IsServer)
-                            {
-                                SendRowStrokeServerRpc();
-                            }
-                            else
-                            {
-                                TriggerRowStroke();
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -994,10 +958,11 @@ namespace Blocks.Gameplay.Core
         /// - Khi dừng Space -> Thuyền tiếp tục lướt trôi theo quán tính tốc độ hiện tại.
         /// - Nếu thuyền đã mắc cạn trên bờ đất -> Không thể di chuyển được nữa!
         /// </summary>
-        public void TriggerRowStroke()
+        public void TriggerRowStroke() => ApplyRowStroke(false);
+
+        private void ApplyRowStroke(bool reverse)
         {
             if (!HasSimulationAuthority) return;
-            m_LastStrokeAt = Time.time;
             // Kiểm tra trạng thái mắc cạn trên đất liền:
             if (m_IsGroundedOnLand)
             {
@@ -1005,26 +970,20 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            // Kích hoạt nhịp chèo mới tức thì
-            m_IsStrokeActive = true;
-            m_StrokePhase = 0f;
-            m_IsDadRowing = true;
-
-            // Tăng tốc độ: mỗi lần nhấn Space tăng thêm vận tốc tức thì
-            if (m_CurrentSpeed < minStrokeSpeed)
-            {
-                m_CurrentSpeed = minStrokeSpeed;
-            }
-            else
-            {
-                m_CurrentSpeed = Mathf.Min(m_CurrentSpeed + speedBoostPerSpam, maxRowSpeed);
-            }
+            m_LastStrokeAt = Time.time;
+            StartStrokeAnimation(reverse);
+            float direction = reverse ? -1f : 1f;
+            float impulsePerMass = m_CurrentSpeed == 0f ? minStrokeSpeed : speedBoostPerSpam;
+            // A stroke against the current motion brakes the hull before reversing it.
+            float alongStroke = direction * m_CurrentSpeed;
+            if (alongStroke < maxRowSpeed)
+                m_CurrentSpeed = direction * Mathf.Min(maxRowSpeed, alongStroke + impulsePerMass);
 
             if (CanWriteNetVars)
             {
                 m_NetIsRowing.Value = true;
                 m_NetSpeed.Value = m_CurrentSpeed;
-                NotifyRowStrokeClientRpc();
+                NotifyRowStrokeClientRpc(reverse);
             }
         }
 
@@ -1113,9 +1072,8 @@ namespace Blocks.Gameplay.Core
         /// <summary>
         /// Mô phỏng di chuyển thẳng của thuyền và góc bẻ lái ngược hướng.
         /// </summary>
-        private void SimulateBoatPhysics()
+        private void SimulateBoatPhysics(float dt)
         {
-            float dt = Time.deltaTime;
             if (riverPhysicsEnabled && !HasCoopCrew) m_ExternalDrift = Vector3.zero;
             if (riverPhysicsEnabled && Time.time < m_DashUntil && HasCoopCrew) m_CurrentSpeed = Mathf.Max(m_CurrentSpeed, 11f);
             Vector3 forwardDir = GetBoatWorldForward();
@@ -1146,7 +1104,7 @@ namespace Blocks.Gameplay.Core
 
             // 2. TÍNH TOÁN TIẾN THẲNG THEO NHỊP CHÈO SPACE VÀ TRÔI QUÁN TÍNH
             // THUYỀN CHỈ DI CHUYỂN ĐƯỢC KHI Ở DƯỚI MẶT NƯỚC (KHÔNG BỊ MẮC CẠN TRÊN ĐẤT)
-            if (!m_IsGroundedOnLand && (m_CurrentSpeed > 0.02f || m_ExternalDrift.sqrMagnitude > 0.0001f))
+            if (!m_IsGroundedOnLand && (Mathf.Abs(m_CurrentSpeed) > 0.02f || m_ExternalDrift.sqrMagnitude > 0.0001f))
             {
                 float moveDist = m_CurrentSpeed * dt;
                 Vector3 desiredMove = forwardDir * moveDist + m_ExternalDrift * dt;
@@ -1162,11 +1120,15 @@ namespace Blocks.Gameplay.Core
                     transform.position += desiredMove;
                 }
 
-                // Cản nước làm giảm tốc độ
-                float currentDrag = m_IsStrokeActive ? (waterDrag * 0.35f) : waterDrag;
-                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, currentDrag * dt);
+                // Quadratic drag: integrate dv/dt = -k*v² over this frame.
+                // A small residual resistance lets the hull settle at low speed.
+                float referenceSpeed = Mathf.Max(.1f, maxRowSpeed);
+                float drag = Mathf.Max(0f, waterDrag);
+                float k = 1.8f * drag / (referenceSpeed * referenceSpeed);
+                m_CurrentSpeed /= 1f + k * Mathf.Abs(m_CurrentSpeed) * dt;
+                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, .25f * drag * dt);
 
-                if (m_CurrentSpeed <= 0.05f)
+                if (Mathf.Abs(m_CurrentSpeed) <= 0.05f)
                 {
                     m_CurrentSpeed = 0f;
                     m_IsDadRowing = false;
@@ -1214,7 +1176,8 @@ namespace Blocks.Gameplay.Core
 
             // 1. KIỂM TRA MẶT ĐẤT / BỜ SÔNG PHÍA TRƯỚC (SHORELINE BOUNDARY)
             Vector3 nextPos = transform.position + moveDelta;
-            Vector3 nextBow = nextPos + forwardDir * 2.1f;
+            Vector3 leadingOffset = forwardDir * (Vector3.Dot(moveDelta, forwardDir) < 0f ? -2.1f : 2.1f);
+            Vector3 nextBow = nextPos + leadingOffset;
             Vector3 nextLeft = nextPos - rightDir * 0.75f;
             Vector3 nextRight = nextPos + rightDir * 0.75f;
 
@@ -1239,7 +1202,7 @@ namespace Blocks.Gameplay.Core
                     slideVector.y = 0f;
 
                     // Kiểm tra xem di chuyển theo hướng trượt ven bờ có bị leo lên đất nữa không
-                    Vector3 slideBow = transform.position + slideVector + forwardDir * 2.1f;
+                    Vector3 slideBow = transform.position + slideVector + leadingOffset;
                     if (GetGroundHeight(slideBow) < (waterSurfaceY - 0.08f))
                     {
                         safeMove = slideVector * 0.5f;
@@ -1342,6 +1305,7 @@ namespace Blocks.Gameplay.Core
                     }
 
                     // Mái chèo quét tới lui đối xứng và nghiêng theo góc cắm nước
+                    if (m_ReverseStroke) sweep = -sweep;
                     Quaternion strokeL = Quaternion.AngleAxis(sweep, Vector3.forward) * Quaternion.AngleAxis(-dip, Vector3.right);
                     Quaternion strokeR = Quaternion.AngleAxis(-sweep, Vector3.forward) * Quaternion.AngleAxis(-dip, Vector3.right);
 
@@ -1610,14 +1574,14 @@ namespace Blocks.Gameplay.Core
 
             GUI.Box(new Rect(hudX, hudY, hudW, hudH), GUIContent.none, cardStyle);
 
-            string myRoleText = isDad ? "🧔 BA: ĐIỀU KHIỂN CHÈO THUYỀN (ROWING - SPACE)" : "👶 CON: ĐIỀU KHIỂN CẦN BẺ LÁI (TILLER - A/D)";
+            string myRoleText = isDad ? "🧔 BA: ĐIỀU KHIỂN CHÈO THUYỀN" : "👶 CON: ĐIỀU KHIỂN CẦN BẺ LÁI (TILLER - A/D)";
             GUI.Label(new Rect(hudX + 16, hudY + 10, hudW - 32, 26), myRoleText, titleStyle);
 
             string guide1 = isDad
-                ? "• [SPACE] Nhấn để chèo tiến về phía trước (Mỗi nhịp = 1m)"
+                ? "• [Space / ↑] Chèo tới   • [Ctrl / ↓] Chèo lùi"
                 : "• [A / D] Bẻ cần lái (Cần qua PHẢI -> Thuyền rẽ TRÁI, Cần qua TRÁI -> Thuyền rẽ PHẢI)";
             string guide2 = isDad
-                ? "• Càng spam [SPACE] nhanh thuyền chèo càng nhanh! Thả phím thuyền sẽ trôi theo quán tính."
+                ? "• Nhấn theo nhịp để tăng tốc. Chèo ngược chiều để hãm đà và đổi hướng."
                 : "• Giữ [A] hoặc [D] để bẻ lái, thả phím để cần tự trả về giữa. Ba phụ trách chèo!";
             string exitGuide = "• Nhấn [E] để XUỐNG THUYỀN";
 
@@ -1701,15 +1665,18 @@ namespace Blocks.Gameplay.Core
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void SendRowStrokeServerRpc(RpcParams rpc = default)
+        private void SendRowStrokeServerRpc(bool reverse, RpcParams rpc = default)
         {
             if (!CanRow(rpc.Receive.SenderClientId) || Time.time - m_LastStrokeAt < 0.08f) return;
-            TriggerRowStroke();
+            ApplyRowStroke(reverse);
         }
 
         [Rpc(SendTo.Everyone)]
-        private void NotifyRowStrokeClientRpc()
+        private void NotifyRowStrokeClientRpc(bool reverse) => StartStrokeAnimation(reverse);
+
+        private void StartStrokeAnimation(bool reverse)
         {
+            m_ReverseStroke = reverse;
             m_IsStrokeActive = true;
             m_StrokePhase = 0f;
             m_IsDadRowing = true;
@@ -1719,7 +1686,7 @@ namespace Blocks.Gameplay.Core
         private void SendRowInputServerRpc(bool isRowing, bool isReverse, RpcParams rpc = default)
         {
             if (!CanRow(rpc.Receive.SenderClientId) || Time.time - m_LastStrokeAt < 0.08f) return;
-            if (isRowing) TriggerRowStroke();
+            if (isRowing) ApplyRowStroke(isReverse);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]

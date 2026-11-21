@@ -16,11 +16,9 @@ namespace Blocks.Gameplay.Core
         public float fullLift = 5f;
         private readonly NetworkVariable<int> phase = new NetworkVariable<int>();
         private readonly NetworkVariable<float> lift = new NetworkVariable<float>();
-        private readonly NetworkVariable<NetworkObjectReference> holder = new NetworkVariable<NetworkObjectReference>();
         private Vector3 closedPosition, crawlClosedPosition;
-        private float heartbeat, nextSend;
-        private CorePlayerManager dad, enteredChild, crossedChild;
-        private LevelOneBracePose brace;
+        private CorePlayerManager enteredChild, crossedChild;
+        private const float PushDistance = 2.8f;
         public int Phase => phase.Value;
         public float Lift => lift.Value;
         public bool Open => Phase == 2;
@@ -29,31 +27,37 @@ namespace Blocks.Gameplay.Core
         {
             if (!IsServer) return;
             phase.Value = opened ? 2 : 0; lift.Value = opened ? fullLift : 0;
-            holder.Value = default; dad = enteredChild = crossedChild = null;
+            enteredChild = crossedChild = null;
             gate.localPosition = closedPosition + Vector3.up * lift.Value;
-            crawlDoor.localPosition = crawlClosedPosition + Vector3.up * (opened ? 1.5f : 0f);
+            crawlDoor.localPosition = RockTarget;
         }
-
-        private void Awake() { if (gate != null) closedPosition = gate.localPosition; if (crawlDoor != null) crawlClosedPosition = crawlDoor.localPosition; }
-        public override void OnNetworkSpawn() { closedPosition = gate.localPosition; crawlClosedPosition = crawlDoor.localPosition; }
-        public bool SetWinchHeld(CorePlayerManager actor, bool held)
+        private Vector3 RockTarget => crawlClosedPosition + Vector3.right * (Phase > 0 ? PushDistance : 0f);
+        private void Awake()
         {
-            if (!IsServer || Open || !LevelOnePlayer.IsAlive(actor) || !LevelOnePlayer.IsDad(actor)) return false;
-            if (!held) { if (dad == actor) Release(); return true; }
-            if (!LevelTwoActors.Near(actor, winch, 2.4f) || (lastSlalom != null && !lastSlalom.Passed)) return false;
-            dad = actor; heartbeat = Time.time; phase.Value = 1; holder.Value = actor.NetworkObject;
+            if (gate) closedPosition = gate.localPosition;
+            if (crawlDoor) crawlClosedPosition = crawlDoor.localPosition;
+        }
+        public override void OnNetworkSpawn()
+        {
+            crawlDoor.localPosition = RockTarget;
+            gate.localPosition = closedPosition + Vector3.up * lift.Value;
+        }
+        public bool TryPushRock(CorePlayerManager actor)
+        {
+            if (!IsServer || Phase != 0 || !LevelTwoActors.Near(actor, crawlDoor, 2.8f) ||
+                !LevelOnePlayer.IsDad(actor) || (lastSlalom && !lastSlalom.Passed)) return false;
+            phase.Value = 1;
             return true;
         }
         public bool TryOpenValve(CorePlayerManager actor)
         {
             if (!IsServer || Phase != 1 || !LevelTwoActors.Near(actor, valve) || LevelOnePlayer.IsDad(actor) || actor != crossedChild) return false;
-            phase.Value = 2; holder.Value = default; dad = null; OpenedRpc(); return true;
+            phase.Value = 2; OpenedRpc(); return true;
         }
-        private void Release() { if (!Open) phase.Value = 0; dad = null; holder.Value = default; }
 
         public void ObserveCrawl(CorePlayerManager actor)
         {
-            if (!IsServer || Phase != 1 || lift.Value < 0.45f || !LevelTwoActors.OnFoot(actor) || LevelOnePlayer.IsDad(actor)) return;
+            if (!IsServer || Phase != 1 || Vector3.Distance(crawlDoor.localPosition, RockTarget) > .05f || !LevelTwoActors.OnFoot(actor) || LevelOnePlayer.IsDad(actor)) return;
             Vector3 p = crawl.transform.InverseTransformPoint(actor.transform.position);
             if (crawl.bounds.Contains(actor.transform.position + Vector3.up * 0.2f) && p.z < 0) enteredChild = actor;
             if (enteredChild == actor && p.z > 2.3f && Mathf.Abs(p.x) < 0.75f) crossedChild = actor;
@@ -63,41 +67,19 @@ namespace Blocks.Gameplay.Core
             if (!IsSpawned) return;
             if (IsServer)
             {
-                if (Phase == 1 && (Time.time - heartbeat > 0.5f || !LevelTwoActors.Near(dad, winch, 2.4f))) Release();
-                bool occupied = false;
-                foreach (var actor in LevelTwoActors.All)
-                {
-                    ObserveCrawl(actor);
-                    occupied |= LevelTwoActors.OnFoot(actor) && crawl.bounds.Contains(actor.transform.position + Vector3.up * 0.2f);
-                }
-                // Never crush a child on a lost heartbeat; opening still requires Dad to return.
-                float target = Open ? fullLift : Phase == 1 || occupied ? 0.5f : 0;
-                lift.Value = Mathf.MoveTowards(lift.Value, target, Time.deltaTime * 2f);
-                if (Phase == 0 && !occupied) { enteredChild = null; crossedChild = null; }
+                if (Phase == 1)
+                    foreach (var actor in LevelTwoActors.All) ObserveCrawl(actor);
+                lift.Value = Mathf.MoveTowards(lift.Value, Open ? fullLift : 0, Time.deltaTime * 2f);
             }
             gate.localPosition = closedPosition + Vector3.up * lift.Value;
-            crawlDoor.localPosition = crawlClosedPosition + Vector3.up * Mathf.Min(lift.Value * 2.4f, 1.5f);
-            PresentBrace();
-            var local = LevelTwoActors.Local;
-            if (local == null || Keyboard.current == null) return;
-            if (LevelOnePlayer.IsDad(local) && Time.unscaledTime >= nextSend)
-            {
-                nextSend = Time.unscaledTime + 0.12f;
-                if (LevelTwoActors.Near(local, winch, 2.4f) || Phase == 1) WinchRpc(Keyboard.current.eKey.isPressed);
-            }
-            else if (!LevelOnePlayer.IsDad(local) && Keyboard.current.eKey.wasPressedThisFrame && LevelTwoActors.Near(local, valve)) ValveRpc();
+            crawlDoor.localPosition = Vector3.MoveTowards(crawlDoor.localPosition, RockTarget, 5 * Time.deltaTime);
+            var actorLocal = LevelTwoActors.Local;
+            if (!actorLocal || Keyboard.current == null || !Keyboard.current.fKey.wasPressedThisFrame) return;
+            if (Phase == 0 && LevelOnePlayer.IsDad(actorLocal) && LevelTwoActors.Near(actorLocal, crawlDoor, 2.8f)) PushRpc();
+            if (Phase == 1 && !LevelOnePlayer.IsDad(actorLocal) && LevelTwoActors.Near(actorLocal, valve)) ValveRpc();
         }
-        private void PresentBrace()
-        {
-            if (Phase == 1 && holder.Value.TryGet(out var obj))
-            {
-                if (brace == null) { brace = obj.gameObject.AddComponent<LevelOneBracePose>(); brace.Begin(obj.GetComponent<CorePlayerManager>()); }
-            }
-            else if (brace != null) { Destroy(brace); brace = null; }
-        }
-        public override void OnNetworkDespawn() { if (brace != null) Destroy(brace); }
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void WinchRpc(bool held, RpcParams rpc = default) => SetWinchHeld(LevelTwoActors.Sender(NetworkManager, rpc.Receive.SenderClientId), held);
+        private void PushRpc(RpcParams rpc = default) => TryPushRock(LevelTwoActors.Sender(NetworkManager, rpc.Receive.SenderClientId));
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         private void ValveRpc(RpcParams rpc = default) => TryOpenValve(LevelTwoActors.Sender(NetworkManager, rpc.Receive.SenderClientId));
         [Rpc(SendTo.Everyone)]
@@ -106,8 +88,9 @@ namespace Blocks.Gameplay.Core
         {
             var local = LevelTwoActors.Local;
             if (local == null || Vector3.Distance(local.transform.position, winch.position) > 20) return;
-            GUI.Box(new Rect(20, 85, 650, 60), Open ? "Thủy môn đã mở. Cùng trở lại thuyền." :
-                "Ba: giữ [E] tại tời. Con: bò qua cửa phụ, tới van và bấm [E].\nBa phải tiếp tục giữ tời cho tới khi Con mở van.");
+            GUI.Box(new Rect(20, 85, 620, 38), Open ? "Thủy môn đã mở. Cùng trở lại thuyền." :
+                Phase == 0 ? "Ba đến gần tảng đá trước lối chui và nhấn [F] để đẩy sang bên." :
+                "Con chui qua lỗ, đến van bên kia và nhấn [F] để mở thủy môn.");
         }
     }
 }
