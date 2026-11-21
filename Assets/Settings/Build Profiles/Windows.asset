@@ -37,7 +37,7 @@ MonoBehaviour:
   - m_enabled: 1
     m_path: Assets/Core/Scenes/PlayScene2.unity
     m_guid: 26fcf4976c944d04b8168ff3a4816ba4
-  - m_enabled: 1
+  - m_enabled: 0
     m_path: Assets/Core/Scenes/PlayScene3.unity
     m_guid: 05c679bdeb81e9f4c8d578f19b77212d
   - m_enabled: 1
