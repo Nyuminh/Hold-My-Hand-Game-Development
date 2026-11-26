@@ -3,14 +3,36 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Blocks.Gameplay.Core
 {
     /// <summary>
-    /// Điều khiển toàn bộ Giao diện Cửa hàng (Store) và Nạp Coin trên Lobby Canvas.
-    /// Cho phép xem trước skin 3D 360 độ, mua bằng Coin, trang bị skin cho Ba/Con trước khi Ready,
-    /// và nạp Coin tức thì qua Sandbox Mock Payment.
+    /// Component hỗ trợ bắt sự kiện kéo chuột xoay 360 độ trên khung Preview.
+    /// </summary>
+    public class StorePreviewDragRotator : MonoBehaviour, IPointerDownHandler, IDragHandler
+    {
+        public StorePreviewStage stage;
+        public float sensitivity = 1.2f;
+
+        public void OnPointerDown(PointerEventData eventData) { }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            if (stage != null)
+            {
+                stage.RotateModel(eventData.delta.x * sensitivity);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Điều khiển toàn bộ Giao diện Cửa hàng (Store), Bộ Sưu Tập (Collection) và Nạp Coin trên Lobby Canvas.
+    /// - Cho phép xem trước 3D xoay 360 độ mượt mà.
+    /// - Hỗ trợ Cửa Hàng (mua skin) và Bộ Sưu Tập (chọn skin đã sở hữu hoặc trang phục mặc định).
+    /// - Cập nhật trực tiếp model nhân vật trong Lobby 3D theo thời gian thực khi chọn/đổi skin.
+    /// - Tự động ẩn các panel giao diện nền khi mở Store và phục hồi khi đóng.
     /// </summary>
     public class StoreUIController : MonoBehaviour
     {
@@ -67,6 +89,7 @@ namespace Blocks.Gameplay.Core
         private class EquipRequest
         {
             public string skinId;
+            public string role;
         }
 
         [Serializable]
@@ -79,17 +102,23 @@ namespace Blocks.Gameplay.Core
         }
 
         // ─── State ──────────────────────────────────────────────────
+        public enum ViewMode { Store, Collection }
+        private ViewMode m_CurrentMode = ViewMode.Store;
+
         private int m_CurrentCoins;
-        private List<SkinDto> m_Catalog = new List<SkinDto>();
-        private HashSet<string> m_OwnedSkinIds = new HashSet<string>();
+        private readonly List<SkinDto> m_Catalog = new List<SkinDto>();
+        private readonly HashSet<string> m_OwnedSkinIds = new HashSet<string>();
         private string m_EquippedDadSkinId;
         private string m_EquippedChildSkinId;
         private string m_SelectedSkinId;
         private string m_RoleFilter = "ALL"; // ALL, Dad, Child
         private bool m_IsBusy;
 
+        // Danh sách các panel nền bị ẩn khi mở Store/Topup để khôi phục khi đóng
+        private readonly List<GameObject> m_HiddenPanelsDuringStore = new List<GameObject>();
+
         // ─── UI References ──────────────────────────────────────────
-        private Button m_LobbyStoreButton;
+        private Button m_TopStoreButton;
         private Button m_CoinBadgeButton;
         private TextMeshProUGUI m_CoinBadgeText;
 
@@ -103,6 +132,9 @@ namespace Blocks.Gameplay.Core
         private Button m_PreviewActionButton;
         private TextMeshProUGUI m_PreviewActionText;
         private TextMeshProUGUI m_StatusToastText;
+
+        private Button m_ModeStoreBtn;
+        private Button m_ModeCollectionBtn;
 
         private TMP_FontAsset m_FontAsset;
 
@@ -160,7 +192,9 @@ namespace Blocks.Gameplay.Core
         {
             if (lobbyCanvas == null) return;
 
-            // 1. Nút Cửa Hàng và Huy hiệu Coin trên Canvas
+            CleanOldDuplicateButtons();
+
+            // 1. Nút Cửa Hàng và Huy hiệu Coin duy nhất ở góc trên Canvas
             BindOrBuildLobbyTriggers();
 
             // 2. Cửa sổ Store Modal
@@ -170,54 +204,60 @@ namespace Blocks.Gameplay.Core
             BuildTopupModal();
         }
 
+        private void CleanOldDuplicateButtons()
+        {
+            // Xóa triệt để các nút store cũ bị chèn nhầm vào bảng dưới
+            string[] oldButtonNames = { "store-button-main", "store-button-lobby", "store-button" };
+            foreach (var bName in oldButtonNames)
+            {
+                foreach (var btn in lobbyCanvas.GetComponentsInChildren<Button>(true))
+                {
+                    if (btn.gameObject.name == bName)
+                    {
+                        Destroy(btn.gameObject);
+                    }
+                }
+            }
+        }
+
         private void BindOrBuildLobbyTriggers()
         {
-            // Tìm hoặc tạo nút [🛒 Cửa Hàng]
-            var existingStoreBtn = FindInCanvas<Button>("store-button");
-            if (existingStoreBtn != null)
+            // 1. Nút CỬA HÀNG duy nhất đặt ở góc trên bên phải (luôn hiện sẵn ở màn hình ngoài và trong phòng)
+            var existingTopBtn = lobbyCanvas.transform.Find("store-button-top");
+            if (existingTopBtn == null)
             {
-                m_LobbyStoreButton = existingStoreBtn;
-                m_LobbyStoreButton.onClick.RemoveAllListeners();
-                m_LobbyStoreButton.onClick.AddListener(OpenStore);
-            }
-            else
-            {
-                // Thêm vào main-buttons-panel và lobby-buttons-panel nếu có
-                var mainPanel = FindInCanvas<Transform>("main-buttons-panel");
-                var lobbyPanel = FindInCanvas<Transform>("lobby-buttons-panel");
-
-                var parent = lobbyPanel != null ? lobbyPanel : (mainPanel != null ? mainPanel : lobbyCanvas.transform);
-                var btnGo = CreateButton(parent, "store-button", "🛒 CỬA HÀNG", new Vector2(160, 42), new Color(0.12f, 0.44f, 0.88f));
+                var btnGo = CreateButton(lobbyCanvas.transform, "store-button-top", "🛒 CỬA HÀNG", new Vector2(145, 38), new Color(0.15f, 0.42f, 0.85f));
                 var rt = btnGo.GetComponent<RectTransform>();
-                if (parent == lobbyCanvas.transform)
-                {
-                    rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
-                    rt.pivot = new Vector2(1f, 1f);
-                    rt.anchoredPosition = new Vector2(-220f, -20f);
-                }
-                m_LobbyStoreButton = btnGo.GetComponent<Button>();
-                m_LobbyStoreButton.onClick.AddListener(OpenStore);
-            }
-
-            // Tìm hoặc tạo huy hiệu [🪙 0 Coins]
-            var existingCoinBadge = FindInCanvas<Button>("coin-badge-button");
-            if (existingCoinBadge != null)
-            {
-                m_CoinBadgeButton = existingCoinBadge;
-                m_CoinBadgeText = existingCoinBadge.GetComponentInChildren<TextMeshProUGUI>();
+                rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
+                rt.pivot = new Vector2(1f, 1f);
+                rt.anchoredPosition = new Vector2(-220f, -20f);
+                m_TopStoreButton = btnGo.GetComponent<Button>();
             }
             else
             {
-                var badgeGo = CreateButton(lobbyCanvas.transform, "coin-badge-button", "🪙 0 Coins", new Vector2(140, 36), new Color(0.18f, 0.22f, 0.28f));
+                m_TopStoreButton = existingTopBtn.GetComponent<Button>();
+            }
+            m_TopStoreButton.onClick.RemoveAllListeners();
+            m_TopStoreButton.onClick.AddListener(OpenStore);
+
+            // 2. Huy hiệu Coins đặt cạnh nút Cửa hàng
+            var existingCoinBadge = lobbyCanvas.transform.Find("coin-badge-button");
+            if (existingCoinBadge == null)
+            {
+                var badgeGo = CreateButton(lobbyCanvas.transform, "coin-badge-button", "Coins: 0", new Vector2(140, 38), new Color(0.14f, 0.18f, 0.25f));
                 var rt = badgeGo.GetComponent<RectTransform>();
                 rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
                 rt.pivot = new Vector2(1f, 1f);
-                rt.anchoredPosition = new Vector2(-400f, -22f);
+                rt.anchoredPosition = new Vector2(-380f, -20f);
                 m_CoinBadgeButton = badgeGo.GetComponent<Button>();
                 m_CoinBadgeText = badgeGo.GetComponentInChildren<TextMeshProUGUI>();
-                m_CoinBadgeText.color = new Color(0.98f, 0.75f, 0.18f); // Gold
+                if (m_CoinBadgeText != null) m_CoinBadgeText.color = new Color(0.98f, 0.75f, 0.18f);
             }
-
+            else
+            {
+                m_CoinBadgeButton = existingCoinBadge.GetComponent<Button>();
+                m_CoinBadgeText = existingCoinBadge.GetComponentInChildren<TextMeshProUGUI>();
+            }
             m_CoinBadgeButton.onClick.RemoveAllListeners();
             m_CoinBadgeButton.onClick.AddListener(OpenTopup);
         }
@@ -227,7 +267,7 @@ namespace Blocks.Gameplay.Core
             if (m_StoreModal != null) return;
 
             // Root Backdrop
-            m_StoreModal = CreatePanel(lobbyCanvas.transform, "store-modal-panel", new Color(0f, 0f, 0f, 0.82f));
+            m_StoreModal = CreatePanel(lobbyCanvas.transform, "store-modal-panel", new Color(0f, 0f, 0f, 0.90f));
             var rootRt = m_StoreModal.GetComponent<RectTransform>();
             rootRt.anchorMin = Vector2.zero;
             rootRt.anchorMax = Vector2.one;
@@ -239,7 +279,7 @@ namespace Blocks.Gameplay.Core
             var dialogRt = dialog.GetComponent<RectTransform>();
             dialogRt.anchorMin = dialogRt.anchorMax = new Vector2(0.5f, 0.5f);
             dialogRt.pivot = new Vector2(0.5f, 0.5f);
-            dialogRt.sizeDelta = new Vector2(880, 560);
+            dialogRt.sizeDelta = new Vector2(900, 580);
 
             // Header Bar
             var header = CreatePanel(dialog.transform, "header-bar", new Color(0.06f, 0.08f, 0.13f, 1f));
@@ -249,14 +289,14 @@ namespace Blocks.Gameplay.Core
             headerRt.pivot = new Vector2(0.5f, 1f);
             headerRt.sizeDelta = new Vector2(0, 56);
 
-            var titleText = CreateText(header.transform, "title", "CỬA HÀNG TRANG PHỤC", 20, FontStyles.Bold, Color.white);
+            var titleText = CreateText(header.transform, "title", "TRANG PHỤC NHÂN VẬT", 20, FontStyles.Bold, Color.white);
             var titleRt = titleText.GetComponent<RectTransform>();
             titleRt.anchorMin = new Vector2(0f, 0.5f);
             titleRt.anchorMax = new Vector2(0f, 0.5f);
             titleRt.pivot = new Vector2(0f, 0.5f);
             titleRt.anchoredPosition = new Vector2(24, 0);
 
-            m_StoreCoinText = CreateText(header.transform, "coin-display", "🪙 0 Coins", 16, FontStyles.Bold, new Color(0.98f, 0.75f, 0.18f));
+            m_StoreCoinText = CreateText(header.transform, "coin-display", "Coins: 0", 16, FontStyles.Bold, new Color(0.98f, 0.75f, 0.18f));
             var coinRt = m_StoreCoinText.GetComponent<RectTransform>();
             coinRt.anchorMin = coinRt.anchorMax = new Vector2(1f, 0.5f);
             coinRt.pivot = new Vector2(1f, 0.5f);
@@ -276,18 +316,35 @@ namespace Blocks.Gameplay.Core
             closeRt.anchoredPosition = new Vector2(-12, 0);
             closeBtn.GetComponent<Button>().onClick.AddListener(CloseStore);
 
-            // Filter Tabs Bar
-            var tabsBar = CreatePanel(dialog.transform, "tabs-bar", new Color(0.08f, 0.10f, 0.15f, 1f));
-            var tabsRt = tabsBar.GetComponent<RectTransform>();
-            tabsRt.anchorMin = new Vector2(0f, 1f);
-            tabsRt.anchorMax = new Vector2(1f, 1f);
-            tabsRt.pivot = new Vector2(0.5f, 1f);
-            tabsRt.anchoredPosition = new Vector2(0, -58);
-            tabsRt.sizeDelta = new Vector2(0, 42);
+            // Mode Selection Bar: [CỬA HÀNG (MUA)] và [BỘ SƯU TẬP (ĐÃ CÓ)]
+            var modeBar = CreatePanel(dialog.transform, "mode-bar", new Color(0.07f, 0.09f, 0.15f, 1f));
+            var modeRt = modeBar.GetComponent<RectTransform>();
+            modeRt.anchorMin = new Vector2(0f, 1f);
+            modeRt.anchorMax = new Vector2(1f, 1f);
+            modeRt.pivot = new Vector2(0.5f, 1f);
+            modeRt.anchoredPosition = new Vector2(0, -56);
+            modeRt.sizeDelta = new Vector2(0, 44);
 
-            CreateTabButton(tabsBar.transform, "tab-all", "TẤT CẢ", new Vector2(30, 0), () => SetFilter("ALL"));
-            CreateTabButton(tabsBar.transform, "tab-dad", "CHA (DAD)", new Vector2(140, 0), () => SetFilter("Dad"));
-            CreateTabButton(tabsBar.transform, "tab-child", "CON (CHILD)", new Vector2(250, 0), () => SetFilter("Child"));
+            var modeStoreGo = CreateButton(modeBar.transform, "mode-store", "🛍️ CỬA HÀNG (MUA)", new Vector2(160, 34), new Color(0.15f, 0.42f, 0.85f));
+            var msRt = modeStoreGo.GetComponent<RectTransform>();
+            msRt.anchorMin = msRt.anchorMax = new Vector2(0f, 0.5f);
+            msRt.pivot = new Vector2(0f, 0.5f);
+            msRt.anchoredPosition = new Vector2(20, 0);
+            m_ModeStoreBtn = modeStoreGo.GetComponent<Button>();
+            m_ModeStoreBtn.onClick.AddListener(() => SwitchMode(ViewMode.Store));
+
+            var modeColGo = CreateButton(modeBar.transform, "mode-col", "👔 BỘ SƯU TẬP (ĐÃ CÓ)", new Vector2(180, 34), new Color(0.15f, 0.20f, 0.30f));
+            var mcRt = modeColGo.GetComponent<RectTransform>();
+            mcRt.anchorMin = mcRt.anchorMax = new Vector2(0f, 0.5f);
+            mcRt.pivot = new Vector2(0f, 0.5f);
+            mcRt.anchoredPosition = new Vector2(190, 0);
+            m_ModeCollectionBtn = modeColGo.GetComponent<Button>();
+            m_ModeCollectionBtn.onClick.AddListener(() => SwitchMode(ViewMode.Collection));
+
+            // Role Filter Sub-Tabs: [Tất Cả], [Cha], [Con]
+            CreateTabButton(modeBar.transform, "tab-all", "Tất Cả", new Vector2(600, 0), () => SetFilter("ALL"));
+            CreateTabButton(modeBar.transform, "tab-dad", "Cha (Dad)", new Vector2(700, 0), () => SetFilter("Dad"));
+            CreateTabButton(modeBar.transform, "tab-child", "Con (Child)", new Vector2(800, 0), () => SetFilter("Child"));
 
             // Body Area (Split Left: List, Right: 3D Preview)
             var body = CreatePanel(dialog.transform, "body-area", Color.clear);
@@ -356,16 +413,18 @@ namespace Blocks.Gameplay.Core
             rawRt.offsetMin = rawRt.offsetMax = Vector2.zero;
 
             m_PreviewRawImage = rawImageGo.GetComponent<RawImage>();
+            m_PreviewRawImage.raycastTarget = true;
             if (previewStage != null && previewStage.TargetTexture != null)
             {
                 m_PreviewRawImage.texture = previewStage.TargetTexture;
             }
 
-            // Drag handler on the preview stage
-            var dragTrigger = rawImageGo.AddComponent<Button>();
-            dragTrigger.transition = Selectable.Transition.None;
+            // Gắn component bắt sự kiện kéo chuột xoay 360 độ
+            var dragRotator = rawImageGo.AddComponent<StorePreviewDragRotator>();
+            dragRotator.stage = previewStage;
+            dragRotator.sensitivity = 1.2f;
 
-            var hintText = CreateText(rightPanel.transform, "hint", "Kéo chuột để xoay 360°", 12, FontStyles.Italic, new Color(0.7f, 0.7f, 0.7f));
+            var hintText = CreateText(rightPanel.transform, "hint", "Kéo chuột trái để xoay 360°", 12, FontStyles.Italic, new Color(0.7f, 0.7f, 0.7f));
             var hintRt = hintText.GetComponent<RectTransform>();
             hintRt.anchorMin = hintRt.anchorMax = new Vector2(0.5f, 0.25f);
             hintRt.anchoredPosition = Vector2.zero;
@@ -402,7 +461,7 @@ namespace Blocks.Gameplay.Core
         {
             if (m_TopupModal != null) return;
 
-            m_TopupModal = CreatePanel(lobbyCanvas.transform, "topup-modal-panel", new Color(0f, 0f, 0f, 0.85f));
+            m_TopupModal = CreatePanel(lobbyCanvas.transform, "topup-modal-panel", new Color(0f, 0f, 0f, 0.90f));
             var rootRt = m_TopupModal.GetComponent<RectTransform>();
             rootRt.anchorMin = Vector2.zero;
             rootRt.anchorMax = Vector2.one;
@@ -482,7 +541,7 @@ namespace Blocks.Gameplay.Core
 
         private void CreateTabButton(Transform parent, string name, string label, Vector2 pos, Action onClick)
         {
-            var btn = CreateButton(parent, name, label, new Vector2(100, 30), new Color(0.15f, 0.20f, 0.30f));
+            var btn = CreateButton(parent, name, label, new Vector2(90, 30), new Color(0.15f, 0.20f, 0.30f));
             var rt = btn.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
             rt.pivot = new Vector2(0f, 0.5f);
@@ -492,9 +551,29 @@ namespace Blocks.Gameplay.Core
 
         // ─── Actions & Logic ────────────────────────────────────────
 
+        public void SwitchMode(ViewMode mode)
+        {
+            m_CurrentMode = mode;
+            if (m_ModeStoreBtn != null)
+            {
+                m_ModeStoreBtn.GetComponent<Image>().color = (mode == ViewMode.Store)
+                    ? new Color(0.15f, 0.42f, 0.85f) : new Color(0.15f, 0.20f, 0.30f);
+            }
+            if (m_ModeCollectionBtn != null)
+            {
+                m_ModeCollectionBtn.GetComponent<Image>().color = (mode == ViewMode.Collection)
+                    ? new Color(0.15f, 0.42f, 0.85f) : new Color(0.15f, 0.20f, 0.30f);
+            }
+
+            RebuildSkinCards();
+        }
+
         public void OpenStore()
         {
             UISoundManager.PlayClick();
+
+            // Ẩn các panel giao diện nền
+            HideBackgroundPanels();
 
             if (m_StoreModal != null)
             {
@@ -512,11 +591,22 @@ namespace Blocks.Gameplay.Core
             {
                 m_StoreModal.SetActive(false);
             }
+
+            // Khôi phục lại các panel giao diện nền đã ẩn
+            RestoreBackgroundPanels();
+
+            // Phục hồi lại visual của nhân vật trong Lobby theo đúng skin đã trang bị
+            Lobby3DManager.Instance?.RefreshEquippedSkinsInLobby();
         }
 
         public void OpenTopup()
         {
             UISoundManager.PlayClick();
+
+            if (m_StoreModal == null || !m_StoreModal.activeSelf)
+            {
+                HideBackgroundPanels();
+            }
 
             if (m_TopupModal != null)
             {
@@ -532,6 +622,48 @@ namespace Blocks.Gameplay.Core
             {
                 m_TopupModal.SetActive(false);
             }
+
+            if (m_StoreModal == null || !m_StoreModal.activeSelf)
+            {
+                RestoreBackgroundPanels();
+            }
+        }
+
+        private void HideBackgroundPanels()
+        {
+            m_HiddenPanelsDuringStore.Clear();
+            string[] panelsToHide = {
+                "main-buttons-panel",
+                "lobby-buttons-panel",
+                "room-info-panel",
+                "session-list-panel",
+                "chat-panel",
+                "tutorial-dialog-panel",
+                "join-code-panel",
+                "voice-settings-panel"
+            };
+
+            foreach (var panelName in panelsToHide)
+            {
+                var panel = FindInCanvas<Transform>(panelName);
+                if (panel != null && panel.gameObject.activeSelf)
+                {
+                    panel.gameObject.SetActive(false);
+                    m_HiddenPanelsDuringStore.Add(panel.gameObject);
+                }
+            }
+        }
+
+        private void RestoreBackgroundPanels()
+        {
+            foreach (var panel in m_HiddenPanelsDuringStore)
+            {
+                if (panel != null)
+                {
+                    panel.SetActive(true);
+                }
+            }
+            m_HiddenPanelsDuringStore.Clear();
         }
 
         public void SetFilter(string filter)
@@ -576,21 +708,22 @@ namespace Blocks.Gameplay.Core
                 m_EquippedDadSkinId = inventoryRes?.equippedDadSkinId;
                 m_EquippedChildSkinId = inventoryRes?.equippedChildSkinId;
 
-                // Sync PlayerPrefs cho PlayerSkinSync
+                // Sync PlayerPrefs cho PlayerSkinSync và Lobby
                 if (ApiClient.IsLoggedIn)
                 {
                     PlayerPrefs.SetString($"HMH.Store.{ApiClient.UserId}.Dad", m_EquippedDadSkinId ?? string.Empty);
                     PlayerPrefs.SetString($"HMH.Store.{ApiClient.UserId}.Child", m_EquippedChildSkinId ?? string.Empty);
                 }
 
+                Lobby3DManager.Instance?.RefreshEquippedSkinsInLobby();
                 RebuildSkinCards();
 
-                // Mặc định chọn skin đầu tiên nếu chưa chọn
-                if (string.IsNullOrEmpty(m_SelectedSkinId) && m_Catalog.Count > 0)
+                // Mặc định chọn skin
+                if (string.IsNullOrEmpty(m_SelectedSkinId))
                 {
-                    SelectSkin(m_Catalog[0].skinId);
+                    SelectSkin(m_CurrentMode == ViewMode.Collection ? "default_dad" : (m_Catalog.Count > 0 ? m_Catalog[0].skinId : "default_dad"));
                 }
-                else if (!string.IsNullOrEmpty(m_SelectedSkinId))
+                else
                 {
                     SelectSkin(m_SelectedSkinId);
                 }
@@ -616,6 +749,19 @@ namespace Blocks.Gameplay.Core
                 Destroy(m_SkinCardsContainer.GetChild(i).gameObject);
             }
 
+            // Nếu đang ở tab BỘ SƯU TẬP: luôn đưa trang phục Mặc Định lên đầu tiên
+            if (m_CurrentMode == ViewMode.Collection)
+            {
+                if (m_RoleFilter == "ALL" || m_RoleFilter == "Dad")
+                {
+                    CreateSkinCard(new SkinDto { skinId = "default_dad", name = "Trang phục Mặc Định", role = "Dad", price = 0, isActive = true }, isDefault: true);
+                }
+                if (m_RoleFilter == "ALL" || m_RoleFilter == "Child")
+                {
+                    CreateSkinCard(new SkinDto { skinId = "default_child", name = "Trang phục Mặc Định", role = "Child", price = 0, isActive = true }, isDefault: true);
+                }
+            }
+
             foreach (var skin in m_Catalog)
             {
                 if (m_RoleFilter != "ALL" && !string.Equals(skin.role, m_RoleFilter, StringComparison.OrdinalIgnoreCase))
@@ -623,15 +769,32 @@ namespace Blocks.Gameplay.Core
                     continue;
                 }
 
-                CreateSkinCard(skin);
+                bool isOwned = m_OwnedSkinIds.Contains(skin.skinId);
+
+                // Trong tab Bộ Sưu Tập, chỉ hiển thị skin đã mua
+                if (m_CurrentMode == ViewMode.Collection && !isOwned)
+                {
+                    continue;
+                }
+
+                CreateSkinCard(skin, isDefault: false);
             }
         }
 
-        private void CreateSkinCard(SkinDto skin)
+        private void CreateSkinCard(SkinDto skin, bool isDefault)
         {
-            bool isOwned = m_OwnedSkinIds.Contains(skin.skinId);
             bool isDad = string.Equals(skin.role, "Dad", StringComparison.OrdinalIgnoreCase);
-            bool isEquipped = isDad ? (m_EquippedDadSkinId == skin.skinId) : (m_EquippedChildSkinId == skin.skinId);
+            bool isOwned = isDefault || m_OwnedSkinIds.Contains(skin.skinId);
+            bool isEquipped = false;
+
+            if (isDefault)
+            {
+                isEquipped = isDad ? string.IsNullOrEmpty(m_EquippedDadSkinId) : string.IsNullOrEmpty(m_EquippedChildSkinId);
+            }
+            else
+            {
+                isEquipped = isDad ? (m_EquippedDadSkinId == skin.skinId) : (m_EquippedChildSkinId == skin.skinId);
+            }
 
             var card = CreatePanel(m_SkinCardsContainer, "card-" + skin.skinId, new Color(0.12f, 0.15f, 0.22f, 1f));
             var cardRt = card.GetComponent<RectTransform>();
@@ -651,9 +814,25 @@ namespace Blocks.Gameplay.Core
             var nameText = CreateText(card.transform, "name", skin.name, 15, FontStyles.Bold, Color.white);
             nameText.GetComponent<RectTransform>().anchoredPosition = new Vector2(65, 16);
 
-            // Price / Owned Status
-            string priceStr = isOwned ? "Đã sở hữu" : $"🪙 {skin.price} Coins";
-            Color priceCol = isOwned ? new Color(0.5f, 0.8f, 0.5f) : new Color(0.98f, 0.75f, 0.18f);
+            // Price / Status Label
+            string priceStr;
+            Color priceCol;
+            if (isDefault)
+            {
+                priceStr = "Trang phục gốc";
+                priceCol = new Color(0.6f, 0.8f, 1f);
+            }
+            else if (isOwned)
+            {
+                priceStr = "Đã sở hữu";
+                priceCol = new Color(0.5f, 0.8f, 0.5f);
+            }
+            else
+            {
+                priceStr = $"{skin.price:N0} Coins";
+                priceCol = new Color(0.98f, 0.75f, 0.18f);
+            }
+
             var priceText = CreateText(card.transform, "price", priceStr, 13, FontStyles.Normal, priceCol);
             priceText.GetComponent<RectTransform>().anchoredPosition = new Vector2(16, -14);
 
@@ -674,7 +853,7 @@ namespace Blocks.Gameplay.Core
             }
             else if (isOwned)
             {
-                btn.onClick.AddListener(() => _ = ExecuteEquipAsync(skin.skinId));
+                btn.onClick.AddListener(() => _ = ExecuteEquipAsync(skin.skinId, skin.role));
             }
             else
             {
@@ -685,12 +864,31 @@ namespace Blocks.Gameplay.Core
         public void SelectSkin(string skinId)
         {
             m_SelectedSkinId = skinId;
-            var skin = m_Catalog.Find(s => s.skinId == skinId);
+            bool isDefault = (skinId == "default_dad" || skinId == "default_child");
+
+            SkinDto skin = null;
+            if (isDefault)
+            {
+                string r = skinId == "default_dad" ? "Dad" : "Child";
+                skin = new SkinDto { skinId = skinId, name = "Trang phục Mặc Định", role = r, price = 0 };
+            }
+            else
+            {
+                skin = m_Catalog.Find(s => s.skinId == skinId);
+            }
+
             if (skin == null) return;
 
+            // 1. Cập nhật Preview Stage
             if (previewStage != null)
             {
                 previewStage.ShowSkin(skinId);
+            }
+
+            // 2. CẬP NHẬT TRỰC TIẾP MODEL NHÂN VẬT TRONG LOBBY 3D
+            if (Lobby3DManager.Instance != null)
+            {
+                Lobby3DManager.Instance.UpdatePreviewSkin(skin.role, isDefault ? string.Empty : skin.skinId);
             }
 
             if (m_PreviewSkinNameText != null)
@@ -699,13 +897,27 @@ namespace Blocks.Gameplay.Core
                 m_PreviewSkinNameText.text = $"{skin.name} {roleTag}";
             }
 
-            bool isOwned = m_OwnedSkinIds.Contains(skin.skinId);
             bool isDad = string.Equals(skin.role, "Dad", StringComparison.OrdinalIgnoreCase);
-            bool isEquipped = isDad ? (m_EquippedDadSkinId == skin.skinId) : (m_EquippedChildSkinId == skin.skinId);
+            bool isOwned = isDefault || m_OwnedSkinIds.Contains(skin.skinId);
+            bool isEquipped = false;
+
+            if (isDefault)
+            {
+                isEquipped = isDad ? string.IsNullOrEmpty(m_EquippedDadSkinId) : string.IsNullOrEmpty(m_EquippedChildSkinId);
+            }
+            else
+            {
+                isEquipped = isDad ? (m_EquippedDadSkinId == skin.skinId) : (m_EquippedChildSkinId == skin.skinId);
+            }
 
             if (m_PreviewSkinPriceText != null)
             {
-                m_PreviewSkinPriceText.text = isOwned ? "✓ Đã trong bộ sưu tập" : $"Giá bán: 🪙 {skin.price} Coins";
+                if (isDefault)
+                    m_PreviewSkinPriceText.text = "Trang phục nguyên bản của nhân vật";
+                else if (isOwned)
+                    m_PreviewSkinPriceText.text = "✓ Đã trong bộ sưu tập";
+                else
+                    m_PreviewSkinPriceText.text = $"Giá bán: {skin.price:N0} Coins";
             }
 
             if (m_PreviewActionButton != null && m_PreviewActionText != null)
@@ -724,7 +936,7 @@ namespace Blocks.Gameplay.Core
                 }
                 else
                 {
-                    m_PreviewActionText.text = $"MUA ({skin.price} 🪙)";
+                    m_PreviewActionText.text = $"MUA ({skin.price:N0} Coins)";
                     m_PreviewActionButton.interactable = true;
                     m_PreviewActionButton.GetComponent<Image>().color = new Color(0.85f, 0.5f, 0.1f);
                 }
@@ -734,13 +946,22 @@ namespace Blocks.Gameplay.Core
         private void OnPreviewActionClicked()
         {
             if (string.IsNullOrEmpty(m_SelectedSkinId)) return;
+
+            bool isDefault = (m_SelectedSkinId == "default_dad" || m_SelectedSkinId == "default_child");
+            if (isDefault)
+            {
+                string r = m_SelectedSkinId == "default_dad" ? "Dad" : "Child";
+                _ = ExecuteEquipAsync(m_SelectedSkinId, r);
+                return;
+            }
+
             var skin = m_Catalog.Find(s => s.skinId == m_SelectedSkinId);
             if (skin == null) return;
 
             bool isOwned = m_OwnedSkinIds.Contains(skin.skinId);
             if (isOwned)
             {
-                _ = ExecuteEquipAsync(skin.skinId);
+                _ = ExecuteEquipAsync(skin.skinId, skin.role);
             }
             else
             {
@@ -775,7 +996,7 @@ namespace Blocks.Gameplay.Core
                 ShowToast($"Mua thành công '{skin.name}'!");
 
                 // Tự động trang bị sau khi mua
-                await ExecuteEquipAsync(skin.skinId);
+                await ExecuteEquipAsync(skin.skinId, skin.role);
             }
             catch (Exception ex)
             {
@@ -790,12 +1011,15 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        private async Task ExecuteEquipAsync(string skinId)
+        private async Task ExecuteEquipAsync(string skinId, string role)
         {
             m_IsBusy = true;
             try
             {
-                var body = JsonUtility.ToJson(new EquipRequest { skinId = skinId });
+                bool isDefault = (skinId == "default_dad" || skinId == "default_child");
+                string apiSkinId = isDefault ? string.Empty : skinId;
+
+                var body = JsonUtility.ToJson(new EquipRequest { skinId = apiSkinId, role = role });
                 var resJson = await ApiClient.PostAsync("/store/equip", body);
                 var res = JsonUtility.FromJson<ActionResult>(resJson);
 
@@ -808,8 +1032,11 @@ namespace Blocks.Gameplay.Core
                     PlayerPrefs.SetString($"HMH.Store.{ApiClient.UserId}.Child", m_EquippedChildSkinId ?? string.Empty);
                 }
 
+                // Cập nhật model nhân vật trong Lobby ngay tức thì
+                Lobby3DManager.Instance?.RefreshEquippedSkinsInLobby();
+
                 UISoundManager.PlayConfirm();
-                ShowToast("Đã trang bị skin thành công!");
+                ShowToast(isDefault ? "Đã chuyển về trang phục mặc định!" : "Đã trang bị skin thành công!");
             }
             catch (Exception ex)
             {
@@ -860,7 +1087,7 @@ namespace Blocks.Gameplay.Core
 
         private void UpdateCoinsDisplay()
         {
-            string coinStr = $"🪙 {m_CurrentCoins:N0} Coins";
+            string coinStr = $"Coins: {m_CurrentCoins:N0}";
             if (m_CoinBadgeText != null) m_CoinBadgeText.text = coinStr;
             if (m_StoreCoinText != null) m_StoreCoinText.text = coinStr;
         }
@@ -883,7 +1110,7 @@ namespace Blocks.Gameplay.Core
         // ─── Ready Guard ───────────────────────────────────────────
         public void SetStoreInteractable(bool interactable)
         {
-            if (m_LobbyStoreButton != null) m_LobbyStoreButton.interactable = interactable;
+            if (m_TopStoreButton != null) m_TopStoreButton.interactable = interactable;
             if (m_CoinBadgeButton != null) m_CoinBadgeButton.interactable = interactable;
             if (!interactable && m_StoreModal != null && m_StoreModal.activeSelf)
             {

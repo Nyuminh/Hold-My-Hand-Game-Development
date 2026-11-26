@@ -13,7 +13,7 @@ namespace Blocks.Gameplay.Core
         [Header("Render Texture")]
         [SerializeField] private int textureWidth = 512;
         [SerializeField] private int textureHeight = 512;
-        [SerializeField] private float rotationSpeed = 0.4f;
+        [SerializeField] private float rotationSpeed = 1.2f;
 
         private static readonly Vector3 StageOrigin = new Vector3(800f, 800f, 800f);
 
@@ -100,19 +100,56 @@ namespace Blocks.Gameplay.Core
                 m_CurrentModel = null;
             }
 
-            var db = SkinDatabase.Load();
-            if (db == null || !db.TryGet(skinId, out var entry) || entry.Model == null)
+            GameObject prefabToSpawn = null;
+            bool isChild = false;
+
+            if (skinId == "default_dad")
+            {
+                if (Lobby3DManager.Instance != null && Lobby3DManager.Instance.Player1Preview != null)
+                {
+                    prefabToSpawn = Lobby3DManager.Instance.Player1Preview;
+                }
+                isChild = false;
+            }
+            else if (skinId == "default_child")
+            {
+                if (Lobby3DManager.Instance != null && Lobby3DManager.Instance.Player2Preview != null)
+                {
+                    prefabToSpawn = Lobby3DManager.Instance.Player2Preview;
+                }
+                isChild = true;
+            }
+            else
+            {
+                var db = SkinDatabase.Load();
+                if (db != null && db.TryGet(skinId, out var entry) && entry.Model != null)
+                {
+                    prefabToSpawn = entry.Model;
+                    isChild = string.Equals(entry.Role, "Child", StringComparison.OrdinalIgnoreCase);
+                }
+            }
+
+            if (prefabToSpawn == null)
             {
                 Debug.LogWarning($"[StorePreviewStage] Không tìm thấy model cho skin: {skinId}");
                 return;
             }
 
-            m_CurrentModel = Instantiate(entry.Model, m_ModelRotator);
+            m_CurrentModel = Instantiate(prefabToSpawn, m_ModelRotator);
             m_CurrentModel.transform.localPosition = Vector3.zero;
             m_CurrentModel.transform.localRotation = Quaternion.identity;
 
+            // Dọn dẹp các component gameplay/network nếu clone từ scene
+            foreach (var comp in m_CurrentModel.GetComponentsInChildren<MonoBehaviour>())
+            {
+                if (!(comp is Animator)) comp.enabled = false;
+            }
+            foreach (var col in m_CurrentModel.GetComponentsInChildren<Collider>())
+            {
+                col.enabled = false;
+            }
+
             // Tự động căn giữa và tỉ lệ phù hợp cho khung hình
-            bool isChild = string.Equals(entry.Role, "Child", StringComparison.OrdinalIgnoreCase);
             if (isChild)
             {
                 m_CurrentModel.transform.localPosition = new Vector3(0f, 0.3f, 0f);
@@ -120,7 +157,7 @@ namespace Blocks.Gameplay.Core
             }
             else
             {
-                m_CurrentModel.transform.localPosition = Vector3.zero;
+                m_CurrentModel.transform.localPosition = new Vector3(0f, 0.05f, 0f);
                 m_CurrentModel.transform.localScale = Vector3.one;
             }
 

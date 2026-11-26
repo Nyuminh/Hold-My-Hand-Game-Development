@@ -143,6 +143,15 @@ namespace Blocks.Gameplay.Core
         private CancellationTokenSource m_PollCts;
         private StoreUIController m_StoreUIController;
 
+        public static Lobby3DManager Instance { get; private set; }
+        public GameObject Player1Preview => player1Preview;
+        public GameObject Player2Preview => player2Preview;
+
+        private void Awake()
+        {
+            Instance = this;
+        }
+
         // ────────────────────────────────────────────────────────
         #region Unity Lifecycle
 
@@ -447,6 +456,33 @@ namespace Blocks.Gameplay.Core
             {
                 EnsurePreviewAnimator(player2Preview);
                 player2Preview.SetActive(false);
+            }
+
+            RefreshEquippedSkinsInLobby();
+        }
+
+        public void UpdatePreviewSkin(string role, string skinId)
+        {
+            bool isDad = string.Equals(role, "Dad", StringComparison.OrdinalIgnoreCase);
+            var target = isDad ? player1Preview : player2Preview;
+            if (target == null) return;
+
+            if (!target.TryGetComponent<LobbyPreviewSkin>(out var previewSkin))
+            {
+                previewSkin = target.AddComponent<LobbyPreviewSkin>();
+                previewSkin.Initialize(isDad);
+            }
+            previewSkin.ApplySkin(skinId);
+        }
+
+        public void RefreshEquippedSkinsInLobby()
+        {
+            if (ApiClient.IsLoggedIn)
+            {
+                string dadSkin = PlayerPrefs.GetString($"HMH.Store.{ApiClient.UserId}.Dad", string.Empty);
+                string childSkin = PlayerPrefs.GetString($"HMH.Store.{ApiClient.UserId}.Child", string.Empty);
+                UpdatePreviewSkin("Dad", dadSkin);
+                UpdatePreviewSkin("Child", childSkin);
             }
         }
 
