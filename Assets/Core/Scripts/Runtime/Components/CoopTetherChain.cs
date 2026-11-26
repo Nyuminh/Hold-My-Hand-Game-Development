@@ -4,11 +4,12 @@ using UnityEngine.InputSystem;
 
 namespace Blocks.Gameplay.Core
 {
-    [RequireComponent(typeof(NetworkObject), typeof(LineRenderer), typeof(AudioSource))]
+    [RequireComponent(typeof(NetworkObject), typeof(AudioSource))]
     public sealed class CoopTetherChain : NetworkBehaviour
     {
         public const float Length = 9.5f;
         const float RespawnDelay = 3f;
+        public GameObject chainModel;
         public AudioClip clink;
         public AbyssFallTrigger abyss;
         public event System.Action CrewFell;
@@ -19,20 +20,18 @@ namespace Blocks.Gameplay.Core
         public void RequestHaul() { if (IsSpawned && IsSuspended) HaulRpc(); }
         CorePlayerManager dad, child;
         Transform dadHand, childHand;
-        LineRenderer chain;
+        HangingChain chain;
+        public bool ChainVisible => chain != null && chain.Visible;
         bool wasTaut;
         float recoverAt;
         float nextSound;
 
         void Awake()
         {
-            chain = GetComponent<LineRenderer>();
-            chain.enabled = false;
-            chain.positionCount = 17;
-            chain.useWorldSpace = true;
-            chain.startWidth = chain.endWidth = .045f;
-            chain.startColor = chain.endColor = new Color(.46f, .48f, .52f);
+            if (chainModel) chain = new HangingChain(transform, chainModel, Length);
         }
+
+        public override void OnNetworkDespawn() => chain?.Hide();
 
         void LateUpdate()
         {
@@ -41,22 +40,19 @@ namespace Blocks.Gameplay.Core
             {
                 dad = child = null;
                 foreach (var actor in LevelTwoActors.All)
+                {
+                    if (!LevelOnePlayer.IsAlive(actor)) continue;
                     if (LevelOnePlayer.IsDad(actor)) dad = actor;
                     else child = actor;
-                chain.enabled = dad && child;
-                if (!chain.enabled) { if (IsServer) ClearCatch(); return; }
+                }
+                chain?.Hide();
+                if (!dad || !child) { if (IsServer) ClearCatch(); return; }
                 dadHand = Hand(dad, HumanBodyBones.RightHand);
                 childHand = Hand(child, HumanBodyBones.LeftHand);
             }
-            Vector3 a = dadHand ? dadHand.position : dad.transform.position + Vector3.up;
-            Vector3 b = childHand ? childHand.position : child.transform.position + Vector3.up;
-            float distance = Vector3.Distance(dad.transform.position, child.transform.position);
-            float sag = Mathf.Clamp((Length - Vector3.Distance(a, b)) * .14f, 0, .78f);
-            for (int i = 0; i < chain.positionCount; i++)
-            {
-                float t = (float)i / (chain.positionCount - 1);
-                chain.SetPosition(i, Vector3.Lerp(a, b, t) + Vector3.down * (4 * t * (1 - t) * sag));
-            }
+
+            Vector3 a = Anchor(dad, dadHand), b = Anchor(child, childHand);
+            float distance = Vector3.Distance(a, b);
             if (IsServer)
             {
                 bool dadBelow = abyss.Below(dad.transform), childBelow = abyss.Below(child.transform);
@@ -76,6 +72,13 @@ namespace Blocks.Gameplay.Core
                 { ClinkRpc(); nextSound = Time.time + .65f; }
                 wasTaut = distance > Length;
             }
+            UpdateCrew();
+            ConstrainHands(Anchor(child, childHand) - Anchor(dad, dadHand));
+            chain?.Step(Anchor(dad, dadHand), Anchor(child, childHand), Time.deltaTime);
+        }
+
+        void UpdateCrew()
+        {
             if (suspended.Value == 3)
             {
                 if (child.IsOwner)
@@ -86,15 +89,7 @@ namespace Blocks.Gameplay.Core
                 }
                 return;
             }
-            if (suspended.Value == 0)
-            {
-                if (distance > Length)
-                {
-                    Pull(dad, child, distance);
-                    Pull(child, dad, distance);
-                }
-                return;
-            }
+            if (suspended.Value == 0) return;
             var fallen = child;
             var anchor = dad;
             if (anchor.IsOwner && Keyboard.current != null &&
@@ -102,7 +97,9 @@ namespace Blocks.Gameplay.Core
             if (!fallen.IsOwner) return;
             var cc = fallen.GetComponent<CharacterController>();
             if (!cc.enabled) return;
-            fallen.CoreMovement.SetVerticalVelocity(0);
+            bool taut = Vector3.Distance(Anchor(dad, dadHand), Anchor(child, childHand)) >= Length - .02f;
+            if (hauling.Value || (taut && fallen.CoreMovement.VerticalVelocity < 0))
+                fallen.CoreMovement.SetVerticalVelocity(0);
             var delta = anchor.transform.position - fallen.transform.position;
             if (hauling.Value)
             {
@@ -111,7 +108,6 @@ namespace Blocks.Gameplay.Core
                 if (delta.y > -.25f) destination = new Vector3(fallen.transform.position.x, destination.y, fallen.transform.position.z);
                 cc.Move(Vector3.ClampMagnitude(destination - fallen.transform.position, 7f * Time.deltaTime));
             }
-            else if (delta.magnitude > Length) cc.Move(delta.normalized * Mathf.Min(delta.magnitude - Length, 12 * Time.deltaTime));
             if (hauling.Value && delta.magnitude < 1.35f) FinishRpc();
         }
 
@@ -123,11 +119,31 @@ namespace Blocks.Gameplay.Core
         }
         static bool Supported(CorePlayerManager actor) => Physics.Raycast(actor.transform.position + Vector3.up * .15f,
             Vector3.down, .65f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-        static void Pull(CorePlayerManager actor, CorePlayerManager partner, float distance)
+        static Vector3 Anchor(CorePlayerManager actor, Transform hand) =>
+            hand ? hand.position : actor.transform.position + Vector3.up;
+
+        void ConstrainHands(Vector3 span)
         {
-            if (!actor.IsOwner || !actor.TryGetComponent<CharacterController>(out var cc) || !cc.enabled) return;
-            cc.Move((partner.transform.position - actor.transform.position).normalized *
-                (Mathf.Min(7, 5 * (distance - Length)) * Time.deltaTime));
+            float distance = span.magnitude;
+            if (distance <= Length) return;
+            var direction = span / distance;
+            float excess = distance - Length;
+            var first = dad.GetComponent<CharacterController>();
+            var second = child.GetComponent<CharacterController>();
+            bool moveDad = dad.IsOwner && first.enabled && !IsSuspended;
+            bool moveChild = child.IsOwner && second.enabled;
+            if (moveDad && moveChild)
+            {
+                var before = dad.transform.position;
+                first.Move(direction * (.5f * excess));
+                excess -= Vector3.Dot(dad.transform.position - before, direction);
+            }
+            if (moveChild) second.Move(-direction * excess);
+            if (moveDad)
+            {
+                span = Anchor(child, childHand) - Anchor(dad, dadHand);
+                if (span.magnitude > Length) first.Move(span - span.normalized * Length);
+            }
         }
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         void HaulRpc(RpcParams rpc = default)
@@ -144,7 +160,7 @@ namespace Blocks.Gameplay.Core
                 Vector3.Distance(dad.transform.position, child.transform.position) < 2) ClearCatch();
         }
         void ClearCatch() { suspended.Value = 0; hauling.Value = false; }
-        public void ResetForCheckpoint() { if (IsServer) ClearCatch(); }
+        public void ResetForCheckpoint() { if (IsServer) ClearCatch(); chain?.Hide(); }
         [Rpc(SendTo.Everyone)]
         void ClinkRpc() { if (clink) GetComponent<AudioSource>().PlayOneShot(clink, .65f); }
     }

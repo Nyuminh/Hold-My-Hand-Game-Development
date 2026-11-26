@@ -65,7 +65,7 @@ namespace Blocks.Gameplay.Core
                     if (host) { yield return new WaitForSeconds(1); tether.RequestHaul(); }
                 }
                 if (caught && !tether.IsSuspended && actor.transform.position.y > launch.y - .5f &&
-                    tether.GetComponent<LineRenderer>().enabled)
+                    tether.ChainVisible)
                 {
                     Debug.Log("PASS replicated rescue on " + (host ? "host" : "client"));
                     yield return Puzzles(actor, host);
