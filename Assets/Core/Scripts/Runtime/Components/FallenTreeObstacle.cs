@@ -11,6 +11,7 @@ namespace Blocks.Gameplay.Core
         public GameObject wedge;
         private Vector3 closedPosition;
         private LevelOneBracePose brace;
+        protected override string QuestKey => "tree";
         public override bool Solved => Phase == 2;
 
         private void Awake() { if (trunk != null) closedPosition = trunk.localPosition; }

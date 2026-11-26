@@ -409,6 +409,8 @@ namespace Blocks.Gameplay.Core
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField($"[#{ch.orderIndex}] {ch.name} (Theme: {ch.theme})", EditorStyles.boldLabel);
 
+                    if (GUILayout.Button(ch.isActive ? "Tắt màn" : "Bật màn", GUILayout.Width(75)))
+                        _ = SetAvailabilityAsync(ch.id, !ch.isActive);
                     if (GUILayout.Button(m_SelectedChapterIndex == i ? "Đóng Quests" : "Xem Quests", GUILayout.Width(100)))
                     {
                         if (m_SelectedChapterIndex == i)
@@ -442,6 +444,8 @@ namespace Blocks.Gameplay.Core
                             EditorGUILayout.BeginVertical(GUI.skin.box);
                             EditorGUILayout.BeginHorizontal();
                             EditorGUILayout.LabelField($"• {q.name} [{q.questType}]", EditorStyles.label);
+                            if (GUILayout.Button(q.isActive ? "Tắt quest" : "Bật quest", GUILayout.Width(80)))
+                                _ = SetAvailabilityAsync(q.id, !q.isActive, ch.id);
                             if (GUILayout.Button("Xoá Quest", GUILayout.Width(80)))
                             {
                                 _ = DeleteQuestAsync(q.id, ch.id);
@@ -773,6 +777,18 @@ namespace Blocks.Gameplay.Core
             {
                 SetStatus($"Lỗi dừng phiên: {ex.Message}", MessageType.Error);
             }
+        }
+
+        private async Task SetAvailabilityAsync(string id, bool enabled, string chapterId = null)
+        {
+            try
+            {
+                var resource = chapterId == null ? "chapters" : "quests";
+                await ApiClient.PutAsync($"/mod/{resource}/{id}", enabled ? "{\"isActive\":true}" : "{\"isActive\":false}");
+                if (chapterId == null) await FetchChaptersAsync();
+                else await FetchQuestsAsync(chapterId);
+            }
+            catch (Exception ex) { SetStatus(ex.Message, MessageType.Error); }
         }
 
         private async Task FetchChaptersAsync()

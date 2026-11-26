@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Blocks.Gameplay.Core
@@ -5,6 +7,39 @@ namespace Blocks.Gameplay.Core
     // Local durable progress. The room host selects the start; Netcode replicates the result.
     public static class CampaignProgress
     {
+        [Serializable] private class Chapter { public string scene; public string[] quests; }
+        [Serializable] private class Catalog { public Chapter[] chapters; }
+        private static Catalog catalog;
+        private static Task inFlight;
+        public static Task RefreshCatalog()
+        {
+            if (inFlight == null || inFlight.IsCompleted) inFlight = LoadCatalog();
+            return inFlight;
+        }
+
+        private static async Task LoadCatalog()
+        {
+            var json = await ApiClient.GetAsync("/game/campaign", false);
+            var result = JsonUtility.FromJson<Catalog>(json);
+            if (result?.chapters == null) throw new InvalidOperationException("Danh sách màn chơi không hợp lệ.");
+            catalog = result;
+        }
+
+        public static bool Available(int level) => level >= 1 && level <= 3 && catalog != null &&
+            Array.Exists(catalog.chapters, chapter => chapter.scene == Scene(level));
+
+        public static int NextAvailable(int current)
+        {
+            for (int i = current + 1; i <= 3; i++) if (Available(i)) return i;
+            return 0;
+        }
+
+        public static bool SkipQuest(int level, string key)
+        {
+            var chapter = catalog == null ? null : Array.Find(catalog.chapters, item => item.scene == Scene(level));
+            return chapter?.quests != null && Array.IndexOf(chapter.quests, key) < 0;
+        }
+
         public const string LastLevelKey = "HMH.Campaign.LastLevel";
         private static int requestedLevel, requestedCheckpoint;
         public static string CheckpointKey(int level) => "HMH.Campaign.Level" + level + ".Checkpoint";
@@ -35,6 +70,6 @@ namespace Blocks.Gameplay.Core
         public static string Description(int level, int checkpoint) => "Màn " + level + " · " +
             (checkpoint >= (level == 2 ? 6 : 4) ? "Đã hoàn thành" : "Chặng " + (checkpoint + 1));
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetSession() { requestedLevel = 0; }
+        private static void ResetSession() { requestedLevel = 0; catalog = null; inFlight = null; }
     }
 }

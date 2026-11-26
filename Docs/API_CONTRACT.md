@@ -114,3 +114,9 @@ public static async Task<CloseLobbyResponse> CloseLobbyAsync(string lobbyCode, C
 - Each following binary frame is 644 bytes: 4-byte unsigned sequence number in little-endian order followed by 320 signed 16-bit little-endian PCM samples, mono at 16 kHz (20 ms). The server forwards each frame to the other authenticated player in the same Unity Lobby ID, never back to its sender. No audio is persisted.
 - The client reconnects after a disconnect and re-authenticates with its current Unity token. Leaving the lobby closes the socket and stops the microphone. The WebSocket stays attached to `VoiceChatManager` across lobby-to-game scene changes.
 - The current relay stores room sockets in Function memory. Vercel may place two clients on different instances, so production two-client delivery requires shared room fan-out (for example Redis pub/sub) and must be verified on the deployed endpoint. A successful WebSocket handshake alone does not establish that audio will reach the peer.
+
+## Đăng ký và cấu hình chiến dịch
+
+- `POST /api/auth/register` nhận `username`, `email`, `password` (từ 8 ký tự, tối đa 72 byte) và `displayName` tùy chọn. Trả 201 cùng `userId`, `username`, `role: Player`, `displayName`. Dữ liệu sai trả 400, trùng username hoặc email trả 409. Đăng nhập qua `/api/auth/login`.
+- `GET /api/game/campaign` công khai trả `{"chapters":[{"scene":"PlayScene1","quests":["tree","chasm","mud"]}]}` với các màn và quest đang mở. Màn 1, 2, 3 lần lượt dùng PlayScene1, PlayScene2, PlayScene4.
+- Mod hoặc Admin gọi `PUT /api/mod/chapters/{id}` hoặc `PUT /api/mod/quests/{id}` với `{"isActive":false}` để tắt và `true` để bật lại. Dùng danh sách mod để lấy ID, kể cả nội dung đang tắt. Cấu hình màn được kiểm tra trước khi host bắt đầu hoặc chuyển màn. Quest được áp dụng khi vào màn.

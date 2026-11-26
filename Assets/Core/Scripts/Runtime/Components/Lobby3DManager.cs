@@ -296,6 +296,7 @@ namespace Blocks.Gameplay.Core
 
         private void OnDisable()
         {
+            CancelInvoke(nameof(RefreshLobbyCatalog));
             StopPolling();
             if (VoiceChatManager.Instance != null) VoiceChatManager.Instance.SuppressPushToTalk = false;
         }
@@ -348,6 +349,7 @@ namespace Blocks.Gameplay.Core
             m_CancelJoinButton = FindUI<Button>("cancel-join-button");
             m_LobbyButtonsPanel = FindPanel("lobby-buttons-panel");
             m_PlayButton = FindUI<Button>("play-button");
+            InvokeRepeating(nameof(RefreshLobbyCatalog), 0f, 30f);
             m_ContinueCampaign = FindUI<Button>("campaign-continue-button");
             m_LevelOne = FindUI<Button>("campaign-level1-button");
             m_LevelTwo = FindUI<Button>("campaign-level2-button");
@@ -891,11 +893,19 @@ namespace Blocks.Gameplay.Core
 
         public static bool AmIDad = true; // Lưu role của bản thân để dùng lúc Spawn
 
+        private async void RefreshLobbyCatalog()
+        {
+            try { await CampaignProgress.RefreshCatalog(); }
+            catch (Exception ex) { if (this) ShowToast("Chưa tải được danh sách màn. " + ex.Message); }
+            if (this) RefreshCampaignSelection();
+        }
+
         private int SelectedLevel => m_LevelChoice == 0 ? CampaignProgress.LastLevel : m_LevelChoice;
         private int SelectedCheckpoint => m_LevelChoice == 0 ? CampaignProgress.SavedCheckpoint(SelectedLevel) : 0;
         private async void ChooseCampaign(int choice)
         {
             if (m_StartingGame || (!string.IsNullOrEmpty(m_CurrentLobbyId) && !m_IsHost)) return;
+            if (!CampaignProgress.Available(choice == 0 ? CampaignProgress.LastLevel : choice)) return;
             m_LevelChoice = choice;
             RefreshCampaignSelection();
             if (string.IsNullOrEmpty(m_CurrentLobbyId)) return;
@@ -910,10 +920,12 @@ namespace Blocks.Gameplay.Core
         private void RefreshCampaignSelection()
         {
             bool canChoose = !m_StartingGame && (string.IsNullOrEmpty(m_CurrentLobbyId) || m_IsHost);
-            foreach (var button in new[] { m_ContinueCampaign, m_LevelOne, m_LevelTwo, m_LevelThree })
-                if (button != null) button.interactable = canChoose;
+            if (m_ContinueCampaign != null) m_ContinueCampaign.interactable = canChoose && CampaignProgress.Available(CampaignProgress.LastLevel);
+            if (m_LevelOne != null) m_LevelOne.interactable = canChoose && CampaignProgress.Available(1);
+            if (m_LevelTwo != null) m_LevelTwo.interactable = canChoose && CampaignProgress.Available(2);
+            if (m_LevelThree != null) m_LevelThree.interactable = canChoose && CampaignProgress.Available(3);
             if (m_LevelSelectionLabel != null && canChoose)
-                m_LevelSelectionLabel.text = (m_LevelChoice == 0 ? "Tiếp tục: " : "Chơi từ đầu: ") + CampaignProgress.Description(SelectedLevel, SelectedCheckpoint);
+                m_LevelSelectionLabel.text = !CampaignProgress.Available(SelectedLevel) ? "Màn đã chọn chưa khả dụng." : (m_LevelChoice == 0 ? "Tiếp tục: " : "Chơi từ đầu: ") + CampaignProgress.Description(SelectedLevel, SelectedCheckpoint);
         }
         private void ReadCampaignSelection(Lobby lobby)
         {
@@ -944,7 +956,10 @@ namespace Blocks.Gameplay.Core
                 if (string.IsNullOrEmpty(dadId)) dadId = lobby.HostId;
                 AmIDad = (AuthenticationService.Instance.PlayerId == dadId);
 
+                await CampaignProgress.RefreshCatalog();
                 int level = SelectedLevel, checkpoint = SelectedCheckpoint;
+                if (!CampaignProgress.Available(level))
+                    throw new InvalidOperationException("Màn đã được tắt. Vui lòng chọn màn khác.");
                 var data = CampaignLobbyData();
                 data["status"] = new DataObject(DataObject.VisibilityOptions.Public, "InGame");
                 var options = new UpdateLobbyOptions { Data = data };
@@ -967,7 +982,7 @@ namespace Blocks.Gameplay.Core
             }
             catch (System.Exception ex)
             {
-                ShowToast("Bắt đầu game thất bại!");
+                ShowToast("Bắt đầu game thất bại: " + ex.Message);
                 Debug.LogError($"[Lobby3D] Play error: {ex}");
                 if (m_PlayButton != null) m_PlayButton.interactable = true;
                 if (m_SwapRoleButton != null) m_SwapRoleButton.interactable = true;
@@ -1349,7 +1364,7 @@ namespace Blocks.Gameplay.Core
             RefreshCampaignSelection();
             if (m_PlayButton != null)
             {
-                m_PlayButton.interactable = canPlay;
+                m_PlayButton.interactable = canPlay && CampaignProgress.Available(SelectedLevel);
                 if (canPlay)
                 {
                     SetButtonColor(m_PlayButton, new Color(0.90f, 0.66f, 0.16f)); // Vàng hoàng kim

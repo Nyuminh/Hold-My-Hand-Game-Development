@@ -11,6 +11,7 @@ namespace Blocks.Gameplay.Core
         public BoxCollider fallZone;
         public float lowerDuration = 1.2f;
         private float lowered;
+        protected override string QuestKey => "chasm";
         public override bool Solved => Phase == 2;
 
         public override bool TryInteract(CorePlayerManager player)

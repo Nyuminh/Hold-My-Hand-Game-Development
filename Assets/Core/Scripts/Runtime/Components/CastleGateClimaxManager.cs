@@ -202,22 +202,30 @@ namespace Blocks.Gameplay.Core
             if(cinematic != null)StopCoroutine(cinematic);cinematic=null;
         }
 
-        public void ContinueToNextLevel()
+        public async void ContinueToNextLevel()
         {
             if(!Solved || transitioning || !IsServer) return;
+            transitioning = true;
+            try { await CampaignProgress.RefreshCatalog(); }
+            catch (System.Exception ex) { transitioning = false; transitionError = ex.Message; return; }
+            if (!this || !IsSpawned || !IsServer) return;
+            int next = CampaignProgress.NextAvailable(1);
+            transitioning = false;
+            if (next == 0) { transitionError = "Đã hoàn thành các màn đang mở."; return; }
+            nextLevelScene = CampaignProgress.Scene(next);
             if(!Application.CanStreamedLevelBeLoaded(nextLevelScene)) { transitionError="Không tìm thấy màn tiếp theo trong Build Settings.";return; }
             transitioning=true;
-            PrepareNextLevelRpc();
+            PrepareNextLevelRpc(nextLevelScene);
             var status=NetworkManager.SceneManager.LoadScene(nextLevelScene,LoadSceneMode.Single);
             if(status!=SceneEventProgressStatus.Started){transitioning=false;transitionError="Chưa thể chuyển màn: "+status;}
         }
 
         [Rpc(SendTo.Everyone)]
-        private void PrepareNextLevelRpc()
+        private void PrepareNextLevelRpc(string destination)
         {
-            CampaignProgress.Select(CampaignProgress.Level(nextLevelScene), 0);
+            CampaignProgress.Select(CampaignProgress.Level(destination), 0);
             var transition=NetworkManager.gameObject.AddComponent<LevelOneSceneTransition>();
-            transition.Begin(NetworkManager,nextLevelScene);
+            transition.Begin(NetworkManager,destination);
         }
 
         protected override string Hint(CorePlayerManager player)
@@ -243,7 +251,7 @@ namespace Blocks.Gameplay.Core
             if(GUI.Button(new Rect(rect.x+40,rect.y+120,250,45),"Quay về Lobby"))
                 InGameEscapeMenuManager.EnsureInstanceInScene().ReturnToLobby();
             GUI.enabled=IsServer&&!transitioning;
-            if(GUI.Button(new Rect(rect.x+330,rect.y+120,250,45),"Tiếp tục Màn 2"))ContinueToNextLevel();
+            if(GUI.Button(new Rect(rect.x+330,rect.y+120,250,45),"Tiếp tục chiến dịch"))ContinueToNextLevel();
             GUI.enabled=true;
             GUI.Label(new Rect(rect.x+40,rect.y+185,540,40),transitionError??(IsServer?"Checkpoint đã lưu.":"Chờ chủ phòng chọn tiếp tục Màn 2."));
         }

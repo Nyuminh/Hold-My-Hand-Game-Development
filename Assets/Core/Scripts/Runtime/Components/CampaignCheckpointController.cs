@@ -107,10 +107,10 @@ namespace Blocks.Gameplay.Core
             // Also save when replay selects the already-current checkpoint.
             SaveProgressRpc(checkpoint.Value);
             if (level == 1) { boss.RestoreCampaignCheckpoint(checkpoint.Value); restoring = false; return; }
-            foreach (var gate in gates) gate.RestoreCheckpoint(index >= 1);
-            sluice.RestoreCheckpoint(index >= 2);
-            foreach (var beacon in beacons) beacon.RestoreCheckpoint(index >= 4);
-            mill.RestoreCheckpoint(index >= 5);
+            foreach (var gate in gates) gate.RestoreCheckpoint(index >= 1 || CampaignProgress.SkipQuest(2, "slalom"));
+            sluice.RestoreCheckpoint(index >= 2 || CampaignProgress.SkipQuest(2, "sluice"));
+            foreach (var beacon in beacons) beacon.RestoreCheckpoint(index >= 4 || CampaignProgress.SkipQuest(2, beacon == climax.west ? "west" : "east"));
+            mill.RestoreCheckpoint(index >= 5 || CampaignProgress.SkipQuest(2, "mill"));
             // Restoring/replaying the final checkpoint must re-arm the altar.
             climax.RestoreCheckpoint(index >= 5, false);
             boatHealth.Value = 100;

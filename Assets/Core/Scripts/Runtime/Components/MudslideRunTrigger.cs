@@ -8,6 +8,7 @@ namespace Blocks.Gameplay.Core
         [Range(0.05f,1f)] public float childSpeedMultiplier = 0.4f;
         private CoreMovement affected;
         private Func<Vector3,Vector3> previous, mudMove;
+        protected override string QuestKey => "mud";
         public override bool Solved => Phase == 2;
         protected override bool UsesInteract => false;
         public override bool TryInteract(CorePlayerManager player) => false;
@@ -17,7 +18,7 @@ namespace Blocks.Gameplay.Core
         protected override void Present()
         {
             var child = FindRole(false);
-            bool inside = child != null && child.IsOwner && Contains(child.transform.position) && boss.State == ChaseState.Chasing;
+            bool inside = !Solved && child != null && child.IsOwner && Contains(child.transform.position) && boss.State == ChaseState.Chasing;
             if (!inside) { Cleanup(); return; }
             if (affected == child.CoreMovement) return;
             Cleanup();
