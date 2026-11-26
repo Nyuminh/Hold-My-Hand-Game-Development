@@ -120,3 +120,35 @@ public static async Task<CloseLobbyResponse> CloseLobbyAsync(string lobbyCode, C
 - `POST /api/auth/register` nhận `username`, `email`, `password` (từ 8 ký tự, tối đa 72 byte) và `displayName` tùy chọn. Trả 201 cùng `userId`, `username`, `role: Player`, `displayName`. Dữ liệu sai trả 400, trùng username hoặc email trả 409. Đăng nhập qua `/api/auth/login`.
 - `GET /api/game/campaign` công khai trả `{"chapters":[{"scene":"PlayScene1","quests":["tree","chasm","mud"]}]}` với các màn và quest đang mở. Màn 1, 2, 3 lần lượt dùng PlayScene1, PlayScene2, PlayScene4.
 - Mod hoặc Admin gọi `PUT /api/mod/chapters/{id}` hoặc `PUT /api/mod/quests/{id}` với `{"isActive":false}` để tắt và `true` để bật lại. Dùng danh sách mod để lấy ID, kể cả nội dung đang tắt. Cấu hình màn được kiểm tra trước khi host bắt đầu hoặc chuyển màn. Quest được áp dụng khi vào màn.
+
+## Ví Coin và cửa hàng skin
+
+Các endpoint sau yêu cầu Bearer JWT và phiên đăng nhập còn hiệu lực. Account ID được lấy từ phiên. ID skin dùng 1–61 ký tự ASCII thường, chữ số, dấu gạch ngang hoặc gạch dưới và bắt đầu bằng chữ hoặc số. Giá và số dư là số nguyên Coin.
+
+| Method và endpoint | JSON gửi lên | JSON trả về khi thành công (200) |
+|---|---|---|
+| GET /api/wallet/balance | — | `{"coins":0,"packages":[{"packageId":"vnd_50000","amountVnd":50000,"coins":550}],"sandboxEnabled":true}` (ví dụ rút gọn danh sách gói) |
+| POST /api/wallet/topup | `{"packageId":"vnd_50000","requestId":"<uuid>"}` | `{"coins":550,"transactionId":"<id>"}` |
+| GET /api/store/catalog | — | `{"skins":[{"skinId":"dad_skin_flannel_01","name":"Flannel Dad","role":"Dad","price":500,"isActive":true}]}` |
+| POST /api/store/buy | `{"skinId":"dad_skin_flannel_01"}` | `{"coins":50,"transactionId":"<id>"}` |
+| GET /api/store/inventory | — | `{"skins":[],"equippedDadSkinId":null,"equippedChildSkinId":null}`. Mỗi skin có cùng schema như catalog, bao gồm cả skin đã mua và sau đó ngừng bán. |
+| POST /api/store/equip | `{"skinId":"dad_skin_flannel_01"}` | `{"equippedDadSkinId":"dad_skin_flannel_01","equippedChildSkinId":null}` |
+
+Sandbox cần `STORE_SANDBOX_ENABLED=true` trên backend development/test. Production trả 403. Backend định giá từng gói và trả danh sách gói qua balance. Mỗi lần nạp mới dùng một requestId mới (8–80 ký tự chữ, số, gạch ngang/gạch dưới). Khi retry phải gửi lại cùng ID và gói. Ví và lệnh mua sử dụng MongoDB replica set hoặc sharded cluster hỗ trợ transaction. Số dư và ledger được commit trong cùng giao dịch.
+
+Catalog chỉ trả skin đang bán, với role `Dad` hoặc `Child`. Mua thiếu Coin trả 400 cùng message `Insufficient balance`, mua trùng trả 409, skin ngừng bán trả 404. Trang bị skin chưa sở hữu trả 400. Response lỗi có dạng `{"statusCode":400,"message":"Insufficient balance"}`.
+
+### Admin Store
+
+Tất cả endpoint dưới đây yêu cầu role `Admin`. Player và Moderator nhận 403. Mọi thay đổi danh mục và điều chỉnh ví đều ghi audit với Admin ID trong cùng MongoDB transaction.
+
+| Method và endpoint | JSON gửi lên | Kết quả |
+|---|---|---|
+| GET /api/admin/store/skins | — | 200, `{"skins":[...]}` gồm cả skin đã ẩn, cùng schema với catalog. |
+| POST /api/admin/store/skins | `{"skinId":"new_outfit","name":"New Outfit","role":"Child","price":500,"isActive":true}` | 201, object skin mới. isActive mặc định true. |
+| PUT /api/admin/store/skins/{skinId} | `{"name":"New Name","price":450,"isActive":false}` | 200, object skin sau khi sửa. Chỉ gửi các trường muốn đổi. |
+| DELETE /api/admin/store/skins/{skinId} | — | 204, ẩn khỏi danh mục bán. Chủ sở hữu vẫn trang bị được. |
+| POST /api/admin/wallets/{accountId}/adjust | `{"amount":-50,"reason":"Wallet correction","requestId":"<uuid>"}` | 200, `{"coins":450,"transactionId":"<id>"}`. amount là số nguyên khác 0, reason dài 1–500 ký tự. Cùng requestId và tham số trả lại kết quả ban đầu. |
+| GET /api/admin/store/transactions | — | 200, `{"transactions":[{"transactionId":"<id>","accountId":"<id>","type":"ADJUSTMENT","amount":-50,"coins":450,"reason":"Wallet correction","adminId":"<id>","status":"COMPLETED","createdAt":"2026-01-01T00:00:00.000Z"}]}` |
+
+Lịch sử trả tối đa 500 giao dịch mới nhất. Loại TOPUP có packageId và amountVnd, PURCHASE có skinId, ADJUSTMENT có reason và adminId. Giá skin và số dư sau giao dịch nằm trong khoảng 0–2.147.483.647.

@@ -141,6 +141,7 @@ namespace Blocks.Gameplay.Core
         private Button m_ContinueCampaign, m_LevelOne, m_LevelTwo, m_LevelThree;
         private TextMeshProUGUI m_LevelSelectionLabel;
         private CancellationTokenSource m_PollCts;
+        private StoreUIController m_StoreUIController;
 
         // ────────────────────────────────────────────────────────
         #region Unity Lifecycle
@@ -419,6 +420,13 @@ namespace Blocks.Gameplay.Core
             if (m_SelectChildButton != null) m_SelectChildButton.onClick.AddListener(() => SelectTutorialRole(false));
             if (m_ConfirmTutorialButton != null) m_ConfirmTutorialButton.onClick.AddListener(OnConfirmTutorialClicked);
             if (m_CancelTutorialButton != null) m_CancelTutorialButton.onClick.AddListener(OnCancelTutorialClicked);
+
+            m_StoreUIController = lobbyCanvas.GetComponentInChildren<StoreUIController>(true);
+            if (m_StoreUIController == null)
+            {
+                m_StoreUIController = lobbyCanvas.gameObject.AddComponent<StoreUIController>();
+            }
+
             ShowMainButtons();
         }
 
@@ -582,6 +590,7 @@ namespace Blocks.Gameplay.Core
             if (m_JoinCodePanel != null) m_JoinCodePanel.SetActive(false);
             if (m_TutorialDialogPanel != null) m_TutorialDialogPanel.SetActive(false);
             if (m_RoomInfoPanel != null) m_RoomInfoPanel.SetActive(false);
+            if (m_StoreUIController != null) m_StoreUIController.SetStoreInteractable(true);
         }
 
         private void ShowLobbyButtons()
@@ -595,6 +604,7 @@ namespace Blocks.Gameplay.Core
             var voice = VoiceChatManager.EnsureInstance();
             if (m_VoiceThresholdSlider != null) m_VoiceThresholdSlider.value = voice.VoiceThreshold;
             if (m_VoiceVolumeSlider != null) m_VoiceVolumeSlider.value = voice.PlaybackVolume;
+            if (m_StoreUIController != null) m_StoreUIController.SetStoreInteractable(true);
             RefreshVoiceUI();
             if (m_MainButtonsPanel != null) m_MainButtonsPanel.SetActive(false);
             if (m_LobbyButtonsPanel != null) m_LobbyButtonsPanel.SetActive(true);
@@ -940,6 +950,7 @@ namespace Blocks.Gameplay.Core
         {
             if (string.IsNullOrEmpty(m_CurrentLobbyId) || !m_IsHost || m_StartingGame) return;
             m_StartingGame = true;
+            if (m_StoreUIController != null) m_StoreUIController.SetStoreInteractable(false);
             RefreshCampaignSelection();
             UISoundManager.PlayConfirm();
             if (m_PlayButton != null) m_PlayButton.interactable = false;

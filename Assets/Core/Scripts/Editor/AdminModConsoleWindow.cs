@@ -25,7 +25,8 @@ namespace Blocks.Gameplay.Core
             LobbiesAndSessions,
             ChaptersAndQuests,
             CharactersAndStats,
-            AuditLogs
+            AuditLogs,
+            StoreAndSkins
         }
 
         private Tab m_CurrentTab = Tab.Accounts;
@@ -62,6 +63,17 @@ namespace Blocks.Gameplay.Core
         // Tab: Audit Logs Data
         private AdminApiClient.AuditLogDto[] m_AuditLogs;
 
+        private AdminApiClient.StoreSkin[] m_StoreSkins;
+        private AdminApiClient.StoreTransaction[] m_StoreTransactions;
+        private readonly AdminApiClient.StoreSkin m_NewSkin = new() { isActive = true };
+        private readonly string[] m_SkinRoles = { "Dad", "Child" };
+        private int m_NewSkinRole;
+        [SerializeField] private string m_WalletAccount = "";
+        [SerializeField] private int m_WalletDelta;
+        [SerializeField] private string m_WalletReason = "";
+        [SerializeField] private string m_AdjustmentRequestId;
+        private bool m_StoreBusy;
+
         [MenuItem("Tools/Hold My Hand/Admin & Mod Console", false, 100)]
         public static void ShowWindow()
         {
@@ -77,10 +89,12 @@ namespace Blocks.Gameplay.Core
 
         private void OnGUI()
         {
-            DrawHeader();
-            EditorGUILayout.Space(6);
-
-            DrawAuthBar();
+            using (new EditorGUI.DisabledScope(m_StoreBusy))
+            {
+                DrawHeader();
+                EditorGUILayout.Space(6);
+                DrawAuthBar();
+            }
             EditorGUILayout.Space(6);
 
             DrawTabBar();
@@ -106,6 +120,9 @@ namespace Blocks.Gameplay.Core
                 case Tab.AuditLogs:
                     DrawAuditLogsTab();
                     break;
+                case Tab.StoreAndSkins:
+                    DrawStoreTab();
+                    break;
             }
             EditorGUILayout.EndScrollView();
         }
@@ -121,16 +138,19 @@ namespace Blocks.Gameplay.Core
             string newUrl = EditorGUILayout.TextField("Backend Base URL:", m_BaseUrl);
             if (newUrl != m_BaseUrl)
             {
+                ClearStoreData();
                 m_BaseUrl = newUrl;
                 ApiClient.SetBaseUrl(m_BaseUrl);
             }
             if (GUILayout.Button("Localhost:5181", GUILayout.Width(110)))
             {
+                ClearStoreData();
                 m_BaseUrl = "http://localhost:5181/api";
                 ApiClient.SetBaseUrl(m_BaseUrl);
             }
             if (GUILayout.Button("Vercel Cloud", GUILayout.Width(100)))
             {
+                ClearStoreData();
                 m_BaseUrl = "https://hold-my-hand-backend.vercel.app/api";
                 ApiClient.SetBaseUrl(m_BaseUrl);
             }
@@ -186,9 +206,157 @@ namespace Blocks.Gameplay.Core
                 "Phòng & Trận đấu (UGS)",
                 "Màn & Nhiệm vụ (Mod)",
                 "Nhân vật & Stats (Mod)",
-                "Nhật ký Logs (Admin)"
+                "Nhật ký Logs (Admin)",
+                "Store & Skins"
             };
             m_CurrentTab = (Tab)GUILayout.Toolbar((int)m_CurrentTab, tabNames, GUILayout.Height(28));
+        }
+
+        private void ClearStoreData()
+        {
+            m_StoreSkins = null;
+            m_StoreTransactions = null;
+            m_AdjustmentRequestId = null;
+            m_WalletAccount = "";
+            m_WalletReason = "";
+            m_WalletDelta = 0;
+        }
+
+        private void DrawStoreTab()
+        {
+            if (!ApiClient.IsLoggedIn || ApiClient.Role != "Admin")
+            {
+                EditorGUILayout.HelpBox("Đăng nhập bằng tài khoản Admin để quản lý cửa hàng.", MessageType.Info);
+                return;
+            }
+
+            using (new EditorGUI.DisabledScope(m_StoreBusy))
+            {
+                EditorGUILayout.LabelField("Danh mục skin", EditorStyles.boldLabel);
+                if (GUILayout.Button("Tải danh mục"))
+                    _ = RunStoreAction(LoadStoreCatalogAsync);
+                if (m_StoreSkins != null)
+                {
+                    for (int i = 0; i < m_StoreSkins.Length; i++)
+                    {
+                        var skin = m_StoreSkins[i];
+                        using (new EditorGUILayout.HorizontalScope())
+                        {
+                            EditorGUILayout.LabelField($"{skin.name} ({skin.skinId}, {skin.role})");
+                            GUILayout.Label("Coin");
+                            skin.price = EditorGUILayout.IntField(skin.price, GUILayout.Width(72));
+                            skin.isActive = GUILayout.Toggle(skin.isActive, "Đang bán", GUILayout.Width(82));
+                            using (new EditorGUI.DisabledScope(skin.price < 0))
+                                if (GUILayout.Button("Lưu", GUILayout.Width(55)))
+                                    _ = RunStoreAction(() => SaveStoreSkinAsync(skin, i));
+                        }
+                    }
+                }
+
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Thêm skin", EditorStyles.boldLabel);
+                m_NewSkin.skinId = EditorGUILayout.TextField("Skin ID", m_NewSkin.skinId);
+                m_NewSkin.name = EditorGUILayout.TextField("Tên", m_NewSkin.name);
+                m_NewSkinRole = EditorGUILayout.Popup("Nhân vật", m_NewSkinRole, m_SkinRoles);
+                m_NewSkin.price = EditorGUILayout.IntField("Giá (Coin)", m_NewSkin.price);
+                m_NewSkin.isActive = EditorGUILayout.Toggle("Đang bán", m_NewSkin.isActive);
+                using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(m_NewSkin.skinId) ||
+                    string.IsNullOrWhiteSpace(m_NewSkin.name) || m_NewSkin.price < 0))
+                    if (GUILayout.Button("Tạo skin"))
+                        _ = RunStoreAction(CreateStoreSkinAsync);
+
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Điều chỉnh ví", EditorStyles.boldLabel);
+                EditorGUI.BeginChangeCheck();
+                m_WalletAccount = EditorGUILayout.TextField("Account ID", m_WalletAccount);
+                m_WalletDelta = EditorGUILayout.IntField("Coin (+/−)", m_WalletDelta);
+                m_WalletReason = EditorGUILayout.TextField("Lý do", m_WalletReason);
+                if (EditorGUI.EndChangeCheck()) m_AdjustmentRequestId = null;
+                using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(m_WalletAccount) ||
+                    m_WalletDelta == 0 || string.IsNullOrWhiteSpace(m_WalletReason)))
+                    if (GUILayout.Button("Thực hiện điều chỉnh ví"))
+                        _ = RunStoreAction(AdjustStoreWalletAsync);
+
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Lịch sử giao dịch", EditorStyles.boldLabel);
+                if (GUILayout.Button("Tải giao dịch gần nhất"))
+                    _ = RunStoreAction(LoadStoreLedgerAsync);
+                if (m_StoreTransactions != null)
+                    foreach (var tx in m_StoreTransactions)
+                    {
+                        using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                        {
+                            EditorGUILayout.LabelField($"{tx.createdAt}    {tx.type}    {tx.amount:+#;-#;0} Coin    ·    Số dư {tx.coins}    ·    {tx.status}");
+                            EditorGUILayout.LabelField($"Account {tx.accountId}    ·    {tx.transactionId}", EditorStyles.wordWrappedLabel);
+                            if (!string.IsNullOrEmpty(tx.skinId)) EditorGUILayout.LabelField("Skin", tx.skinId);
+                            if (!string.IsNullOrEmpty(tx.reason)) EditorGUILayout.LabelField($"Admin {tx.adminId}    ·    {tx.reason}", EditorStyles.wordWrappedLabel);
+                        }
+                    }
+            }
+        }
+
+        private async Task<string> LoadStoreCatalogAsync()
+        {
+            m_StoreSkins = await AdminApiClient.GetStoreSkinsAsync();
+            return $"Đã tải {m_StoreSkins.Length} skin.";
+        }
+
+        private async Task<string> LoadStoreLedgerAsync()
+        {
+            m_StoreTransactions = await AdminApiClient.GetStoreTransactionsAsync();
+            return $"Đã tải {m_StoreTransactions.Length} giao dịch.";
+        }
+
+        private async Task<string> SaveStoreSkinAsync(AdminApiClient.StoreSkin skin, int index)
+        {
+            m_StoreSkins[index] = await AdminApiClient.UpdateStoreSkinAsync(skin);
+            return $"Đã lưu {skin.skinId}.";
+        }
+
+        private async Task<string> CreateStoreSkinAsync()
+        {
+            m_NewSkin.role = m_SkinRoles[m_NewSkinRole];
+            var created = await AdminApiClient.CreateStoreSkinAsync(m_NewSkin);
+            m_NewSkin.skinId = "";
+            m_NewSkin.name = "";
+            if (m_StoreSkins != null)
+            {
+                Array.Resize(ref m_StoreSkins, m_StoreSkins.Length + 1);
+                m_StoreSkins[m_StoreSkins.Length - 1] = created;
+            }
+            return $"Đã tạo {created.skinId}.";
+        }
+
+        private async Task<string> AdjustStoreWalletAsync()
+        {
+            m_AdjustmentRequestId ??= Guid.NewGuid().ToString("N");
+            var result = await AdminApiClient.AdjustWalletAsync(m_WalletAccount.Trim(), m_WalletDelta, m_WalletReason.Trim(), m_AdjustmentRequestId);
+            m_AdjustmentRequestId = null;
+            m_WalletDelta = 0;
+            m_WalletReason = "";
+            m_StoreTransactions = null;
+            return $"Ví {m_WalletAccount} còn {result.coins} Coin. Giao dịch {result.transactionId}.";
+        }
+
+        private async Task RunStoreAction(Func<Task<string>> action)
+        {
+            if (m_StoreBusy) return;
+            m_StoreBusy = true;
+            try
+            {
+                SetStatus(await action(), MessageType.Info);
+            }
+            catch (Exception ex)
+            {
+                string message = ex is ApiException api ? $"{api.Message}\n{api.ResponseBody}" : ex.Message;
+                SetStatus(message, MessageType.Error);
+                EditorUtility.DisplayDialog("Store & Skins", message, "OK");
+            }
+            finally
+            {
+                m_StoreBusy = false;
+                Repaint();
+            }
         }
 
         private void DrawStatus()
@@ -618,6 +786,7 @@ namespace Blocks.Gameplay.Core
 
         private async Task LogoutAsync()
         {
+            ClearStoreData();
             await ApiClient.LogoutAsync();
             SetStatus("Đã đăng xuất.", MessageType.Info);
             Repaint();
