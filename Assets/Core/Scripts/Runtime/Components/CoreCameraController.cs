@@ -108,6 +108,28 @@ namespace Blocks.Gameplay.Core
         private Vector3 m_ShoulderOffsetVelocity;
         private CinemachineThirdPersonFollow m_ActiveThirdPersonFollow;
 
+        // Indoor Framing Overrides
+        private bool m_IsIndoor = false;
+        private float m_IndoorCameraDistanceDad = 3.2f;
+        private float m_IndoorCameraDistanceChild = 2.4f;
+        private float m_IndoorFOV = 68.0f;
+        private float m_DefaultFOV = 60.0f;
+        private float m_CurrentFOV = 60.0f;
+        private float m_FovVelocity;
+
+        public bool IsIndoor => m_IsIndoor;
+
+        /// <summary>
+        /// Kích hoạt hoặc hủy chế độ góc nhìn nội thất khi bước vào không gian kín/lâu đài.
+        /// </summary>
+        public void SetIndoorOverride(bool isIndoor, float dadDistance = 3.2f, float childDistance = 2.4f, float indoorFOV = 68f)
+        {
+            m_IsIndoor = isIndoor;
+            m_IndoorCameraDistanceDad = dadDistance;
+            m_IndoorCameraDistanceChild = childDistance;
+            m_IndoorFOV = indoorFOV;
+        }
+
         // Runtime references.
         private CinemachineBrain m_CinemachineBrain;
         private readonly List<CoreCameraMode> m_RegisteredCameraModes = new List<CoreCameraMode>();
@@ -577,6 +599,12 @@ namespace Blocks.Gameplay.Core
             Vector3 activeDefaultShoulder = isDad ? dadDefaultShoulderOffset : defaultShoulderOffset;
             float baseDistance = isDad ? dadCameraDistance : defaultCameraDistance;
 
+            if (m_IsIndoor && !m_IsAiming)
+            {
+                baseDistance = isDad ? m_IndoorCameraDistanceDad : m_IndoorCameraDistanceChild;
+                activeDefaultShoulder = isDad ? new Vector3(0.18f, -0.08f, 0f) : new Vector3(0.18f, 0.08f, 0f);
+            }
+
             // Khoảng cách và độ lệch vai mục tiêu tùy thuộc vào trạng thái ngắm OTS
             float targetDistance = m_IsAiming ? aimCameraDistance : baseDistance;
             Vector3 targetShoulderOffset = m_IsAiming ? activeAimShoulder : activeDefaultShoulder;
@@ -618,6 +646,15 @@ namespace Blocks.Gameplay.Core
                 zoomSmoothTime
             );
             m_ActiveThirdPersonFollow.ShoulderOffset = m_CurrentShoulderOffset;
+
+            // Smooth FOV Transition (Mở rộng góc nhìn khi vào không gian nội thất)
+            if (ActiveCameraMode != null && ActiveCameraMode.CinemachineCamera != null)
+            {
+                float targetFOV = m_IsIndoor ? m_IndoorFOV : m_DefaultFOV;
+                if (m_CurrentFOV <= 0f) m_CurrentFOV = ActiveCameraMode.CinemachineCamera.Lens.FieldOfView;
+                m_CurrentFOV = Mathf.SmoothDamp(m_CurrentFOV, targetFOV, ref m_FovVelocity, zoomSmoothTime);
+                ActiveCameraMode.CinemachineCamera.Lens.FieldOfView = m_CurrentFOV;
+            }
         }
 
         #endregion
