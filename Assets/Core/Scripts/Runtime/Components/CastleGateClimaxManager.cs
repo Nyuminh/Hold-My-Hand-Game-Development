@@ -24,6 +24,7 @@ namespace Blocks.Gameplay.Core
         private Coroutine cinematic;
         private bool transitioning;
         private string transitionError;
+        private bool showVictoryMenu;
         public GateClimaxPhase ClimaxPhase => (GateClimaxPhase)Phase;
         public override bool Solved => ClimaxPhase == GateClimaxPhase.Victory;
         protected override int SolvedPhase => (int)GateClimaxPhase.Victory;
@@ -125,10 +126,26 @@ namespace Blocks.Gameplay.Core
             if (Solved)
             {
                 Impact(bossImpactClip,1.1f);
-                PlayerPrefs.SetInt("HMH.Level1.Completed",1);
-                PlayerPrefs.SetInt("HMH.Level1.Checkpoint",checkpointAfter);
-                PlayerPrefs.Save();
-                Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+                if (CastleCourtyardQuestManager.Instance != null)
+                {
+                    CastleCourtyardQuestManager.Instance.StartQuest();
+                }
+                else
+                {
+                    OnCourtyardQuestVictory();
+                }
+            }
+        }
+
+        public void OnCourtyardQuestVictory()
+        {
+            showVictoryMenu = true;
+            PlayerPrefs.SetInt("HMH.Level1.Completed",1);
+            PlayerPrefs.SetInt("HMH.Level1.Checkpoint",checkpointAfter);
+            PlayerPrefs.Save();
+            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            if (boss != null && boss.Players != null)
+            {
                 foreach(var player in boss.Players)
                     if(player != null && player.IsOwner) { player.CoreInput.enabled=false; player.SetMovementInputEnabled(false); }
             }
@@ -204,7 +221,7 @@ namespace Blocks.Gameplay.Core
 
         public async void ContinueToNextLevel()
         {
-            if(!Solved || transitioning || !IsServer) return;
+            if(!showVictoryMenu || transitioning || !IsServer) return;
             transitioning = true;
             try { await CampaignProgress.RefreshCatalog(); }
             catch (System.Exception ex) { transitioning = false; transitionError = ex.Message; return; }
@@ -242,12 +259,12 @@ namespace Blocks.Gameplay.Core
 
         protected override void OnGUI()
         {
-            if(!Solved){base.OnGUI();return;}
+            if(!showVictoryMenu){base.OnGUI();return;}
             if(!IsSpawned)return;
             Cursor.lockState=CursorLockMode.None;Cursor.visible=true;
             var rect=new Rect(Screen.width/2f-310,Screen.height/2f-120,620,240);
             var style=new GUIStyle(GUI.skin.box){fontSize=22,alignment=TextAnchor.UpperCenter,wordWrap=true};
-            GUI.Box(rect,"MÀN 1 HOÀN THÀNH\nNẮM TAY BƯỚC VÀO LÂU ĐÀI",style);
+            GUI.Box(rect,"MÀN 1 HOÀN THÀNH\nNẮM TAY BƯỚC RA KHỎI LÂU ĐÀI",style);
             if(GUI.Button(new Rect(rect.x+40,rect.y+120,250,45),"Quay về Lobby"))
                 InGameEscapeMenuManager.EnsureInstanceInScene().ReturnToLobby();
             GUI.enabled=IsServer&&!transitioning;

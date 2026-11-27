@@ -5,5 +5,6 @@ namespace Blocks.Gameplay.Core
     {
         void BeginClimaxControl();
         void SetClimaxLift(float metres);
+        void SetRearGate(bool open);
     }
 }
