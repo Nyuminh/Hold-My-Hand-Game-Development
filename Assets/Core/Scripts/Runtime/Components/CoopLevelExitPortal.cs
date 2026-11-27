@@ -285,7 +285,7 @@ namespace Blocks.Gameplay.Core
             float countdown = 5.0f;
             while (countdown > 0f)
             {
-                m_VictoryStatusText = $"Tự động sang Màn 1 sau {Mathf.CeilToInt(countdown)}s (Nhấn [SPACE] để vào ngay)...";
+                m_VictoryStatusText = $"Tự động sang màn đang mở sau {Mathf.CeilToInt(countdown)}s (Nhấn [SPACE] để vào ngay)...";
                 if (IsActionPressed())
                 {
                     break;
@@ -294,15 +294,26 @@ namespace Blocks.Gameplay.Core
                 yield return null;
             }
 
-            m_VictoryStatusText = "🚀 ĐANG TẢI MÀN 1: PLAYSCENE1...";
+            m_VictoryStatusText = "🚀 ĐANG TẢI CHIẾN DỊCH...";
             yield return new WaitForSeconds(0.5f);
 
             LoadNextScene();
         }
 
-        public void LoadNextScene()
+        private bool loading;
+        public async void LoadNextScene()
         {
             if (finalCampaignLevel) { ReturnToLobby(); return; }
+            if (loading) return;
+            var network = Unity.Netcode.NetworkManager.Singleton;
+            if (network != null && network.IsListening && !network.IsServer) return;
+            loading = true;
+            try { await CampaignProgress.RefreshCatalog(); }
+            catch (System.Exception ex) { loading = false; m_VictoryStatusText = ex.Message; return; }
+            if (!this) return;
+            int next = CampaignProgress.NextAvailable(0);
+            if (next == 0) { loading = false; m_VictoryStatusText = "Chưa có màn chơi đang mở."; return; }
+            nextSceneName = CampaignProgress.Scene(next);
             Debug.Log($"[CoopLevelExitPortal] Đang load Scene tiếp theo: {nextSceneName}");
 
             // Đồng bộ Netcode nếu đang host multiplayer
@@ -447,7 +458,7 @@ namespace Blocks.Gameplay.Core
             float btnY = cardY + 365f;
 
             GUI.backgroundColor = new Color(0.2f, 0.75f, 0.35f);
-            if (!finalCampaignLevel && GUI.Button(new Rect(cardX + 90f, btnY, btnW, btnH), "▶ TIẾP TỤC SANG MÀN 1 [Space]"))
+            if (!finalCampaignLevel && GUI.Button(new Rect(cardX + 90f, btnY, btnW, btnH), "▶ TIẾP TỤC CHIẾN DỊCH [Space]"))
             {
                 LoadNextScene();
             }

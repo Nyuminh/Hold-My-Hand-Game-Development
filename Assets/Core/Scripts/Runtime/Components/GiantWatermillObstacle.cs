@@ -14,6 +14,7 @@ namespace Blocks.Gameplay.Core
         public float openingSeconds = 2.5f;
         private readonly NetworkVariable<double> epoch = new NetworkVariable<double>();
         private readonly NetworkVariable<bool> passed = new NetworkVariable<bool>();
+        private readonly NetworkVariable<bool> bypass = new();
         private Vector3 boomClosed;
         private Vector3 lastBoat;
         private bool sampled;
@@ -22,15 +23,15 @@ namespace Blocks.Gameplay.Core
         public bool BeaconsLit => west != null && east != null && west.Lit && east.Lit;
         public double CycleTime => IsSpawned ? (NetworkManager.ServerTime.Time - epoch.Value) % cycleSeconds : Time.time % cycleSeconds;
         public bool IsOpenWindow => BeaconsLit && CycleTime >= cycleSeconds - openingSeconds;
-        public override void OnNetworkSpawn() { if (IsServer) epoch.Value = NetworkManager.ServerTime.Time; boomClosed = safetyBoom.position; }
+        public override void OnNetworkSpawn() { if (IsServer) { epoch.Value = NetworkManager.ServerTime.Time; bypass.Value = CampaignProgress.SkipQuest(2, "mill"); } boomClosed = safetyBoom.position; }
         private void FixedUpdate()
         {
             if (!IsSpawned) return;
             float turning = Mathf.Clamp01((float)CycleTime / (cycleSeconds - openingSeconds));
             // Four paddles turn for 5.5 s, then dwell diagonally clear of the hull for 2.5 s.
             // Server time gives late joiners and both peers the same angular phase.
-            wheel.localRotation = Quaternion.Euler(45f + 360f * turning, 0, 0);
-            safetyBoom.position = boomClosed + Vector3.up * (IsOpenWindow ? 4f : 0f);
+            wheel.localRotation = Quaternion.Euler(bypass.Value ? 45f : 45f + 360f * turning, 0, 0);
+            safetyBoom.position = boomClosed + Vector3.up * (bypass.Value || IsOpenWindow ? 4f : 0f);
             if (!IsServer || boat == null) return;
             var position = boat.transform.position;
             if (IsOpenWindow && boat.HasCoopCrew && boat.HasRecentStroke && boat.CurrentSpeed >= 6 &&
@@ -49,7 +50,7 @@ namespace Blocks.Gameplay.Core
         }
         private void OnGUI()
         {
-            if (boat == null || Mathf.Abs(boat.transform.position.z - transform.position.z) > 18) return;
+            if (bypass.Value || boat == null || Mathf.Abs(boat.transform.position.z - transform.position.z) > 18) return;
             GUI.Box(new Rect(20, 85, 650, 60), !BeaconsLit ? "Thắp sáng cả hai hải đăng để mở đường qua cối xay." :
                 IsOpenWindow ? "CỬA MỞ! Con giữ thẳng mũi thuyền. Ba nhấn Space liên tục để nước rút!" :
                 "Chờ cối xay dừng ở góc chéo. Chu kỳ 8 giây, khoảng trống 2,5 giây.");

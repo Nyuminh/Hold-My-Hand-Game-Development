@@ -40,9 +40,7 @@ namespace Blocks.Gameplay.Core
                 tether.abyss = Group("Abyss", root).gameObject.AddComponent<AbyssFallTrigger>();
                 tether.abyss.transform.position = Vector3.down * 2.5f;
                 tether.clink = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Platformer/Audio/Clips/RotatingObstacleImpact.wav");
-                var line = net.GetComponent<LineRenderer>();
-                line.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Sprites-Default.mat");
-                line.enabled = false;
+                tether.chainModel = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Core/Prefabs/Environment/iron-chain/source/Chain 2.fbx");
                 net.GetComponent<AudioSource>().playOnAwake = false;
                 // Coordinates describe the top centre and outside dimensions of each piece.
                 Piece(gorge, "Platform", "Departure", 0, 0, 3, 9, 3, 14);

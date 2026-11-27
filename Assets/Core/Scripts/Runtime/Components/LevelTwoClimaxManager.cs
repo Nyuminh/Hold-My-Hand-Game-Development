@@ -77,19 +77,27 @@ namespace Blocks.Gameplay.Core
                 !dadHand.IsHoldingHands || !childHand.IsHoldingHands) return false;
             completed.Value = true; return true;
         }
-        public void ContinueToNextLevel()
+        public async void ContinueToNextLevel()
         {
             if (!IsServer || !Completed || transitioning) return;
+            transitioning = true;
+            try { await CampaignProgress.RefreshCatalog(); }
+            catch (System.Exception ex) { transitioning = false; transitionError = ex.Message; return; }
+            if (!this || !IsSpawned || !IsServer) return;
+            int next = CampaignProgress.NextAvailable(2);
+            transitioning = false;
+            if (next == 0) { transitionError = "Đã hoàn thành các màn đang mở."; return; }
+            nextLevelScene = CampaignProgress.Scene(next);
             if (!Application.CanStreamedLevelBeLoaded(nextLevelScene)) { transitionError = "Chưa có màn tiếp theo trong Build Settings."; return; }
-            transitioning = true; PrepareNextLevelRpc();
+            transitioning = true; PrepareNextLevelRpc(nextLevelScene);
             var status = NetworkManager.SceneManager.LoadScene(nextLevelScene, LoadSceneMode.Single);
             if (status != SceneEventProgressStatus.Started) { transitioning = false; transitionError = "Chưa chuyển được màn: " + status; }
         }
         [Rpc(SendTo.Everyone)]
-        private void PrepareNextLevelRpc()
+        private void PrepareNextLevelRpc(string destination)
         {
-            CampaignProgress.Select(3, 0);
-            NetworkManager.gameObject.AddComponent<LevelOneSceneTransition>().Begin(NetworkManager, nextLevelScene);
+            CampaignProgress.Select(CampaignProgress.Level(destination), 0);
+            NetworkManager.gameObject.AddComponent<LevelOneSceneTransition>().Begin(NetworkManager, destination);
         }
         public override void OnDestroy()
         {
@@ -115,7 +123,7 @@ namespace Blocks.Gameplay.Core
             GUI.Box(r, "MÀN 2 HOÀN THÀNH\nNẮM TAY NHAU — BẾN BỜ BÌNH MINH", style);
             if (GUI.Button(new Rect(r.x + 35, r.y + 120, 250, 45), "Quay về Lobby")) InGameEscapeMenuManager.EnsureInstanceInScene().ReturnToLobby();
             GUI.enabled = IsServer && !transitioning;
-            if (GUI.Button(new Rect(r.x + 335, r.y + 120, 250, 45), "Tiếp tục Màn 3")) ContinueToNextLevel();
+            if (GUI.Button(new Rect(r.x + 335, r.y + 120, 250, 45), "Tiếp tục chiến dịch")) ContinueToNextLevel();
             GUI.enabled = true;
             GUI.Label(new Rect(r.x + 35, r.y + 190, 550, 35), transitionError ?? (IsServer ? "Tiến độ đã lưu." : "Chờ chủ phòng chuyển màn."));
         }

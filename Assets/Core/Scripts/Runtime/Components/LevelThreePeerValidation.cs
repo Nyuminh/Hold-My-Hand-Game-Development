@@ -55,9 +55,16 @@ namespace Blocks.Gameplay.Core
             actor.CoreMovement.SetPosition(launch + new Vector3(host ? -2 : 0, .12f, -.7f));
             yield return new WaitForSeconds(1);
             if (!host) actor.CoreMovement.SetPosition(launch + new Vector3(-2, -3.2f, 3.8f));
+            bool chainTest = Environment.GetCommandLineArgs().Contains("-chainQA");
+            bool measuredTaut = false;
             bool caught = false;
             while (Time.realtimeSinceStartup < deadline)
             {
+                if (chainTest && tether.IsSuspended && !measuredTaut)
+                {
+                    measuredTaut = MeasureChain(tether, true);
+                    if (!measuredTaut) { yield return null; continue; }
+                }
                 if (tether.IsSuspended && !caught)
                 {
                     caught = true;
@@ -65,9 +72,17 @@ namespace Blocks.Gameplay.Core
                     if (host) { yield return new WaitForSeconds(1); tether.RequestHaul(); }
                 }
                 if (caught && !tether.IsSuspended && actor.transform.position.y > launch.y - .5f &&
-                    tether.GetComponent<LineRenderer>().enabled)
+                    tether.ChainVisible)
                 {
                     Debug.Log("PASS replicated rescue on " + (host ? "host" : "client"));
+                    if (chainTest)
+                    {
+                        if (!MeasureChain(tether, false)) { Fail("slack chain after rescue"); yield break; }
+                        // Leave time for the other peer to receive the final rescue state.
+                        yield return new WaitForSeconds(host ? 4 : 2);
+                        Application.Quit(0);
+                        yield break;
+                    }
                     yield return Puzzles(actor, host);
                     yield break;
                 }
@@ -75,6 +90,35 @@ namespace Blocks.Gameplay.Core
             }
             Debug.LogError("FAIL rescue on " + (host ? "host" : "client") + " at " + actor.transform.position + " caught=" + caught);
             Application.Quit(3);
+        }
+
+        static bool MeasureChain(CoopTetherChain tether, bool taut)
+        {
+            if (!tether.ChainVisible) return false;
+            var links = tether.GetComponentsInChildren<MeshFilter>();
+            if (links.Length == 0) return false;
+            var expected = tether.chainModel.GetComponentInChildren<MeshFilter>().sharedMesh;
+            float pitch = CoopTetherChain.Length / links.Length;
+            Vector3 start = default, end = default;
+            float length = 0, maxGap = 0, lowest = float.MaxValue;
+            for (int i = 0; i < links.Length; i++)
+            {
+                if (links[i].sharedMesh != expected) return false;
+                var node = links[i].transform;
+                var center = node.TransformPoint(expected.bounds.center);
+                var half = node.up * (.5f * pitch);
+                var from = center - half;
+                if (i == 0) start = from; else maxGap = Mathf.Max(maxGap, Vector3.Distance(end, from));
+                end = center + half;
+                length += Vector3.Distance(from, end);
+                lowest = Mathf.Min(lowest, center.y);
+            }
+            float span = Vector3.Distance(start, end);
+            float sag = Mathf.Min(start.y, end.y) - lowest;
+            if (Mathf.Abs(length - CoopTetherChain.Length) > .003f || maxGap > .003f ||
+                (taut ? span < length - .12f : span > length - 1 || sag < .1f)) return false;
+            Debug.Log($"PASS {(taut ? "taut" : "slack")} chain: {links.Length} links, length={length:F4}, span={span:F3}, sag={sag:F3}, joint error={maxGap:F5}");
+            return true;
         }
 
         IEnumerator Puzzles(CorePlayerManager actor, bool host)

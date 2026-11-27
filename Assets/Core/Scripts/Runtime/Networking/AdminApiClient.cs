@@ -101,6 +101,91 @@ namespace Blocks.Gameplay.Core
             await ApiClient.PostAsync($"/admin/sessions/{sessionId}/abort", "{}");
         }
 
+        [Serializable]
+        public class StoreSkin
+        {
+            public string skinId;
+            public string name;
+            public string role;
+            public int price;
+            public bool isActive;
+        }
+
+        [Serializable]
+        private class Catalog { public StoreSkin[] skins = Array.Empty<StoreSkin>(); }
+
+        [Serializable]
+        private class SkinUpdate
+        {
+            public int price;
+            public bool isActive;
+        }
+
+        [Serializable]
+        public class StoreTransaction
+        {
+            public string transactionId;
+            public string accountId;
+            public string type;
+            public int amount;
+            public int coins;
+            public string skinId;
+            public string reason;
+            public string adminId;
+            public string createdAt;
+            public string status;
+        }
+
+        [Serializable]
+        private class Ledger { public StoreTransaction[] transactions = Array.Empty<StoreTransaction>(); }
+
+        [Serializable]
+        private class Adjustment
+        {
+            public int amount;
+            public string reason;
+            public string requestId;
+        }
+
+        [Serializable]
+        public class AdjustmentResult
+        {
+            public int coins;
+            public string transactionId;
+        }
+
+        public static async Task<StoreSkin[]> GetStoreSkinsAsync()
+        {
+            var json = await ApiClient.GetAsync("/admin/store/skins");
+            return JsonUtility.FromJson<Catalog>(json).skins;
+        }
+
+        public static async Task<StoreSkin> CreateStoreSkinAsync(StoreSkin skin)
+        {
+            var json = await ApiClient.PostAsync("/admin/store/skins", JsonUtility.ToJson(skin));
+            return JsonUtility.FromJson<StoreSkin>(json);
+        }
+
+        public static async Task<StoreSkin> UpdateStoreSkinAsync(StoreSkin skin)
+        {
+            var update = new SkinUpdate { price = skin.price, isActive = skin.isActive };
+            var json = await ApiClient.PutAsync("/admin/store/skins/" + Uri.EscapeDataString(skin.skinId), JsonUtility.ToJson(update));
+            return JsonUtility.FromJson<StoreSkin>(json);
+        }
+
+        public static async Task<AdjustmentResult> AdjustWalletAsync(string accountId, int amount, string reason, string requestId)
+        {
+            var request = new Adjustment { amount = amount, reason = reason, requestId = requestId };
+            var json = await ApiClient.PostAsync("/admin/wallets/" + Uri.EscapeDataString(accountId) + "/adjust", JsonUtility.ToJson(request));
+            return JsonUtility.FromJson<AdjustmentResult>(json);
+        }
+
+        public static async Task<StoreTransaction[]> GetStoreTransactionsAsync()
+        {
+            var json = await ApiClient.GetAsync("/admin/store/transactions");
+            return JsonUtility.FromJson<Ledger>(json).transactions;
+        }
+
         // ─── DTOs & Models ──────────────────────────────────────────
 
         [Serializable]

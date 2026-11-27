@@ -15,12 +15,19 @@ namespace Blocks.Gameplay.Core
         public int Phase => phase.Value;
         public abstract bool Solved { get; }
         protected virtual int SolvedPhase => 2;
+        protected virtual string QuestKey => null;
+        private bool bypass;
         protected virtual bool UsesInteract => true;
         protected abstract string Hint(CorePlayerManager player);
         public abstract bool TryInteract(CorePlayerManager player);
 
         public override void OnNetworkSpawn()
         {
+            if (IsServer && QuestKey != null)
+            {
+                bypass = CampaignProgress.SkipQuest(1, QuestKey);
+                if (bypass) phase.Value = SolvedPhase;
+            }
             if (boss != null) boss.CheckpointReset += ResetForCheckpoint;
         }
 
@@ -35,7 +42,7 @@ namespace Blocks.Gameplay.Core
         protected virtual void ResetForCheckpoint(int index)
         {
             Cleanup();
-            if (IsServer) phase.Value = index >= checkpointAfter ? SolvedPhase : 0;
+            if (IsServer) phase.Value = bypass || index >= checkpointAfter ? SolvedPhase : 0;
         }
 
         protected virtual void Update()

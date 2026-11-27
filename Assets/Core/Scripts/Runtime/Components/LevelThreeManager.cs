@@ -19,6 +19,7 @@ namespace Blocks.Gameplay.Core
         float recoverAfter;
         int start;
         public int Checkpoint => progress.Value;
+        static readonly string[] StageQuests = { "drawbridge", "crypt", "pillars" };
         static readonly string[] Objectives = {
             "Ba giữ F để ném Con qua vực. Con nhấn E ở tời để hạ cầu.",
             "Con chui qua khe bên phải rồi nhấn E ở cần gạt để mở cổng cho Ba.",
@@ -55,6 +56,8 @@ namespace Blocks.Gameplay.Core
                 return;
             }
             if (tether.CrewIsFalling || Time.time < recoverAfter) return;
+            int enabledStage = NextStage(progress.Value);
+            if (enabledStage != progress.Value) { Restore(enabledStage); return; }
             switch (progress.Value)
             {
                 case 0: if (bridge.Open && BothBeyond(bridge.landing)) progress.Value = 1; break;
@@ -81,13 +84,19 @@ namespace Blocks.Gameplay.Core
             if (!ready || tether.CrewIsFalling || Time.time < recoverAfter || !LevelTwoActors.Sender(NetworkManager, rpc.Receive.SenderClientId)) return;
             Restore(fromBeginning ? 0 : Mathf.Min(progress.Value, 3));
         }
+        static int NextStage(int index)
+        {
+            while (index >= 0 && index < StageQuests.Length && CampaignProgress.SkipQuest(3, StageQuests[index])) index++;
+            return index;
+        }
         void Restore(int index)
         {
+            index = NextStage(index);
             recoverAfter = Time.time + 1;
             progress.Value = index;
             tether.ResetForCheckpoint();
-            bridge.Restore(index >= 1);
-            gate.Restore(index >= 2);
+            bridge.Restore(index >= 1 || CampaignProgress.SkipQuest(3, "drawbridge"));
+            gate.Restore(index >= 2 || CampaignProgress.SkipQuest(3, "crypt"));
             foreach (var platform in pillars) platform.Restore();
             altar.Armed = index >= 3;
             altar.Restore(index == 4);
