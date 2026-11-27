@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
 
@@ -7,7 +8,7 @@ namespace Blocks.Gameplay.Core
     /// <summary>
     /// Đệm Bật Nhảy Phong Ấn Bay trên không (Sky Hex Rune Jump Pad).
     /// Khi người chơi dẫm lên bệ đá lục giác, bệ sẽ phát sáng, nhún nhẹ và phóng người chơi
-    /// vút thẳng lên bệ tiếp theo (theo cả phương ngang và phương thẳng đứng) mượt mà và đã tay!
+    /// theo quỹ đạo parabol chuẩn xác tới tâm bệ tiếp theo (hoặc boong khinh khí cầu Zephyr)!
     /// </summary>
     [SelectionBase]
     public class SkyHexRuneJumpPad : MonoBehaviour
@@ -16,11 +17,14 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Điểm đáp đích tiếp theo (Transform của bệ kế tiếp hoặc khinh khí cầu)")]
         [SerializeField] private Transform targetLandingPoint;
 
-        [Tooltip("Lực bật thẳng đứng cơ bản (m/s)")]
+        [Tooltip("Lực bật thẳng đứng cơ bản (m/s) khi không có target")]
         [SerializeField] private float verticalLaunchForce = 16.5f;
 
         [Tooltip("Lực đẩy ngang hướng về đích")]
         [SerializeField] private float horizontalLaunchForce = 9.5f;
+
+        [Tooltip("Độ cao vòm parabol cộng thêm so với điểm cao nhất giữa 2 bệ (m)")]
+        [SerializeField] private float arcPeakExtraHeight = 2.4f;
 
         [Header("Juice & Feedback")]
         [SerializeField] private Light padGlowLight;
@@ -30,6 +34,10 @@ namespace Blocks.Gameplay.Core
 
         private Vector3 initialScale;
         private bool isCoolingDown = false;
+        private static readonly Dictionary<CoreMovement, float> s_PlayerLastLandTime = new Dictionary<CoreMovement, float>();
+        private static readonly HashSet<CoreMovement> s_PlayersInFlight = new HashSet<CoreMovement>();
+
+        public Transform TargetLandingPoint => targetLandingPoint;
 
         private void Awake()
         {
@@ -48,15 +56,29 @@ namespace Blocks.Gameplay.Core
 
         private void OnTriggerEnter(Collider other)
         {
+            TryTriggerPad(other);
+        }
+
+        private void OnTriggerStay(Collider other)
+        {
+            TryTriggerPad(other);
+        }
+
+        private void TryTriggerPad(Collider other)
+        {
             if (isCoolingDown) return;
 
             CoreMovement movement = other.GetComponent<CoreMovement>();
             if (movement == null) movement = other.GetComponentInParent<CoreMovement>();
+            if (movement == null) return;
 
-            if (movement != null)
-            {
-                LaunchPlayer(movement);
-            }
+            if (s_PlayersInFlight.Contains(movement)) return;
+
+            // Cho người chơi 0.28s đứng vững trên bệ vừa đáp xuống trước khi tự động bật tiếp
+            if (s_PlayerLastLandTime.TryGetValue(movement, out float lastLand) && Time.time - lastLand < 0.28f)
+                return;
+
+            LaunchPlayer(movement);
         }
 
         private void LaunchPlayer(CoreMovement movement)
@@ -64,36 +86,86 @@ namespace Blocks.Gameplay.Core
             StartCoroutine(CooldownRoutine());
             StartCoroutine(SquashAndStretchRoutine());
 
-            // 1. Âm thanh và hiệu ứng hạt
             if (audioSource != null) audioSource.Play();
             if (launchParticles != null) launchParticles.Play();
+            UISoundManager.PlayConfirm();
 
-            // 2. Tính toán vector đẩy
-            Vector3 pushDirection = Vector3.up;
             if (targetLandingPoint != null)
             {
-                Vector3 toTarget = (targetLandingPoint.position - movement.transform.position);
-                toTarget.y = 0; // Chỉ lấy hướng mặt phẳng ngang
-                if (toTarget.sqrMagnitude > 0.1f)
-                {
-                    pushDirection = (toTarget.normalized * horizontalLaunchForce) + (Vector3.up * verticalLaunchForce);
-                }
-                else
-                {
-                    pushDirection = Vector3.up * verticalLaunchForce;
-                }
+                StartCoroutine(ParabolicFlightRoutine(movement, targetLandingPoint));
             }
             else
             {
-                pushDirection = Vector3.up * verticalLaunchForce;
+                movement.SetVerticalVelocity(verticalLaunchForce);
+            }
+        }
+
+        private IEnumerator ParabolicFlightRoutine(CoreMovement movement, Transform target)
+        {
+            if (movement == null || target == null) yield break;
+
+            s_PlayersInFlight.Add(movement);
+
+            var cc = movement.GetComponent<CharacterController>();
+            Vector3 startPos = movement.transform.position;
+
+            // Tính điểm đáp chuẩn ngay trên mặt trên của bệ đích
+            Vector3 endPos = target.position;
+            var targetRend = target.GetComponent<Renderer>();
+            if (targetRend != null)
+            {
+                endPos = new Vector3(targetRend.bounds.center.x, targetRend.bounds.max.y + 0.08f, targetRend.bounds.center.z);
+            }
+            else
+            {
+                endPos += Vector3.up * 0.25f;
             }
 
-            // 3. Phóng nhân vật
-            movement.SetVerticalVelocity(verticalLaunchForce);
-            Vector3 horizForce = new Vector3(pushDirection.x, 0, pushDirection.z);
-            movement.ApplyExternalForce(horizForce, ForceMode.Impulse);
+            float horizDist = Vector2.Distance(new Vector2(startPos.x, startPos.z), new Vector2(endPos.x, endPos.z));
+            float duration = Mathf.Clamp(0.55f + horizDist * 0.045f, 0.60f, 1.15f);
+            float peakY = Mathf.Max(startPos.y, endPos.y) + arcPeakExtraHeight;
 
-            Debug.Log($"[SkyHexRuneJumpPad] Đã phóng {movement.name} về phía {targetLandingPoint?.name} với lực {pushDirection}!");
+            // Xoay hướng nhân vật nhìn về phía bệ đích
+            Vector3 flatDir = new Vector3(endPos.x - startPos.x, 0f, endPos.z - startPos.z);
+            if (flatDir.sqrMagnitude > 0.01f)
+            {
+                movement.transform.rotation = Quaternion.LookRotation(flatDir.normalized, Vector3.up);
+            }
+
+            float elapsed = 0f;
+            while (elapsed < duration && movement != null && target != null)
+            {
+                elapsed += Time.deltaTime;
+                float u = Mathf.Clamp01(elapsed / duration);
+
+                // Quỹ đạo Bezier bậc 2 mượt qua đỉnh vòm peakY
+                Vector3 currentTargetPos = Vector3.Lerp(startPos, endPos, u);
+                float baseLinearY = Mathf.Lerp(startPos.y, endPos.y, u);
+                float arcOffset = 4f * u * (1f - u) * (peakY - 0.5f * (startPos.y + endPos.y));
+                currentTargetPos.y = baseLinearY + Mathf.Max(0f, arcOffset);
+
+                Vector3 delta = currentTargetPos - movement.transform.position;
+                movement.SetVerticalVelocity(0f);
+
+                if (cc != null && cc.enabled)
+                {
+                    cc.Move(delta);
+                }
+                else
+                {
+                    movement.transform.position = currentTargetPos;
+                }
+
+                yield return null;
+            }
+
+            if (movement != null)
+            {
+                movement.SetVerticalVelocity(-2f);
+                s_PlayerLastLandTime[movement] = Time.time;
+            }
+
+            s_PlayersInFlight.Remove(movement);
         }
 
         private IEnumerator CooldownRoutine()
@@ -107,7 +179,6 @@ namespace Blocks.Gameplay.Core
 
         private IEnumerator SquashAndStretchRoutine()
         {
-            // Nhún xuống (squash)
             float t = 0f;
             Vector3 squashScale = new Vector3(initialScale.x * 1.15f, initialScale.y * (1f - bounceSquashAmount), initialScale.z * 1.15f);
             while (t < 0.08f)
@@ -117,7 +188,6 @@ namespace Blocks.Gameplay.Core
                 yield return null;
             }
 
-            // Bật nảy lên (stretch)
             t = 0f;
             Vector3 stretchScale = new Vector3(initialScale.x * 0.9f, initialScale.y * 1.25f, initialScale.z * 0.9f);
             while (t < 0.12f)
@@ -127,7 +197,6 @@ namespace Blocks.Gameplay.Core
                 yield return null;
             }
 
-            // Hồi phục lại trạng thái ban đầu
             t = 0f;
             while (t < 0.15f)
             {
