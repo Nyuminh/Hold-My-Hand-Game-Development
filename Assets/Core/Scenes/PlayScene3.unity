@@ -198043,8 +198043,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d9d294433c5983c489c42bea0ce53fcc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.SkyHexRuneJumpPad
-  targetLandingPoint: {fileID: 29353409}
-  verticalLaunchForce: 16
+  targetLandingPoint: {fileID: 29353410}
+  verticalLaunchForce: 16.5
   horizontalLaunchForce: 9.5
   arcPeakExtraHeight: 2.4
   padGlowLight: {fileID: 0}
@@ -416731,9 +416731,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d9d294433c5983c489c42bea0ce53fcc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.SkyHexRuneJumpPad
-  targetLandingPoint: {fileID: 0}
-  verticalLaunchForce: 13.5
-  horizontalLaunchForce: 9
+  targetLandingPoint: {fileID: 2135651047}
+  verticalLaunchForce: 16.5
+  horizontalLaunchForce: 9.5
   arcPeakExtraHeight: 2.4
   padGlowLight: {fileID: 0}
   launchParticles: {fileID: 0}
