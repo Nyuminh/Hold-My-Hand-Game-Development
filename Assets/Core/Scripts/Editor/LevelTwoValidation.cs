@@ -150,14 +150,20 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 Check(west.requiredItem == crank && east.requiredItem == prism, "beacons require authored crank and prism");
                 Check(west.beam != null && east.beam != null && west.turnWheel != null && east.turnWheel != null,
                     "both lighthouses have network beams and steering wheels");
+                Check(west.beam.emitter.position.y > 8f && east.beam.emitter.position.y > 8f,
+                    "both light beams originate from the top lanterns");
+                Check(west.turnWheel.interactionPoint.position.y < 2f && east.turnWheel.interactionPoint.position.y < 2f,
+                    "both steering wheels are reachable at the ground consoles");
+                Check(west.itemSocket.position.y < 2f && east.itemSocket.position.y < 2f,
+                    "both item sockets are reachable at the ground consoles");
                 child.CoreMovement.SetPosition(crank.transform.position);
-                Check(crank.TryPickup(child), "Child picks up Ignition Crank");
+                Check(crank.TryPickup(child), "Child picks up Ignition Crank with [F]");
                 crank.Drop();
                 dad.CoreMovement.SetPosition(crank.transform.position);
                 Check(crank.TryPickup(dad), "Child can hand Ignition Crank to Dad");
                 dad.CoreMovement.SetPosition(west.itemSocket.position);
                 crank.InsertIntoSocket(west.itemSocket);
-                Check(crank.IsSocketed && !west.Lit, "crank powers west beam without prematurely completing puzzle");
+                Check(crank.IsSocketed && !west.Lit, "[F] sockets crank without prematurely completing puzzle");
                 Next(); return;
             }
             if (step == 3 && elapsed > 0.25)
@@ -175,10 +181,10 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 var prism = UnityEngine.Object.FindObjectsByType<CoopCarryableItem>(FindObjectsSortMode.None)
                     .Single(i => i.itemType == CoopCarryableItem.ItemType.RefractionPrism);
                 child.CoreMovement.SetPosition(prism.transform.position);
-                Check(prism.TryPickup(child), "Child retrieves Ancient Prism behind crawl route");
+                Check(prism.TryPickup(child), "Child retrieves Ancient Prism with [F] behind crawl route");
                 child.CoreMovement.SetPosition(east.itemSocket.position);
                 prism.InsertIntoSocket(east.itemSocket);
-                Check(prism.IsSocketed && east.beam.IsEmitting == false, "east beam waits for west ray to strike prism");
+                Check(prism.IsSocketed && east.beam.IsEmitting == false, "[F] sockets prism; east beam waits for west ray");
                 Next(); return;
             }
             if (step == 5)

@@ -60,11 +60,11 @@ namespace Blocks.Gameplay.Core
             if (IsHeldBy(local))
             {
                 if (Keyboard.current.gKey.wasPressedThisFrame) RequestDropRpc();
-                else if (Keyboard.current.eKey.wasPressedThisFrame && CanSocket(local)) RequestSocketRpc();
+                else if (Keyboard.current.fKey.wasPressedThisFrame && CanSocket(local)) RequestSocketRpc();
                 return;
             }
 
-            if (!IsCarried && !IsSocketed && Keyboard.current.eKey.wasPressedThisFrame &&
+            if (!IsCarried && !IsSocketed && Keyboard.current.fKey.wasPressedThisFrame &&
                 Vector3.Distance(local.transform.position, transform.position) <= 2.5f && IsClosestPickup(local))
                 RequestPickupRpc();
         }
@@ -188,13 +188,13 @@ namespace Blocks.Gameplay.Core
             if (IsHeldBy(local))
             {
                 LighthouseHud.DrawWorldHint(transform.position,
-                    CanSocket(local) ? "[E] Gắn vào Ổ cắm" : "[G] Thả xuống");
+                    CanSocket(local) ? "[F] Gắn vào Ổ Cắm Hải Đăng" : "[G] Thả vật phẩm");
                 return;
             }
 
             if (!IsCarried && Vector3.Distance(local.transform.position, transform.position) <= 2.5f)
                 LighthouseHud.DrawWorldHint(transform.position, itemType == ItemType.IgnitionCrank
-                    ? "[E] Nhặt Tay Quay" : "[E] Nhặt Lăng Kính");
+                    ? "[F] Nhặt Tay Quay" : "[F] Nhặt Lăng Kính Cổ");
         }
 
         [Rpc(SendTo.Everyone)]

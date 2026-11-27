@@ -100,11 +100,11 @@ namespace Blocks.Gameplay.Core
             bool eastSocketed = east != null && east.RequiredItemSocketed;
             bool beaconsLit = Lit && east != null && east.Lit;
             string objective = !RequiredItemSocketed
-                ? "MỤC TIÊU 1: Con nhặt Tay Quay [E] ở bờ đá, đem cắm vào Tháp Tây để phát sáng."
+                ? "MỤC TIÊU 1: Con nhặt Tay Quay [F] ở bờ đá, đem gắn vào console dưới chân Tháp Tây."
                 : !eastSocketed
-                    ? "MỤC TIÊU 2: Ba nhấn [E] nâng giữ thân cây, Con chui qua hốc nhặt Lăng Kính Cổ [E], cắm lên Tháp Đông."
+                    ? "MỤC TIÊU 2: Ba nâng giữ thân cây, Con chui qua hốc nhặt Lăng Kính Cổ [F], gắn vào console Tháp Đông."
                     : !beaconsLit
-                        ? "MỤC TIÊU 3: Cả hai dùng vô-lăng [E] (phím A/D) căn tia sáng chiếu trúng Mắt Ngọc Cối Xay!"
+                        ? "MỤC TIÊU 3: Cả hai cầm vô-lăng [F], lia chuột trái/phải để căn tia sáng vào Mắt Ngọc Cối Xay!"
                         : "HOÀN THÀNH: Hai hải đăng đã sáng rực, sương mù tan biến! Cùng lên thuyền vượt cối xay.";
             LighthouseHud.DrawObjective(objective);
         }

@@ -46,7 +46,8 @@ namespace Blocks.Gameplay.Core
 
             if (!localSteering)
             {
-                if (Keyboard.current.eKey.wasPressedThisFrame && LevelTwoActors.Near(local, interactionPoint != null ? interactionPoint : transform, 2f))
+                if ((Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.fKey.wasPressedThisFrame) &&
+                    LevelTwoActors.Near(local, interactionPoint != null ? interactionPoint : transform, 2f))
                     RequestControlRpc();
                 return;
             }
@@ -57,16 +58,20 @@ namespace Blocks.Gameplay.Core
                 ReleaseControlRpc();
                 return;
             }
-            if (Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame)
+            if (Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.fKey.wasPressedThisFrame ||
+                Keyboard.current.spaceKey.wasPressedThisFrame)
             {
                 localSteering = false;
                 ReleaseControlRpc();
                 return;
             }
 
-            float input = (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed ? 1f : 0f) -
-                          (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed ? 1f : 0f);
-            if (input != 0) RotateRpc(input, Mathf.Min(Time.deltaTime, 0.1f));
+            float mouseDeltaX = Mouse.current != null ? Mouse.current.delta.x.ReadValue() : 0f;
+            float keyInput = (Keyboard.current.dKey.isPressed ? 1f : 0f) -
+                             (Keyboard.current.aKey.isPressed ? 1f : 0f);
+            float turnInput = Mathf.Abs(mouseDeltaX) > 0.1f ? mouseDeltaX * 0.15f : keyInput;
+            if (Mathf.Abs(turnInput) > 0.01f)
+                RotateRpc(turnInput, Mathf.Min(Time.deltaTime, 0.1f));
         }
 
         public bool TrySetAngle(float angle)
@@ -117,9 +122,9 @@ namespace Blocks.Gameplay.Core
             if (!IsSpawned || local == null) return;
 
             if (localSteering && controller.Value == local.OwnerClientId)
-                LighthouseHud.DrawWorldHint(point.position, "[A/D] Xoay hướng tia sáng · [E/Space] Thoát");
+                LighthouseHud.DrawWorldHint(point.position, "Lia Chuột [◄ ►] để xoay tia sáng · [F / Space] Rời vô-lăng");
             else if (LevelTwoActors.Near(local, point, 2.5f))
-                LighthouseHud.DrawWorldHint(point.position, "[E] Cầm lái vô-lăng");
+                LighthouseHud.DrawWorldHint(point.position, "[F] Cầm lái Vô-lăng căn tia sáng");
         }
     }
 }

@@ -195,6 +195,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             FindMap();
             var wood = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Wood.mat");
             var gold = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Gold.mat");
+            var stone = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Stone.mat");
             var stage4 = Find("05_MistyMarsh_Stage4");
             // Remove every remnant of the superseded lily-pad/throw puzzle. This is
             // repeatable, so rewiring an older scene cannot leave duplicate props.
@@ -212,24 +213,41 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             for (int i = 0; i < 2; i++)
             {
                 string side = i == 0 ? "West" : "East";
-                float x = i == 0 ? 90 : 110, z = i == 0 ? 175 : 190;
+                float z = i == 0 ? 175 : 190;
+                Vector3 consolePosition = new Vector3(i == 0 ? 85.5f : 114.5f, 1.25f, z);
+                Vector3 forward = i == 0 ? Vector3.right : Vector3.left;
                 string rootName = side + "_BeaconGameplay";
                 var root = stage4.Find(rootName) ?? Marker(rootName, stage4, Vector3.zero);
                 var beacon = Ensure<MarshBeaconTrigger>(root.gameObject); beacons[i] = beacon;
                 Ensure<NetworkObject>(root.gameObject);
 
-                Vector3 socketPosition = new Vector3(x, 3.2f, z);
+                var consoleObject = root.Find(side + "_BeaconConsole") != null
+                    ? root.Find(side + "_BeaconConsole").gameObject
+                    : Box(side + "_BeaconConsole", root, consolePosition, new Vector3(1.6f, 0.9f, 1.2f), stone);
+                consoleObject.transform.position = consolePosition;
+                consoleObject.transform.localScale = new Vector3(1.6f, 0.9f, 1.2f);
+                consoleObject.GetComponent<Renderer>().sharedMaterial = stone;
+
+                Vector3 socketPosition = consolePosition + Vector3.up * 0.5f;
                 var socketObject = root.Find(side + "_ItemSocket") != null
                     ? root.Find(side + "_ItemSocket").gameObject
                     : Cylinder(side + "_ItemSocket", root, socketPosition, new Vector3(0.65f, 0.16f, 0.65f), gold);
                 socketObject.transform.position = socketPosition;
                 beacon.itemSocket = socketObject.transform; sockets[i] = socketObject.transform;
 
+                Vector3 wheelPosition = consolePosition + Vector3.up * 0.4f + forward * 0.6f;
                 var wheelObject = root.Find(side + "_TurnWheel") != null
                     ? root.Find(side + "_TurnWheel").gameObject
-                    : Cylinder(side + "_TurnWheel", root, new Vector3(x + (i == 0 ? 1.4f : -1.4f), 2.9f, z), new Vector3(0.75f, 0.12f, 0.75f), wood);
-                wheelObject.transform.rotation = Quaternion.Euler(90, 0, 0);
-                var pivot = root.Find(side + "_BeamEmitter") ?? Marker(side + "_BeamEmitter", root, socketPosition + Vector3.up * 0.35f);
+                    : Cylinder(side + "_TurnWheel", root, wheelPosition, new Vector3(0.75f, 0.12f, 0.75f), wood);
+                wheelObject.transform.position = wheelPosition;
+                wheelObject.transform.rotation = Quaternion.FromToRotation(Vector3.up, forward);
+
+                var tower = Find(side + "Beacon_Tower");
+                var lamp = tower.GetComponentInChildren<Light>(true);
+                if (lamp == null) throw new System.InvalidOperationException(side + " beacon tower has no top lantern Light.");
+                Vector3 topLanternPosition = lamp.transform.position;
+                var pivot = root.Find(side + "_BeamEmitter") ?? Marker(side + "_BeamEmitter", root, topLanternPosition);
+                pivot.position = topLanternPosition;
                 var wheel = Ensure<LighthouseTurnWheel>(root.gameObject);
                 wheel.interactionPoint = wheelObject.transform; wheel.lanternHead = pivot;
                 wheel.minimumAngle = i == 0 ? -30 : -45; wheel.maximumAngle = i == 0 ? 30 : 45;
@@ -242,12 +260,21 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 beam.beamKind = i == 0 ? LighthouseLightBeam.BeamKind.Primary : LighthouseLightBeam.BeamKind.Refracted;
                 beam.emitter = pivot; beam.sourceBeacon = beacon; beacon.beam = beam;
 
-                beacon.flame = Find(side + "Beacon_Tower").GetComponentInChildren<Light>(true).gameObject;
+                beacon.flame = lamp.gameObject;
                 beacon.beaconLight = Ensure<Light>(beacon.flame); beacon.beaconLight.type = LightType.Point;
                 beacon.beaconLight.color = new Color(1, 0.85f, 0.4f); beacon.beaconLight.range = 35; beacon.beaconLight.intensity = 6;
                 beacon.flame.SetActive(false);
                 beacon.crystal = null;
                 Feedback(root.gameObject, "Assets/Core/Audio/LVL2_Chime.wav", Color.yellow, socketPosition);
+
+                Vector3 rampPosition = new Vector3(i == 0 ? 88f : 112f, 0.95f, z);
+                var rampObject = root.Find(side + "_WoodenRamp") != null
+                    ? root.Find(side + "_WoodenRamp").gameObject
+                    : Box(side + "_WoodenRamp", root, rampPosition, new Vector3(5f, 0.25f, 1.8f), wood);
+                rampObject.transform.position = rampPosition;
+                rampObject.transform.localScale = new Vector3(5f, 0.25f, 1.8f);
+                rampObject.transform.rotation = Quaternion.Euler(0, 0, i == 0 ? -8f : 8f);
+                rampObject.GetComponent<Renderer>().sharedMaterial = wood;
             }
             beacons[0].pairedBeacon = beacons[1];
             beacons[1].pairedBeacon = beacons[0];
@@ -275,9 +302,18 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             items[1] = Ensure<CoopCarryableItem>(prismObject); items[1].itemType = CoopCarryableItem.ItemType.RefractionPrism;
             items[1].socketOwner = beacons[1]; beacons[1].requiredItem = items[1];
 
-            var prismSocket = Ensure<LighthousePrismSocket>(sockets[1].gameObject); prismSocket.beacon = beacons[1];
+            var oldGroundReceiver = sockets[1].GetComponent<LighthousePrismSocket>();
+            if (oldGroundReceiver != null) Object.DestroyImmediate(oldGroundReceiver);
+            Vector3 eastLanternPosition = beams[1].emitter.position;
+            var receiverObject = beacons[1].transform.Find("East_LanternPrismReceiver") != null
+                ? beacons[1].transform.Find("East_LanternPrismReceiver").gameObject
+                : Cylinder("East_LanternPrismReceiver", beacons[1].transform, eastLanternPosition,
+                    new Vector3(0.8f, 0.2f, 0.8f), gold);
+            receiverObject.transform.position = eastLanternPosition;
+            receiverObject.transform.localScale = new Vector3(0.8f, 0.2f, 0.8f);
+            var prismSocket = Ensure<LighthousePrismSocket>(receiverObject); prismSocket.beacon = beacons[1];
             beams[0].prismSocket = prismSocket; beams[1].prismSocket = prismSocket;
-            beams[0].emitter.LookAt(sockets[1].position);
+            beams[0].emitter.LookAt(prismSocket.transform.position);
             var stage5 = Find("06_WatermillHaven_Stage5");
             var controller = stage5.Find("WatermillController") ?? Marker("WatermillController", stage5, new Vector3(100, 0.5f, 225));
             var mill = Ensure<GiantWatermillObstacle>(controller.gameObject);
