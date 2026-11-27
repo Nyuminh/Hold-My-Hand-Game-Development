@@ -32,11 +32,19 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private Transform spawnPoint;
         [SerializeField] private TutorialIntroCutscene introCutscene;
 
+        [Header("Coop Tether Chain")]
+        [Tooltip("Tham chiếu CoopTetherChain để luyện tập kéo xích")]
+        [SerializeField] private CoopTetherChain tetherChain;
+        [SerializeField] private GameObject chainModel;
+        [SerializeField] private AudioClip chainClink;
+
         private Label m_RoleBadgeLabel;
         private Button m_SwitchRoleButton;
         private Button m_ReturnLobbyButton;
         private Button m_TeleportBoatButton;
+        private Button m_ToggleTetherButton;
 
+        private bool m_IsTetherEnabled = true;
         private bool m_IsSwitching = false;
         private RoleBasedSpawner m_Spawner;
 
@@ -59,11 +67,15 @@ namespace Blocks.Gameplay.Core
         private void Update()
         {
             if (introCutscene != null && introCutscene.IsPlaying) return;
-            // Phím tắt T để đổi vai
+            // Phím tắt T để đổi vai, C để bật/tắt xích co-op, B để tới bến thuyền
 #if ENABLE_INPUT_SYSTEM
             if (Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame)
             {
                 ToggleRole();
+            }
+            if (Keyboard.current != null && Keyboard.current.cKey.wasPressedThisFrame)
+            {
+                ToggleTether();
             }
             if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame)
             {
@@ -73,6 +85,10 @@ namespace Blocks.Gameplay.Core
             if (Input.GetKeyDown(KeyCode.T))
             {
                 ToggleRole();
+            }
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                ToggleTether();
             }
             if (Input.GetKeyDown(KeyCode.B))
             {
@@ -97,6 +113,7 @@ namespace Blocks.Gameplay.Core
             m_SwitchRoleButton = root.Q<Button>("switch-role-btn");
             m_ReturnLobbyButton = root.Q<Button>("return-lobby-btn");
             m_TeleportBoatButton = root.Q<Button>("teleport-boat-btn");
+            m_ToggleTetherButton = root.Q<Button>("toggle-tether-btn");
 
             if (m_SwitchRoleButton != null)
                 m_SwitchRoleButton.clicked += ToggleRole;
@@ -107,7 +124,11 @@ namespace Blocks.Gameplay.Core
             if (m_TeleportBoatButton != null)
                 m_TeleportBoatButton.clicked += TeleportToBoat;
 
+            if (m_ToggleTetherButton != null)
+                m_ToggleTetherButton.clicked += ToggleTether;
+
             UpdateRoleBadge();
+            UpdateTetherButtonUI();
             UISoundManager.BindButtons(root);
         }
 
@@ -230,7 +251,9 @@ namespace Blocks.Gameplay.Core
                 SpawnOrUpdateCompanion(Lobby3DManager.AmIDad);
             }
 
+            EnsureTetherChainExists();
             UpdateRoleBadge();
+            UpdateTetherButtonUI();
             if (introCutscene != null) introCutscene.Play(localPlayer, isMultiplayerSession, m_CompanionInstance, tutorialHUD);
         }
 
@@ -498,6 +521,81 @@ namespace Blocks.Gameplay.Core
             }
 
             Debug.Log("[TutorialManager] ⛵ Đã dịch chuyển đến khu vực Thuyền tập lái!");
+        }
+
+        /// <summary>
+        /// Bật / Tắt sợi xích Co-op Tether Chain để luyện tập cơ chế kéo xích.
+        /// </summary>
+        public void ToggleTether()
+        {
+            if (introCutscene != null && introCutscene.IsPlaying) return;
+            EnsureTetherChainExists();
+            if (tetherChain != null)
+            {
+                m_IsTetherEnabled = !m_IsTetherEnabled;
+                tetherChain.SetChainEnabled(m_IsTetherEnabled);
+                UpdateTetherButtonUI();
+                UISoundManager.PlayClick();
+                Debug.Log($"[TutorialManager] ⛓️ Đã {(m_IsTetherEnabled ? "BẬT" : "TẮT")} Sợi Xích Co-op!");
+            }
+        }
+
+        private void UpdateTetherButtonUI()
+        {
+            if (m_ToggleTetherButton != null)
+            {
+                m_ToggleTetherButton.text = m_IsTetherEnabled
+                    ? "⛓️  TẮT DÂY XÍCH CO-OP [C]"
+                    : "⛓️  BẬT DÂY XÍCH CO-OP [C]";
+            }
+        }
+
+        /// <summary>
+        /// Đảm bảo CoopTetherChain luôn sẵn sàng hoạt động trong Tutorial.
+        /// </summary>
+        public void EnsureTetherChainExists()
+        {
+            if (tetherChain == null)
+            {
+                tetherChain = FindAnyObjectByType<CoopTetherChain>();
+            }
+
+            if (tetherChain == null && NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+            {
+                var tetherGO = new GameObject("Coop Tether (Tutorial)");
+                var audio = tetherGO.AddComponent<AudioSource>();
+                audio.playOnAwake = false;
+
+                tetherChain = tetherGO.AddComponent<CoopTetherChain>();
+#if UNITY_EDITOR
+                if (chainModel == null)
+                {
+                    chainModel = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Core/Prefabs/Environment/iron-chain/source/Chain 2.fbx");
+                }
+                if (chainClink == null)
+                {
+                    chainClink = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Platformer/Audio/Clips/RotatingObstacleImpact.wav");
+                }
+#endif
+                tetherChain.chainModel = chainModel;
+                tetherChain.clink = chainClink;
+
+                var abyssGO = new GameObject("Abyss");
+                abyssGO.transform.SetParent(tetherGO.transform);
+                abyssGO.transform.position = Vector3.down * 2.5f;
+                tetherChain.abyss = abyssGO.AddComponent<AbyssFallTrigger>();
+
+                var netObj = tetherGO.GetComponent<NetworkObject>() ?? tetherGO.AddComponent<NetworkObject>();
+                if (netObj != null && !netObj.IsSpawned && NetworkManager.Singleton.IsListening)
+                {
+                    netObj.Spawn(true);
+                }
+            }
+
+            if (tetherChain != null)
+            {
+                tetherChain.SetChainEnabled(m_IsTetherEnabled);
+            }
         }
     }
 }

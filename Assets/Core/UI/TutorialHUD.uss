@@ -136,6 +136,23 @@
     scale: 0.98;
 }
 
+.tether-btn {
+    background-color: rgba(217, 119, 6, 0.28);
+    border-color: rgba(245, 158, 11, 0.55);
+    color: rgb(253, 230, 138);
+}
+
+.tether-btn:hover {
+    background-color: rgba(217, 119, 6, 0.5);
+    border-color: rgb(251, 191, 36);
+    color: rgb(255, 255, 255);
+    scale: 1.02;
+}
+
+.tether-btn:active {
+    scale: 0.98;
+}
+
 .boat-btn {
     background-color: rgba(20, 160, 140, 0.28);
     border-color: rgba(50, 210, 180, 0.55);

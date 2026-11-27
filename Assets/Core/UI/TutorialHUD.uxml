@@ -1,5 +1,5 @@
 <engine:UXML xmlns:engine="UnityEngine.UIElements" editor-extension-mode="False">
-    <engine:Style src="project://database/Assets/Core/UI/TutorialHUD.uss?fileID=7433441132597879392&amp;guid=e91823746a81bb34cb1999e81b238ef1&amp;type=3#TutorialHUD"/>
+    <engine:Style src="project://database/Assets/Core/UI/TutorialHUD.uss?fileID=7433441132597879392&amp;guid=d31ca19335b347e468e6e8ffa0524736&amp;type=3#TutorialHUD"/>
     <engine:VisualElement name="tutorial-hud-root" picking-mode="Ignore">
         <!-- Top Bar -->
         <engine:VisualElement class="tutorial-top-bar" picking-mode="Ignore">
@@ -37,6 +37,14 @@
                     <engine:Label text="Đổi vai: Ba ↔ Con" class="control-desc highlight-text"/>
                 </engine:VisualElement>
                 <engine:VisualElement class="control-item">
+                    <engine:Label text="Phím C" class="key-badge key-highlight"/>
+                    <engine:Label text="Bật / Tắt Dây Xích Co-op" class="control-desc highlight-text"/>
+                </engine:VisualElement>
+                <engine:VisualElement class="control-item">
+                    <engine:Label text="Giữ E / F" class="key-badge key-highlight"/>
+                    <engine:Label text="Ba gồng kéo xích (thân trên)" class="control-desc highlight-text"/>
+                </engine:VisualElement>
+                <engine:VisualElement class="control-item">
                     <engine:Label text="Phím B" class="key-badge key-highlight"/>
                     <engine:Label text="Đến Thuyền Tập Lái" class="control-desc highlight-text"/>
                 </engine:VisualElement>
@@ -48,6 +56,7 @@
 
             <!-- Right Action Buttons -->
             <engine:VisualElement class="tutorial-actions-panel" picking-mode="Position">
+                <engine:Button name="toggle-tether-btn" text="⛓️  BẬT DÂY XÍCH CO-OP [C]" class="action-btn tether-btn"/>
                 <engine:Button name="teleport-boat-btn" text="⛵  ĐẾN THUYỀN TẬP LÁI [B]" class="action-btn boat-btn"/>
                 <engine:Button name="switch-role-btn" text="🔄  ĐỔI VAI: BA ↔ CON [T]" class="action-btn switch-btn"/>
                 <engine:Button name="return-lobby-btn" text="🏠  TRỞ VỀ SẢNH" class="action-btn lobby-btn"/>
@@ -83,7 +92,7 @@
         <engine:VisualElement class="bottom-tips-container" picking-mode="Ignore">
             <engine:VisualElement class="tips-box" picking-mode="Position">
                 <engine:Label text="💡 BÀI TẬP: " class="tips-prefix"/>
-                <engine:Label text="1. Vượt chướng ngại vật  |  2. Bệ nhún bật cao  |  3. Đổi vai Ba &amp; Con [T]  |  4. Luyện tập chèo &amp; bẻ lái thuyền [B]!" class="tips-content"/>
+                <engine:Label text="1. Vượt chướng ngại vật  |  2. Bệ nhún bật cao  |  3. Kéo dây xích co-op [C] / [E] / [F]  |  4. Đổi vai Ba &amp; Con [T]  |  5. Luyện tập lái thuyền [B]!" class="tips-content"/>
             </engine:VisualElement>
         </engine:VisualElement>
     </engine:VisualElement>

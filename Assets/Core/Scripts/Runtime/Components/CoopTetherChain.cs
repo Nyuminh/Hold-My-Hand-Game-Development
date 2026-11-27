@@ -16,9 +16,72 @@ namespace Blocks.Gameplay.Core
         public event System.Action CrewFell;
         readonly NetworkVariable<int> suspended = new(); // 2: Child hanging, 3: Dad has pulled the pair into the abyss
         readonly NetworkVariable<bool> hauling = new();
+        readonly NetworkVariable<bool> isChainEnabled = new(true);
+        public bool IsChainEnabled => isChainEnabled.Value;
         public bool IsSuspended => suspended.Value == 2;
         public bool CrewIsFalling => suspended.Value == 3;
-        public void RequestHaul() { if (IsSpawned && IsSuspended) HaulRpc(); }
+        public void RequestHaul() { RequestSetHauling(true); }
+
+        public void SetChainEnabled(bool enabled)
+        {
+            if (!IsSpawned) return;
+            if (IsServer)
+            {
+                isChainEnabled.Value = enabled;
+                if (!enabled)
+                {
+                    chain?.Hide();
+                    ClearCatch();
+                }
+            }
+            else
+            {
+                SetChainEnabledRpc(enabled);
+            }
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        void SetChainEnabledRpc(bool enabled, RpcParams rpc = default)
+        {
+            SetChainEnabled(enabled);
+        }
+
+        public void RequestSetHauling(bool isPulling)
+        {
+            if (!IsSpawned) return;
+            if (IsServer)
+            {
+                SetHaulingInternal(isPulling);
+            }
+            else
+            {
+                SetHaulingRpc(isPulling);
+            }
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        void SetHaulingRpc(bool isPulling, RpcParams rpc = default)
+        {
+            var anchor = dad;
+            if (anchor && (anchor.OwnerClientId == rpc.Receive.SenderClientId || IsServer))
+            {
+                SetHaulingInternal(isPulling);
+            }
+        }
+
+        void SetHaulingInternal(bool isPulling)
+        {
+            if (isPulling && (!Supported(dad) && suspended.Value == 2)) return;
+            if (hauling.Value != isPulling)
+            {
+                hauling.Value = isPulling;
+                if (isPulling)
+                {
+                    ClinkRpc();
+                    nextSound = Time.time + 0.45f;
+                }
+            }
+        }
         CorePlayerManager dad, child;
         Transform dadHand, childHand;
         HangingChain chain;
@@ -36,7 +99,11 @@ namespace Blocks.Gameplay.Core
 
         void LateUpdate()
         {
-            if (!IsSpawned) return;
+            if (!IsSpawned || !isChainEnabled.Value)
+            {
+                chain?.Hide();
+                return;
+            }
             if (!LevelOnePlayer.IsAlive(dad) || !LevelOnePlayer.IsAlive(child))
             {
                 dad = child = null;
@@ -79,7 +146,7 @@ namespace Blocks.Gameplay.Core
             ConstrainHands(Anchor(child, childHand) - Anchor(dad, dadHand));
             chain?.Step(Anchor(dad, dadHand), Anchor(child, childHand), Time.deltaTime);
 
-            // Cập nhật Animation kéo dây (Pulling A Rope) trên Ba
+            // Cập nhật Animation kéo dây (Pulling A Rope / Pull Chain) trên Ba
             UpdateDadPullAnimation();
         }
 
@@ -116,15 +183,54 @@ namespace Blocks.Gameplay.Core
                 }
                 return;
             }
-            if (suspended.Value == 0) return;
+
             var fallen = child;
             var anchor = dad;
 
-            // Nhấn hoặc giữ phím E/F để Ba gồng sức kéo Con lên
-            if (anchor.IsOwner && Keyboard.current != null &&
-                (Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.eKey.isPressed || Keyboard.current.fKey.wasPressedThisFrame))
+            // Nhấn hoặc giữ phím E/F để Ba gồng sức kéo Con (cả trên mặt đất lẫn khi Con rơi lơ lửng)
+            if (anchor != null && anchor.IsOwner)
             {
-                RequestHaul();
+                bool pullPressed = false;
+#if ENABLE_INPUT_SYSTEM
+                if (Keyboard.current != null)
+                {
+                    pullPressed = Keyboard.current.eKey.isPressed || Keyboard.current.fKey.isPressed;
+                }
+#else
+                pullPressed = Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.F);
+#endif
+
+                if (pullPressed != hauling.Value)
+                {
+                    RequestSetHauling(pullPressed);
+                }
+            }
+
+            if (suspended.Value == 0)
+            {
+                // Khi ở trên mặt đất: Ba kéo dây xích thì Con được kéo êm ái lại gần Ba
+                if (hauling.Value && fallen != null && anchor != null)
+                {
+                    if (fallen.IsOwner)
+                    {
+                        var groundCc = fallen.GetComponent<CharacterController>();
+                        if (groundCc != null && groundCc.enabled)
+                        {
+                            Vector3 toDad = anchor.transform.position - fallen.transform.position;
+                            toDad.y = 0;
+                            if (toDad.magnitude > 1.8f)
+                            {
+                                groundCc.Move(toDad.normalized * (5.5f * Time.deltaTime));
+                            }
+                        }
+                    }
+                    if (IsServer && Time.time >= nextSound)
+                    {
+                        ClinkRpc();
+                        nextSound = Time.time + 0.5f;
+                    }
+                }
+                return;
             }
 
             if (!fallen.IsOwner) return;
@@ -240,10 +346,9 @@ namespace Blocks.Gameplay.Core
         void HaulRpc(RpcParams rpc = default)
         {
             var anchor = dad;
-            if (IsSuspended && anchor && anchor.OwnerClientId == rpc.Receive.SenderClientId && Supported(anchor) && !hauling.Value)
+            if (anchor && (anchor.OwnerClientId == rpc.Receive.SenderClientId || IsServer))
             {
-                hauling.Value = true;
-                ClinkRpc();
+                SetHaulingInternal(true);
             }
         }
 
