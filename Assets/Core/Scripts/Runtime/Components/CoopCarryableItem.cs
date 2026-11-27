@@ -52,9 +52,10 @@ namespace Blocks.Gameplay.Core
 
         private void Update()
         {
+            if (!IsSpawned) return;
             ApplyState();
             var local = LevelTwoActors.Local;
-            if (!IsSpawned || local == null || Keyboard.current == null) return;
+            if (local == null || Keyboard.current == null) return;
 
             if (IsHeldBy(local))
             {
@@ -64,7 +65,7 @@ namespace Blocks.Gameplay.Core
             }
 
             if (!IsCarried && !IsSocketed && Keyboard.current.eKey.wasPressedThisFrame &&
-                Vector3.Distance(local.transform.position, transform.position) < 2f && IsClosestPickup(local))
+                Vector3.Distance(local.transform.position, transform.position) <= 2.5f && IsClosestPickup(local))
                 RequestPickupRpc();
         }
 
@@ -87,7 +88,7 @@ namespace Blocks.Gameplay.Core
         public bool TryPickup(CorePlayerManager player)
         {
             if (!IsServer || player == null || !LevelTwoActors.OnFoot(player) || IsCarried || IsSocketed ||
-                Vector3.Distance(player.transform.position, transform.position) >= 2f ||
+                Vector3.Distance(player.transform.position, transform.position) > 2.5f ||
                 FindObjectsByType<CoopCarryableItem>(FindObjectsSortMode.None).Any(i => i != this && i.IsHeldBy(player)))
                 return false;
 
@@ -177,6 +178,23 @@ namespace Blocks.Gameplay.Core
         {
             var sender = LevelTwoActors.Sender(NetworkManager, rpc.Receive.SenderClientId);
             if (CanSocket(sender)) InsertIntoSocket(socketOwner.itemSocket);
+        }
+
+        private void OnGUI()
+        {
+            var local = LevelTwoActors.Local;
+            if (!IsSpawned || local == null || IsSocketed) return;
+
+            if (IsHeldBy(local))
+            {
+                LighthouseHud.DrawWorldHint(transform.position,
+                    CanSocket(local) ? "[E] Gắn vào Ổ cắm" : "[G] Thả xuống");
+                return;
+            }
+
+            if (!IsCarried && Vector3.Distance(local.transform.position, transform.position) <= 2.5f)
+                LighthouseHud.DrawWorldHint(transform.position, itemType == ItemType.IgnitionCrank
+                    ? "[E] Nhặt Tay Quay" : "[E] Nhặt Lăng Kính");
         }
 
         [Rpc(SendTo.Everyone)]

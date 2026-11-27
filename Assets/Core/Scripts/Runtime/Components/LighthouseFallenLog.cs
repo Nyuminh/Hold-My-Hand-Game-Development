@@ -21,7 +21,7 @@ namespace Blocks.Gameplay.Core
         {
             if (!IsSpawned) return;
             var local = LevelTwoActors.Local;
-            if (local != null && LevelOnePlayer.IsDad(local) && LevelTwoActors.Near(local, dadGrip, 2.2f) &&
+            if (local != null && LevelOnePlayer.IsDad(local) && LevelTwoActors.Near(local, dadGrip, 2.5f) &&
                 Keyboard.current?.eKey.wasPressedThisFrame == true) ToggleLiftRpc();
 
             if (IsServer && liftingDad.Value != ulong.MaxValue)
@@ -37,7 +37,7 @@ namespace Blocks.Gameplay.Core
 
         public bool TryLift(CorePlayerManager dad)
         {
-            if (!IsServer || !LevelOnePlayer.IsDad(dad) || !LevelTwoActors.Near(dad, dadGrip, 2.2f)) return false;
+            if (!IsServer || !LevelOnePlayer.IsDad(dad) || !LevelTwoActors.Near(dad, dadGrip, 2.5f)) return false;
             liftingDad.Value = dad.OwnerClientId;
             return true;
         }
@@ -46,8 +46,20 @@ namespace Blocks.Gameplay.Core
         private void ToggleLiftRpc(RpcParams rpc = default)
         {
             var dad = LevelTwoActors.Sender(NetworkManager, rpc.Receive.SenderClientId);
-            if (!LevelOnePlayer.IsDad(dad) || !LevelTwoActors.Near(dad, dadGrip, 2.2f)) return;
+            if (!LevelOnePlayer.IsDad(dad) || !LevelTwoActors.Near(dad, dadGrip, 2.5f)) return;
             liftingDad.Value = liftingDad.Value == rpc.Receive.SenderClientId ? ulong.MaxValue : rpc.Receive.SenderClientId;
+        }
+
+        private void OnGUI()
+        {
+            var local = LevelTwoActors.Local;
+            if (!IsSpawned || local == null || dadGrip == null) return;
+
+            if (LevelOnePlayer.IsDad(local) && LevelTwoActors.Near(local, dadGrip, 2.5f))
+                LighthouseHud.DrawWorldHint(dadGrip.position, IsLifted ? "[E] Hạ thân cây" : "[E] Nâng thân cây cổ thụ");
+            else if (!LevelOnePlayer.IsDad(local) && IsLifted && trunk != null &&
+                     Vector3.Distance(local.transform.position, trunk.position) <= 4f)
+                LighthouseHud.DrawWorldHint(trunk.position, "Ba đang nâng cây! Hãy chui vào trong");
         }
     }
 }

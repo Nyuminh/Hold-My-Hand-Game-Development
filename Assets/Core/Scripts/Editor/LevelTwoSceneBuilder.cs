@@ -196,6 +196,15 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var wood = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Wood.mat");
             var gold = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Gold.mat");
             var stage4 = Find("05_MistyMarsh_Stage4");
+            // Remove every remnant of the superseded lily-pad/throw puzzle. This is
+            // repeatable, so rewiring an older scene cannot leave duplicate props.
+            var legacyNames = new HashSet<string>
+            {
+                "GiantLilyPad_1", "GiantLilyPad_2", "LuminaCrystal_Gem", "ThrowPad", "ThrowPlatform"
+            };
+            foreach (var legacy in Root.GetComponentsInChildren<Transform>(true)
+                         .Where(t => legacyNames.Contains(t.name)).ToArray())
+                Object.DestroyImmediate(legacy.gameObject);
             var beacons = new MarshBeaconTrigger[2];
             var beams = new LighthouseLightBeam[2];
             var items = new CoopCarryableItem[2];
@@ -240,6 +249,8 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 beacon.crystal = null;
                 Feedback(root.gameObject, "Assets/Core/Audio/LVL2_Chime.wav", Color.yellow, socketPosition);
             }
+            beacons[0].pairedBeacon = beacons[1];
+            beacons[1].pairedBeacon = beacons[0];
 
             var crankObject = stage4.Find("IgnitionCrank") != null ? stage4.Find("IgnitionCrank").gameObject :
                 Cylinder("IgnitionCrank", stage4, new Vector3(95, 2.5f, 170), new Vector3(0.22f, 0.65f, 0.22f), gold);
@@ -321,6 +332,15 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 if (profile != null) EditorUtility.SetDirty(profile);
             }
             Save();
+        }
+
+        // Batch-mode entry point used by CI and task validation to guarantee the
+        // authored lighthouse objects are serialized into PlayScene2.unity.
+        public static void BakeStageThree()
+        {
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            SceneManager.SetActiveScene(scene);
+            WireStageThree();
         }
 
         public static Vector3 Surface(float x, float z)

@@ -1,26 +1,32 @@
 {
   "id": "TASK-001",
-  "title": "Implement Intersecting Lighthouse Light-Refraction Puzzle in PlayScene2",
-  "description": "Upgrade the twin lighthouse stage (Misty Marsh) in PlayScene2 to feature a cooperative light beam refraction puzzle with carryable items (Ignition Crank and Ancient Prism), asymmetric Father/Child coordination, and laser alignment to unlock the Giant Watermill.",
+  "title": "Implement Intersecting Lighthouse Light-Refraction Puzzle with In-Game HUD Guidance in PlayScene2",
+  "description": "Upgrade the twin lighthouse stage (Misty Marsh) in PlayScene2 to feature a cooperative light beam refraction puzzle with carryable items (Ignition Crank and Ancient Prism), asymmetric Father/Child coordination, laser alignment to unlock the Giant Watermill, comprehensive in-game HUD tutorial banners, floating interaction prompts, and clean up legacy lily pad throw objects with baked PlayScene2 scene file.",
   "owner": "codex",
   "status": "READY_FOR_DEV",
   "dependencies": [],
   "context_files": [
     "Docs/tasks/TASK_LIGHTHOUSE_PUZZLE_CODEX.md",
     "Assets/Core/Scripts/Runtime/Components/MarshBeaconTrigger.cs",
+    "Assets/Core/Scripts/Runtime/Components/CoopCarryableItem.cs",
+    "Assets/Core/Scripts/Runtime/Components/LighthouseFallenLog.cs",
+    "Assets/Core/Scripts/Runtime/Components/LighthouseTurnWheel.cs",
+    "Assets/Core/Scripts/Runtime/Components/LighthouseLightBeam.cs",
+    "Assets/Core/Scripts/Runtime/Components/LuminaMillSensor.cs",
     "Assets/Core/Scripts/Runtime/Components/GiantWatermillObstacle.cs",
     "Assets/Core/Scripts/Runtime/Components/LevelTwoClimaxManager.cs",
-    "Assets/Core/Scripts/Runtime/Components/LevelTwoActors.cs",
     "Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs",
     "Assets/Core/Scripts/Editor/LevelTwoValidation.cs"
   ],
   "acceptance_criteria": [
-    "CoopCarryableItem enables picking up, carrying, dropping, and socketing items over Unity Netcode.",
-    "Child can retrieve Ignition Crank from narrow rocks; Father cranks West Tower Dynamo to cast primary light beam.",
-    "Father lifts fallen log; Child crawls through CoopCrawlVolume to retrieve Ancient Prism from chest.",
-    "Child sockets Prism on East Tower; West beam hitting Prism spawns secondary refracted beam.",
-    "Aligning refracted beam with LuminaMillSensor triggers BeaconsLit = true, disperses marsh fog, and opens Giant Watermill safety boom.",
-    "LevelTwoValidation and batch tests compile and pass cleanly."
+    "PlayScene2.unity scene file is saved and committed with new puzzle objects (IgnitionCrank, East_FallenLogPuzzle, AncientPrism, LuminaMillSensor_Lens); legacy lily pads and floating gem are removed/hidden.",
+    "Prominent top-screen HUD Objective Banner updates dynamically across 4 puzzle phases.",
+    "Proximity floating prompts display clear action text: [E] Nhặt, [E] Cắm vào bệ, [E] Nâng thân cây, [A/D] Xoay hướng tia sáng.",
+    "Child picks up Ignition Crank with [E] and inserts into West Tower to activate primary beam.",
+    "Father lifts fallen log with [E]; Child crawls through CoopCrawlVolume to retrieve Ancient Prism and sockets it on East Tower.",
+    "Adjusting steering wheels with [A/D] aligns primary beam to prism and refracted secondary beam to LuminaMillSensor.",
+    "Triggering sensor illuminates both beacons, clears marsh fog, and lifts watermill safety boom permanently.",
+    "LevelTwoValidation tests pass cleanly."
   ],
   "test_command": "Unity Editor MenuItem: 'Hold My Hand/Level 2/Wire Beacons Watermill and Victory'",
   "token_budget": {
@@ -30,7 +36,9 @@
   "max_retries": 2,
   "result_summary": "",
   "files_changed": [
+    "Assets/Core/Scenes/PlayScene2.unity",
     "Assets/Core/Scripts/Runtime/Components/CoopCarryableItem.cs",
+    "Assets/Core/Scripts/Runtime/Components/LighthouseFallenLog.cs",
     "Assets/Core/Scripts/Runtime/Components/LighthouseLightBeam.cs",
     "Assets/Core/Scripts/Runtime/Components/LighthouseTurnWheel.cs",
     "Assets/Core/Scripts/Runtime/Components/LuminaMillSensor.cs",
@@ -39,7 +47,7 @@
     "Assets/Core/Scripts/Editor/LevelTwoValidation.cs"
   ],
   "risks": [
-    "Ensure LineRenderer raycasts use layer masks that don't collide prematurely with player colliders.",
-    "Ensure backward compatibility of MarshBeaconTrigger.Lit property so GiantWatermillObstacle is unaffected."
+    "Ensure PlayScene2.unity scene file is explicitly marked dirty and saved to disk so Unity loads the new objects.",
+    "Ensure HUD banners and world-space prompts are localized in clear Vietnamese and visible regardless of distance."
   ]
 }

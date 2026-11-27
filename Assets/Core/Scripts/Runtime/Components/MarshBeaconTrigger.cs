@@ -15,6 +15,7 @@ namespace Blocks.Gameplay.Core
         public Transform itemSocket;
         public LighthouseLightBeam beam;
         public LighthouseTurnWheel turnWheel;
+        public MarshBeaconTrigger pairedBeacon;
         private readonly NetworkVariable<bool> lit = new NetworkVariable<bool>();
         private CorePlayerManager launchedChild;
         private float launchDeadline;
@@ -80,12 +81,76 @@ namespace Blocks.Gameplay.Core
         private void OnGUI()
         {
             var local = LevelTwoActors.Local;
-            Transform prompt = itemSocket != null ? itemSocket : throwPad;
-            if (Lit || local == null || prompt == null || Vector3.Distance(local.transform.position, prompt.position) > 10) return;
-            GUI.Box(new Rect(20, 85, 650, 60), requiredItem != null
-                ? (!RequiredItemSocketed ? "Nhặt vật phẩm bằng [E], thả bằng [G], rồi mang tới ổ gắn của hải đăng."
-                    : "Dùng vô-lăng [E], xoay A/D để căn tia sáng; [E] hoặc Space để rời vô-lăng.")
-                : "Ba và Con lên bệ cạnh lá sen. Ba giữ rồi thả [F] để ném Con.");
+            if (!IsSpawned || local == null || requiredItem == null ||
+                requiredItem.itemType != CoopCarryableItem.ItemType.IgnitionCrank ||
+                local.transform.position.z < 150f || local.transform.position.z > 215f) return;
+
+            var east = pairedBeacon;
+            if (east == null)
+            {
+                foreach (var candidate in FindObjectsByType<MarshBeaconTrigger>(FindObjectsSortMode.None))
+                    if (candidate != this && candidate.requiredItem != null &&
+                        candidate.requiredItem.itemType == CoopCarryableItem.ItemType.RefractionPrism)
+                    {
+                        east = candidate;
+                        pairedBeacon = candidate;
+                        break;
+                    }
+            }
+            bool eastSocketed = east != null && east.RequiredItemSocketed;
+            bool beaconsLit = Lit && east != null && east.Lit;
+            string objective = !RequiredItemSocketed
+                ? "MỤC TIÊU 1: Con nhặt Tay Quay [E] ở bờ đá, đem cắm vào Tháp Tây để phát sáng."
+                : !eastSocketed
+                    ? "MỤC TIÊU 2: Ba nhấn [E] nâng giữ thân cây, Con chui qua hốc nhặt Lăng Kính Cổ [E], cắm lên Tháp Đông."
+                    : !beaconsLit
+                        ? "MỤC TIÊU 3: Cả hai dùng vô-lăng [E] (phím A/D) căn tia sáng chiếu trúng Mắt Ngọc Cối Xay!"
+                        : "HOÀN THÀNH: Hai hải đăng đã sáng rực, sương mù tan biến! Cùng lên thuyền vượt cối xay.";
+            LighthouseHud.DrawObjective(objective);
+        }
+    }
+
+    internal static class LighthouseHud
+    {
+        private static GUIStyle hintStyle;
+        private static GUIStyle objectiveStyle;
+
+        public static void DrawWorldHint(Vector3 worldPosition, string message)
+        {
+            var camera = Camera.main;
+            if (camera == null || string.IsNullOrEmpty(message)) return;
+
+            Vector3 screen = camera.WorldToScreenPoint(worldPosition + Vector3.up * 1.25f);
+            if (screen.z <= 0) return;
+
+            hintStyle ??= new GUIStyle(GUI.skin.box)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 18,
+                fontStyle = FontStyle.Bold,
+                wordWrap = false
+            };
+            hintStyle.normal.textColor = new Color(1f, 0.84f, 0.2f);
+            Vector2 size = hintStyle.CalcSize(new GUIContent(message));
+            size.x = Mathf.Min(size.x + 28f, Screen.width - 20f);
+            size.y = Mathf.Max(size.y + 12f, 38f);
+            GUI.Box(new Rect(Mathf.Clamp(screen.x - size.x * 0.5f, 10f, Screen.width - size.x - 10f),
+                Screen.height - screen.y - size.y * 0.5f, size.x, size.y), message, hintStyle);
+        }
+
+        public static void DrawObjective(string message)
+        {
+            objectiveStyle ??= new GUIStyle(GUI.skin.box)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 20,
+                fontStyle = FontStyle.Bold,
+                wordWrap = true,
+                padding = new RectOffset(22, 22, 10, 10)
+            };
+            objectiveStyle.normal.textColor = Color.white;
+            float width = Mathf.Min(1000f, Screen.width - 40f);
+            GUI.Box(new Rect((Screen.width - width) * 0.5f, 18f, width, 66f), message, objectiveStyle);
         }
     }
 }

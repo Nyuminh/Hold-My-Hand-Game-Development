@@ -1,166 +1,109 @@
-# 📋 TASK SPECIFICATION: LIGHTHOUSE PUZZLE IMPLEMENTATION (PLAYSCENE2)
-> **Target Agent / Developer**: OpenAI Codex / Developer  
-> **Project**: Hold My Hand · Nắm tay cha (Unity 6 / Netcode for GameObjects)  
-> **Scene**: `Assets/Core/Scenes/PlayScene2.unity` (Stage 4: Misty Marsh & Twin Beacons)  
-> **Feature**: Light Refraction & Item Carrying Cooperative Lighthouse Puzzle
+# 📋 TASK ĐẶC TẢ KỸ THUẬT & HƯỚNG DẪN CHƠI PUZZLE HẢI ĐĂNG (PLAYSCENE2)
+> **Dành cho**: OpenAI Codex / Lập trình viên  
+> **Dự án**: Hold My Hand · Nắm tay cha (Unity 6 / Netcode for GameObjects)  
+> **Scene mục tiêu**: `Assets/Core/Scenes/PlayScene2.unity` (Stage 4: Misty Marsh & Twin Beacons, Z: 155 - 215)  
+> **Trạng thái**: TÁI CẤU TRÚC & HOÀN THIỆN TOÀN DIỆN (RE-WRITE & COMPLETE POLISH)
 
 ---
 
-## 🎯 OBJECTIVE SUMMARY
-Replace the simplistic lily-pad throw trigger at the Twin Lighthouses (West Beacon & East Beacon in PlayScene2, Z: 155–215) with an asymmetric cooperative light-refraction puzzle involving item pickup/carrying and coordinated beam alignment between Father (Ba) and Child (Con).
+## ⚠️ 1. NGUYÊN NHÂN NGƯỜI CHƠI THẤY CƠ CHẾ VẪN NHƯ CŨ (ROOT CAUSES)
+Trong lần sửa trước, mặc dù các script C# mới đã được tạo (`CoopCarryableItem.cs`, `LighthouseLightBeam.cs`, `LighthouseTurnWheel.cs`), nhưng người chơi kiểm tra thực tế vẫn thấy cơ chế như cũ vì 3 lý do chí mạng:
+1. **Scene `PlayScene2.unity` chưa được bake và lưu ra file trên ổ đĩa**: `LevelTwoSceneBuilder.WireStageThree()` chỉ nằm trong code Editor mà chưa được chạy để lưu đè vào file scene `PlayScene2.unity`.
+2. **Các GameObject cũ vẫn hiển thị trong Scene**: Hai chiếc lá sen khổng lồ (`GiantLilyPad_1`, `GiantLilyPad_2`) và bệ ném cũ (`ThrowPad`) vẫn còn tồn tại, không bị ẩn hay dọn dẹp, khiến người chơi lầm tưởng cơ chế cũ vẫn đang chạy.
+3. **Thiếu hoàn toàn hệ thống HUD Hướng Dẫn & Prompt Trực Quan**:
+   - Khi người chơi đến ngọn hải đăng, không có Banner thông báo mục tiêu cần làm gì.
+   - Khi đứng cạnh vật phẩm `IgnitionCrank`, không có chữ nổi nhắc `[E] Nhặt`.
+   - Khi đứng cạnh thân cây đổ `FallenLog`, người Ba không thấy nhắc `[E] Nâng giữ thân cây`, Con không biết phải chui vào hốc.
+   - Khi đứng cạnh vô-lăng, không biết bấm gì để lái tia sáng.
 
 ---
 
-## 📚 CONTEXT FILES TO READ FIRST
-Before modifying or creating code, read:
-1. `Assets/Core/Scripts/Runtime/Components/MarshBeaconTrigger.cs` (Current beacon trigger)
-2. `Assets/Core/Scripts/Runtime/Components/GiantWatermillObstacle.cs` (Controls safety boom & checks `BeaconsLit`)
-3. `Assets/Core/Scripts/Runtime/Components/LevelTwoClimaxManager.cs` (Fog & progression)
-4. `Assets/Core/Scripts/Runtime/Components/LevelTwoActors.cs` (Player query utilities)
-5. `Assets/Core/Scripts/Runtime/Components/CoopCrawlVolume.cs` (Child-only crawl zones)
-6. `Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs` (Authoring script for Level 2)
-7. `Assets/Core/Scripts/Editor/LevelTwoValidation.cs` (Validation test runner)
+## 📖 2. HƯỚNG DẪN CHƠI TOÀN TẬP Ở NGỌN HẢI ĐĂNG (PLAYER GAMEPLAY GUIDE)
+*(Phần này được tích hợp vào Game HUD và tài liệu hướng dẫn cho người chơi)*
+
+### 🎯 Bối Cảnh & Mục Tiêu (Objective):
+Hai cha con chèo thuyền đến đầm lầy sương mù mù mịt (Misty Marsh). Phía trước là cối xay nước khổng lồ (`GiantWatermillObstacle`) đang bị rào chắn an toàn khóa kín. Trên đỉnh cối xay là một **Mắt Ngọc Cảm Biến Quang Học (Lumina Sensor)** đang ngủ yên.  
+**Mục tiêu**: Kích hoạt ngọn đèn Tháp Tây $\rightarrow$ Dẫn tia sáng qua Tháp Đông $\rightarrow$ Bẻ cong tia sáng bắn vào Mắt Ngọc Cối Xay để tan biến sương mù và mở toang cổng cối xay!
+
+### 🎮 Các Bước Phối Hợp Cha - Con Chi Tiết:
+
+#### 🔹 BƯỚC 1: THẮP SÁNG HẢI ĐĂNG TÂY (Nhặt & Gắn Tay Quay)
+- **Địa điểm**: Đảo Hải Đăng Tây (Bên trái dòng sông).
+- **Thực hiện**:
+  - Tại bờ đá gần mép nước ($x=95, z=170$), có một chiếc **Tay Quay Khởi Động (`IgnitionCrank`)**.
+  - **Đứa Con**: Di chuyển lại gần tay quay, bấm phím **[E]** để nhặt và ôm chiếc tay quay trước ngực.
+  - Con có thể mang lại gần Ba bấm **[E]** để chuyền cho Ba, HOẶC trực tiếp mang lên bệ Tháp Tây.
+  - Đứng sát Ổ Cắm Tháp Tây (`West_ItemSocket`), bấm phím **[E]** để gắn tay quay vào.
+- **Hiệu ứng**:
+  - Hải đăng Tây bùng sáng ngọn lửa vàng!
+  - Một chùm sáng vàng rực rỡ (`Primary Light Beam`) phóng thẳng qua dòng sông hướng về phía Tháp Đông!
+
+#### 🔹 BƯỚC 2: GIẢI CỨU LĂNG KÍNH ĐÔNG (Nâng Thân Cây & Chui Khe Hẹp)
+- **Địa điểm**: Khu rừng cây rậm rạp cạnh Tháp Đông (Bên phải dòng sông, $x=115, z=192$).
+- **Thực hiện**:
+  - Một thân cây cổ thụ mục đổ chắn ngang lối vào hốc rương vàng (`FallenLog`).
+  - **Người Ba**: Tiến lại gần điểm cầm tay màu gỗ (`DadGrip`), bấm phím **[E]** để gồng mình nâng thân cây lên cao.
+  - **Đứa Con**: Trong lúc Ba đang nâng giữ thân cây, Con chạy lại chui qua khe hẹp (`CoopCrawlVolume`) bò vào bên trong hốc cây.
+  - Con mở chiếc rương vàng cổ (`Pfb_AncientChest`), bấm phím **[E]** để nhặt **Khối Lăng Kính Khúc Xạ (`AncientPrism`)**.
+  - Con ôm Lăng Kính bò ra ngoài, chạy lên bệ tròn Tháp Đông.
+  - Đứng cạnh bệ xoay Tháp Đông (`East_ItemSocket`), bấm **[E]** để gắn Lăng Kính vào ổ.
+- **Hiệu ứng**:
+  - Lăng Kính sáng lập lòe, sẵn sàng đón nhận tia sáng và khúc xạ.
+
+#### 🔹 BƯỚC 3: GIAO THOA ÁNH SÁNG (Căn Chỉnh Góc Tia Sáng)
+- **Địa điểm**: Vô-lăng điều khiển ở 2 ngọn tháp.
+- **Thực hiện**:
+  - **Người Ba (ở Tháp Tây)**: Lại gần vô-lăng (`West_TurnWheel`), bấm **[E]** để vào chế độ lái đèn. Dùng phím **A / D** (hoặc Mũi tên Trái / Phải) xoay góc chiếu đèn sao cho tia sáng vàng bắn thẳng trúng vào Khối Lăng Kính trên Tháp Đông.
+  - **Đứa Con (ở Tháp Đông)**: Khi tia sáng từ Tháp Tây chiếu trúng Lăng Kính, Lăng Kính sẽ phóng ra tia sáng thứ hai (`Secondary Refracted Beam`). Con lại gần vô-lăng Tháp Đông (`East_TurnWheel`), bấm **[E]** để điều khiển, dùng phím **A / D** xoay góc tia phản xạ chiếu thẳng vào **Mắt Ngọc Cảm Biến** trên Cối Xay Nước!
+  - Bấm **[E]** hoặc **[Space]** để rời khỏi vô-lăng bất cứ lúc nào.
+- **🎯 KẾT THÚC THẮNG LỢI (Victory)**:
+  - Khi tia sáng chiếu trúng tâm Mắt Ngọc Cối Xay trong 0.5s:
+  - Mắt Ngọc đổi từ Đỏ sang Xanh ngọc phát sáng chói lòa!
+  - Tiếng chuông thánh thót ngân vang (`LVL2_Chime.wav`).
+  - Sương mù đầm lầy tan biến hoàn toàn (`RenderSettings.fogDensity` giảm xuống mức trong vắt).
+  - Rào chắn an toàn cối xay nước kéo lên cao vĩnh viễn!
+  - Hai cha con cùng nhảy lên thuyền, chèo qua cối xay tiến vào Đền Haven Harbor!
 
 ---
 
-## 🧩 DETAILED SPECIFICATIONS & ARCHITECTURE
+## 🛠️ 3. NHIỆM VỤ KỸ THUẬT CODEX PHẢI THỰC HIỆN
 
-### 1. `CoopCarryableItem.cs` [NEW]
-**Namespace**: `Blocks.Gameplay.Core`  
-**Location**: `Assets/Core/Scripts/Runtime/Components/CoopCarryableItem.cs`  
-**Base Class**: `NetworkBehaviour`  
-**Requires**: `NetworkObject`, `Collider`
+### Task 1: Bổ Sung Hệ Thống HUD Banner & Floating Prompts
+Cập nhật `MarshBeaconTrigger.cs`, `LighthouseFallenLog.cs`, `LighthouseTurnWheel.cs`, `CoopCarryableItem.cs`:
+1. **Top Objective Banner (Luôn hiện khi ở Stage 4 - Z: 150 -> 215)**:
+   - Nếu `!westCrankSocketed`:  
+     `"MỤC TIÊU 1: Con nhặt Tay Quay [E] ở bờ đá đem cắm vào Tháp Tây để phát sáng."`
+   - Nếu `westCrankSocketed && !eastPrismSocketed`:  
+     `"MỤC TIÊU 2: Ba nhấn [E] nâng giữ thân cây, Con chui qua hốc nhặt Lăng Kính Cổ [E] cắm lên Tháp Đông."`
+   - Nếu `eastPrismSocketed && !beaconsLit`:  
+     `"MỤC TIÊU 3: Cả hai dùng vô-lăng [E] (phím A/D) căn tia sáng chiếu trúng Mắt Ngọc Cối Xay!"`
+   - Nếu `beaconsLit`:  
+     `"HOÀN THÀNH: Hai hải đăng đã sáng rực, sương mù tan biến! Cùng lên thuyền vượt cối xay."`
+2. **Floating Proximity Hints**:
+   - `CoopCarryableItem`: Hiện nhãn vàng `[E] Nhặt Tay Quay` / `[E] Nhặt Lăng Kính` khi đứng trong 2.5m. Khi đang cầm: `[E] Gắn vào Ổ cắm` (nếu gần ổ) hoặc `[G] Thả xuống`.
+   - `LighthouseFallenLog`:
+     - Nếu là Ba: Hiện `[E] Nâng thân cây cổ thụ` (hoặc `[E] Hạ thân cây` khi đang giữ).
+     - Nếu là Con: Hiện `Ba đang nâng cây! Hãy chui vào trong` (nếu cây đang nâng).
+   - `LighthouseTurnWheel`: Hiện `[E] Cầm lái vô-lăng` khi gần. Khi đang lái: `[A/D] Xoay hướng tia sáng · [E/Space] Thoát`.
 
-#### Fields & NetworkVariables:
-- `public enum ItemType { IgnitionCrank, RefractionPrism }`
-- `[SerializeField] public ItemType itemType;`
-- `[SerializeField] public Transform carryOffset;` (Local offset when attached to player)
-- `[SerializeField] public float heavyMovePenalty = 0.8f;` (Optional speed multiplier if heavy)
-- `private readonly NetworkVariable<NetworkObjectReference> currentHolder = new();`
-- `private readonly NetworkVariable<bool> isSocketed = new();`
-- `public bool IsCarried => currentHolder.Value.TryGet(out _);`
-- `public bool IsSocketed => isSocketed.Value;`
+### Task 2: Dọn Dẹp GameObject Cũ & Bake Scene `PlayScene2.unity`
+Trong `LevelTwoSceneBuilder.cs` (hàm `WireStageThree`):
+1. **Xóa / Ẩn triệt để vật thể cũ**:
+   - Ẩn hoặc xóa `GiantLilyPad_1` và `GiantLilyPad_2`.
+   - Ẩn hoặc xóa `LuminaCrystal_Gem` cũ và `ThrowPlatform`.
+2. **Bake và Lưu Scene**:
+   - Đảm bảo lệnh `EditorSceneManager.MarkSceneDirty` và `EditorSceneManager.SaveScene` được thực thi và file `Assets/Core/Scenes/PlayScene2.unity` được commit vào Git với đầy đủ các đối tượng mới (`IgnitionCrank`, `East_FallenLogPuzzle`, `LuminaMillSensor_Lens`, v.v.).
 
-#### Methods & RPCs:
-- `public bool TryPickup(CorePlayerManager player)`:
-  - Check distance (`< 2.0f`).
-  - If server: set `currentHolder.Value = player.NetworkObject`, disable physics collider, attach transform to player's right hand or chest anchor.
-  - RPC to notify clients: `PickupClientRpc(player.NetworkObjectId)`.
-- `public void Drop()`:
-  - If server: detach transform, enable collider, set `currentHolder.Value = default`.
-  - RPC to notify clients: `DropClientRpc()`.
-- `public void InsertIntoSocket(Transform socketTransform)`:
-  - If server: `isSocketed.Value = true; currentHolder.Value = default;`
-  - Snap position/rotation to socket.
-- Input handling:
-  - When local player is within 2m and presses `Keyboard.current.eKey.wasPressedThisFrame`:
-    - If not holding anything -> `RequestPickupRpc()`
-    - If holding this item and near a valid socket -> `RequestSocketRpc()`
-    - If holding this item and presses `Keyboard.current.gKey.wasPressedThisFrame` -> `RequestDropRpc()`
+### Task 3: Chạy & Đảm Bảo Bộ Test PASS 100%
+- Chạy script kiểm tra `LevelTwoValidation.cs`.
+- Đảm bảo tất cả 6 step của Level 2 (từ chèo thuyền, slalom, nhặt crank, nâng log, nhặt prism, bắn tia sáng đến cối xay) đều xanh (PASS).
 
 ---
 
-### 2. `LighthouseLightBeam.cs` [NEW]
-**Namespace**: `Blocks.Gameplay.Core`  
-**Location**: `Assets/Core/Scripts/Runtime/Components/LighthouseLightBeam.cs`  
-**Base Class**: `NetworkBehaviour`  
-**Requires**: `LineRenderer`
-
-#### Functionality:
-- Visual beam using `LineRenderer` (width ~0.35m, warm yellow/golden emission material `Default-Line.mat` or lit unlit material).
-- Real-time `Physics.Raycast(transform.position, transform.forward, out hit, maxDistance, layerMask)`.
-- **Primary Beam (West Tower)**:
-  - Casts from West Beacon emitter towards East Beacon island.
-  - If raycast hits `LighthousePrismSocket` on East Tower (and Prism is socketed):
-    - Activates secondary beam on East Tower!
-    - Calls `NotifyBeamHit(true)` on East Prism socket.
-- **Secondary Beam (East Tower)**:
-  - Originates from Prism socket.
-  - Casts along East Tower's rotated heading towards the river / Watermill.
-  - If raycast hits `LuminaMillSensor` on `GiantWatermillObstacle`:
-    - Calls `NotifySensorActivated(true)`.
-    - Both beacons lit condition met!
-
----
-
-### 3. `LighthouseTurnWheel.cs` [NEW]
-**Namespace**: `Blocks.Gameplay.Core`  
-**Location**: `Assets/Core/Scripts/Runtime/Components/LighthouseTurnWheel.cs`  
-**Base Class**: `NetworkBehaviour`
-
-#### Functionality:
-- Placed on the circular platform of the lighthouse.
-- Allows players standing near it (within 2m) to press **[E]** to enter steering mode.
-- In steering mode:
-  - **A / D** or **Left / Right arrow keys** rotate the lighthouse lantern head (`NetworkVariable<float> currentAngle`).
-  - Pressing **[E]** or **[Space]** releases control.
-  - West Tower yaw range: clamped between $-30^\circ$ and $+30^\circ$ facing East Tower.
-  - East Tower yaw range: clamped between $-45^\circ$ and $+45^\circ$ aiming downstream at the watermill sensor.
-
----
-
-### 4. `LuminaMillSensor.cs` [NEW]
-**Namespace**: `Blocks.Gameplay.Core`  
-**Location**: `Assets/Core/Scripts/Runtime/Components/LuminaMillSensor.cs`  
-**Base Class**: `NetworkBehaviour`
-
-#### Functionality:
-- Placed on `GiantWatermill_Assembly` or near the safety boom arch.
-- Contains a glowing jewel/lens mesh (`Renderer` with emission color: Red when unpowered, Cyan/Gold when powered).
-- When hit by the refracted beam for $\ge 0.5$ seconds:
-  - `NetworkVariable<bool> isPowered = true;`
-  - Triggers `MarshBeaconTrigger` west & east to `lit.Value = true;`
-  - Plays chime audio (`Assets/Core/Audio/LVL2_Chime.wav`).
-
----
-
-### 5. `MarshBeaconTrigger.cs` [MODIFY]
-**Location**: `Assets/Core/Scripts/Runtime/Components/MarshBeaconTrigger.cs`
-
-#### Updates:
-- Wire new references:
-  - `public CoopCarryableItem requiredItem;`
-  - `public Transform itemSocket;`
-  - `public LighthouseLightBeam beam;`
-  - `public LighthouseTurnWheel turnWheel;`
-- Keep existing public properties:
-  - `public bool Lit => lit.Value;` (to ensure 100% backward compatibility with `GiantWatermillObstacle` and `LevelTwoClimaxManager`).
-  - `public void RestoreCheckpoint(bool value)` (keep intact for checkpoint loads).
-
----
-
-### 6. `LevelTwoSceneBuilder.cs` [MODIFY]
-**Location**: `Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs`
-
-#### Update `WireStageThree()`:
-1. **West Beacon (Left Island)**:
-   - Place `IgnitionCrank` on a rocky ledge near the shore ($x=95, y=2.5, z=170$).
-   - Attach `CoopCarryableItem` with `ItemType.IgnitionCrank`.
-   - Add `LighthouseTurnWheel` at the base platform.
-   - Attach `LighthouseLightBeam` to the lighthouse lantern point.
-2. **East Beacon (Right Island)**:
-   - Near the trees ($x=115, y=1.2, z=192$), place the fallen log obstacle with `CoopCrawlVolume`.
-   - Underneath, place `Pfb_AncientChest` containing `AncientPrism` (`ItemType.RefractionPrism`).
-   - Add `LighthousePrismSocket` on the East Lighthouse circular pedestal.
-   - Add `LighthouseTurnWheel` on East Lighthouse to allow rotating the refracted beam.
-3. **Giant Watermill**:
-   - Add `LuminaMillSensor` component to the watermill arch facing upstream.
-
----
-
-### 7. Verification & Tests
-Ensure all existing Level 2 validations pass:
-- Run menu item: `Hold My Hand/Level 2/Wire Beacons Watermill and Victory`
-- Verify that `LevelTwoValidation.cs` passes without errors.
-- Confirm both host and client replicate beam rotations, item carrying, and sensor activation smoothly.
-
----
-
-## 🏁 ACCEPTANCE CRITERIA
-1. [ ] Con can pick up the `IgnitionCrank` with [E] and hand it over to Ba.
-2. [ ] Inserting crank into West Tower powers the primary beam crossing the river.
-3. [ ] Ba can lift/brace the fallen log; Con crawls underneath to retrieve the `AncientPrism`.
-4. [ ] Con carries `AncientPrism` to East Tower and inserts it into the socket.
-5. [ ] Rotating West Tower beam onto East Tower prism creates a refracted secondary beam.
-6. [ ] Rotating East Tower prism to target the watermill sensor triggers `BeaconsLit = true`, reduces fog density, and lifts the watermill safety boom.
-7. [ ] All network variables replicate properly in Host + Client multiplayer mode.
+## 🏁 TIÊU CHÍ NGHIỆM THU (ACCEPTANCE CRITERIA)
+1. [ ] Mở `PlayScene2.unity` trong Unity: thấy rõ mô hình `IgnitionCrank`, thân cây đổ `FallenLog`, rương vàng `AncientPrism`, vô-lăng và thấu kính trên 2 tháp. KHÔNG còn thấy lá sen ném gem cũ.
+2. [ ] HUD hiển thị Banner mục tiêu to rõ, đổi chữ tự động qua từng giai đoạn.
+3. [ ] Con nhặt được `IgnitionCrank` bằng [E], mang cắm vào Tháp Tây $\rightarrow$ Tia sáng vàng bắn qua sông.
+4. [ ] Ba nâng giữ thân cây bằng [E] $\rightarrow$ Con chui vào nhặt `AncientPrism` cắm vào Tháp Đông.
+5. [ ] Người chơi bấm [E] lái vô-lăng, phím A/D xoay tia sáng mượt mà.
+6. [ ] Căn tia sáng trúng Cối Xay $\rightarrow$ Mắt Ngọc sáng xanh, rào chắn nâng lên, sương mù tan, thuyền vượt cối xay thành công.

@@ -59,6 +59,7 @@ namespace Blocks.Gameplay.Core
             {
                 presented = true;
                 PlayerPrefs.SetInt("HMH.Level2.Completed", 1);
+                PlayerPrefs.SetInt("HMH.Level2.Checkpoint", 3);
                 CampaignProgress.Save(2, 6);
                 GetComponent<LevelTwoFeedback>().Play();
             }

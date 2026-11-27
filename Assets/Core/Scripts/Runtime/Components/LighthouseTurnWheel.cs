@@ -109,5 +109,17 @@ namespace Blocks.Gameplay.Core
         {
             if (controller.Value == rpc.Receive.SenderClientId) controller.Value = ulong.MaxValue;
         }
+
+        private void OnGUI()
+        {
+            var local = LevelTwoActors.Local;
+            Transform point = interactionPoint != null ? interactionPoint : transform;
+            if (!IsSpawned || local == null) return;
+
+            if (localSteering && controller.Value == local.OwnerClientId)
+                LighthouseHud.DrawWorldHint(point.position, "[A/D] Xoay hướng tia sáng · [E/Space] Thoát");
+            else if (LevelTwoActors.Near(local, point, 2.5f))
+                LighthouseHud.DrawWorldHint(point.position, "[E] Cầm lái vô-lăng");
+        }
     }
 }
