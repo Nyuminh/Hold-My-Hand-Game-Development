@@ -29,6 +29,7 @@ namespace Blocks.Gameplay.Core
         private readonly int m_AnimIDMotionSpeed = Animator.StringToHash("MotionSpeed");
         private readonly int m_AnimIDIsSitting = Animator.StringToHash("IsSitting");
         private readonly int m_AnimIDIsCrouching = Animator.StringToHash("IsCrouching");
+        private readonly int m_AnimIDIsPullingRope = Animator.StringToHash("IsPullingRope");
 
         private CoopHoldHandAbility m_HoldHandAbility;
         private CharacterController m_CharacterController;
@@ -281,6 +282,14 @@ namespace Blocks.Gameplay.Core
         public void TurnInPlaceEnd()
         {
             Animator.applyRootMotion = false;
+        }
+
+        public void SetPullingRope(bool isPulling)
+        {
+            if (Animator != null)
+            {
+                Animator.SetBool(m_AnimIDIsPullingRope, isPulling);
+            }
         }
 
         #endregion
