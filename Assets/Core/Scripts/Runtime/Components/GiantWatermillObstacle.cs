@@ -31,7 +31,9 @@ namespace Blocks.Gameplay.Core
             // Four paddles turn for 5.5 s, then dwell diagonally clear of the hull for 2.5 s.
             // Server time gives late joiners and both peers the same angular phase.
             wheel.localRotation = Quaternion.Euler(bypass.Value ? 45f : 45f + 360f * turning, 0, 0);
-            safetyBoom.position = boomClosed + Vector3.up * (bypass.Value || IsOpenWindow ? 4f : 0f);
+            // Solving the light puzzle permanently raises the safety barrier; the
+            // rotating paddles still retain their timed clearance window.
+            safetyBoom.position = boomClosed + Vector3.up * (bypass.Value || BeaconsLit ? 4f : 0f);
             if (!IsServer || boat == null) return;
             var position = boat.transform.position;
             if (IsOpenWindow && boat.HasCoopCrew && boat.HasRecentStroke && boat.CurrentSpeed >= 6 &&

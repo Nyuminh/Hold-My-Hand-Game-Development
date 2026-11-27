@@ -5,6 +5,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 
 namespace Blocks.Gameplay.Core.LevelTwoAuthoring
 {
@@ -196,6 +197,9 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var gold = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Gold.mat");
             var stage4 = Find("05_MistyMarsh_Stage4");
             var beacons = new MarshBeaconTrigger[2];
+            var beams = new LighthouseLightBeam[2];
+            var items = new CoopCarryableItem[2];
+            var sockets = new Transform[2];
             for (int i = 0; i < 2; i++)
             {
                 string side = i == 0 ? "West" : "East";
@@ -203,42 +207,66 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 string rootName = side + "_BeaconGameplay";
                 var root = stage4.Find(rootName) ?? Marker(rootName, stage4, Vector3.zero);
                 var beacon = Ensure<MarshBeaconTrigger>(root.gameObject); beacons[i] = beacon;
-                // Launch from an adjacent dock onto a raised lily; the crystal can only be
-                // collected after the real BoostThrow launch and a grounded landing.
-                Vector3 pad = new Vector3(i == 0 ? 97 : 103, 1.15f, z);
-                if (root.Find("ThrowPlatform") == null) Box("ThrowPlatform", root, pad - Vector3.up * 0.2f, new Vector3(3.5f, 0.3f, 4), wood);
-                beacon.throwPad = root.Find("ThrowPad") ?? Marker("ThrowPad", root, pad);
-                var lily = Find("GiantLilyPad_" + (i + 1)); lily.position = new Vector3(x, 2.4f, z);
-                lily.localScale = new Vector3(4, 0.2f, 4);
-                // Unity's primitive Cylinder uses a CapsuleCollider: flattening its Y scale
-                // leaves a large rounded collision dome. Static pads need their actual mesh.
-                foreach (var surface in new[] { lily, Find(side + "Beacon_Island") })
-                {
-                    if (surface.TryGetComponent<CapsuleCollider>(out var capsule)) Object.DestroyImmediate(capsule);
-                    Ensure<MeshCollider>(surface.gameObject).sharedMesh = surface.GetComponent<MeshFilter>().sharedMesh;
-                }
-                beacon.landing = root.Find("Landing") ?? Marker("Landing", root, new Vector3(x, 2.65f, z));
-                GameObject crystal;
-                if (i == 0) crystal = Find("LuminaCrystal_Gem").gameObject;
-                else crystal = root.Find("LuminaCrystal_East") != null ? root.Find("LuminaCrystal_East").gameObject : Box("LuminaCrystal_East", root, new Vector3(x, 3.4f, z), new Vector3(0.5f, 0.6f, 0.5f), gold);
-                crystal.transform.position = new Vector3(x, 3.4f, z); crystal.GetComponent<Collider>().enabled = false; beacon.crystal = crystal;
+                Ensure<NetworkObject>(root.gameObject);
+
+                Vector3 socketPosition = new Vector3(x, 3.2f, z);
+                var socketObject = root.Find(side + "_ItemSocket") != null
+                    ? root.Find(side + "_ItemSocket").gameObject
+                    : Cylinder(side + "_ItemSocket", root, socketPosition, new Vector3(0.65f, 0.16f, 0.65f), gold);
+                socketObject.transform.position = socketPosition;
+                beacon.itemSocket = socketObject.transform; sockets[i] = socketObject.transform;
+
+                var wheelObject = root.Find(side + "_TurnWheel") != null
+                    ? root.Find(side + "_TurnWheel").gameObject
+                    : Cylinder(side + "_TurnWheel", root, new Vector3(x + (i == 0 ? 1.4f : -1.4f), 2.9f, z), new Vector3(0.75f, 0.12f, 0.75f), wood);
+                wheelObject.transform.rotation = Quaternion.Euler(90, 0, 0);
+                var pivot = root.Find(side + "_BeamEmitter") ?? Marker(side + "_BeamEmitter", root, socketPosition + Vector3.up * 0.35f);
+                var wheel = Ensure<LighthouseTurnWheel>(root.gameObject);
+                wheel.interactionPoint = wheelObject.transform; wheel.lanternHead = pivot;
+                wheel.minimumAngle = i == 0 ? -30 : -45; wheel.maximumAngle = i == 0 ? 30 : 45;
+                beacon.turnWheel = wheel;
+
+                var line = Ensure<LineRenderer>(root.gameObject);
+                line.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Default-Line.mat");
+                line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                var beam = Ensure<LighthouseLightBeam>(root.gameObject); beams[i] = beam;
+                beam.beamKind = i == 0 ? LighthouseLightBeam.BeamKind.Primary : LighthouseLightBeam.BeamKind.Refracted;
+                beam.emitter = pivot; beam.sourceBeacon = beacon; beacon.beam = beam;
+
                 beacon.flame = Find(side + "Beacon_Tower").GetComponentInChildren<Light>(true).gameObject;
                 beacon.beaconLight = Ensure<Light>(beacon.flame); beacon.beaconLight.type = LightType.Point;
                 beacon.beaconLight.color = new Color(1, 0.85f, 0.4f); beacon.beaconLight.range = 35; beacon.beaconLight.intensity = 6;
                 beacon.flame.SetActive(false);
-                Feedback(root.gameObject, "Assets/Core/Audio/LVL2_Chime.wav", Color.yellow, beacon.landing.position);
-                Dock(side + "_MarshDock", pad - Vector3.up * 0.6f, pad + Vector3.back * 0.7f, pad + Vector3.forward * 0.7f);
-                // Return steps prevent the Child being stranded after collecting a crystal.
-                for (int j = 1; j <= 3; j++)
-                {
-                    string name = side + "_ReturnStep_" + j;
-                    if (root.Find(name) == null)
-                    {
-                        var point = Vector3.Lerp(new Vector3(x, 2.4f, z + 3), new Vector3(pad.x, 0.95f, z + 3), j / 3f);
-                        Box(name, root, point, new Vector3(2.4f, 0.25f, 2), wood);
-                    }
-                }
+                beacon.crystal = null;
+                Feedback(root.gameObject, "Assets/Core/Audio/LVL2_Chime.wav", Color.yellow, socketPosition);
             }
+
+            var crankObject = stage4.Find("IgnitionCrank") != null ? stage4.Find("IgnitionCrank").gameObject :
+                Cylinder("IgnitionCrank", stage4, new Vector3(95, 2.5f, 170), new Vector3(0.22f, 0.65f, 0.22f), gold);
+            Ensure<NetworkObject>(crankObject); Ensure<NetworkTransform>(crankObject);
+            items[0] = Ensure<CoopCarryableItem>(crankObject); items[0].itemType = CoopCarryableItem.ItemType.IgnitionCrank;
+            items[0].socketOwner = beacons[0]; beacons[0].requiredItem = items[0];
+
+            var logRoot = stage4.Find("East_FallenLogPuzzle") ?? Marker("East_FallenLogPuzzle", stage4, Vector3.zero);
+            Ensure<NetworkObject>(logRoot.gameObject);
+            var trunk = logRoot.Find("FallenLog") != null ? logRoot.Find("FallenLog").gameObject :
+                Cylinder("FallenLog", logRoot, new Vector3(115, 2.2f, 192), new Vector3(0.65f, 3.6f, 0.65f), wood);
+            trunk.transform.rotation = Quaternion.Euler(90, 0, 0);
+            var grip = logRoot.Find("DadGrip") ?? Marker("DadGrip", logRoot, new Vector3(115, 1.2f, 189));
+            var crawlObject = Trigger("East_LogCrawlVolume", logRoot, new Vector3(115, 1.15f, 192), new Vector3(1.2f, 0.75f, 4.8f));
+            var crawl = Ensure<CoopCrawlVolume>(crawlObject); crawlObject.SetActive(false);
+            var log = Ensure<LighthouseFallenLog>(logRoot.gameObject); log.trunk = trunk.transform; log.dadGrip = grip; log.crawl = crawl;
+            if (stage4.Find("Pfb_AncientChest") == null)
+                Box("Pfb_AncientChest", stage4, new Vector3(115, 1.25f, 194.5f), new Vector3(1.8f, 0.8f, 1.2f), wood);
+            var prismObject = stage4.Find("AncientPrism") != null ? stage4.Find("AncientPrism").gameObject :
+                Cylinder("AncientPrism", stage4, new Vector3(115, 1.9f, 194.5f), new Vector3(0.3f, 0.55f, 0.3f), gold);
+            Ensure<NetworkObject>(prismObject); Ensure<NetworkTransform>(prismObject);
+            items[1] = Ensure<CoopCarryableItem>(prismObject); items[1].itemType = CoopCarryableItem.ItemType.RefractionPrism;
+            items[1].socketOwner = beacons[1]; beacons[1].requiredItem = items[1];
+
+            var prismSocket = Ensure<LighthousePrismSocket>(sockets[1].gameObject); prismSocket.beacon = beacons[1];
+            beams[0].prismSocket = prismSocket; beams[1].prismSocket = prismSocket;
+            beams[0].emitter.LookAt(sockets[1].position);
             var stage5 = Find("06_WatermillHaven_Stage5");
             var controller = stage5.Find("WatermillController") ?? Marker("WatermillController", stage5, new Vector3(100, 0.5f, 225));
             var mill = Ensure<GiantWatermillObstacle>(controller.gameObject);
@@ -261,6 +289,16 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 Ensure<RiverRockHazard>(boom);
             }
             mill.safetyBoom = controller.Find("Watermill_SafetyBoom");
+            var sensorCollider = Ensure<BoxCollider>(controller.gameObject);
+            sensorCollider.center = new Vector3(0, 4.5f, -5f); sensorCollider.size = new Vector3(2.2f, 2.2f, 0.7f); sensorCollider.isTrigger = true;
+            var lens = controller.Find("LuminaMillSensor_Lens") != null ? controller.Find("LuminaMillSensor_Lens").gameObject :
+                Cylinder("LuminaMillSensor_Lens", controller, new Vector3(0, 4.5f, -5f), new Vector3(0.8f, 0.2f, 0.8f), gold);
+            lens.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            var sensor = Ensure<LuminaMillSensor>(controller.gameObject);
+            sensor.lensRenderer = lens.GetComponent<Renderer>(); sensor.west = beacons[0]; sensor.east = beacons[1];
+            sensor.chime = Ensure<AudioSource>(lens); sensor.chime.clip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Core/Audio/LVL2_Chime.wav");
+            sensor.chime.playOnAwake = false; sensor.chime.spatialBlend = 1;
+            beams[1].millSensor = sensor; beams[1].emitter.LookAt(lens.transform.position);
             var climax = Ensure<LevelTwoClimaxManager>(Find("LevelTwo_VictoryTrigger").gameObject);
             Ensure<CampaignCheckpointController>(mill.boat.gameObject).level = 2;
             climax.boat = mill.boat; climax.watermill = mill; climax.west = beacons[0]; climax.east = beacons[1];

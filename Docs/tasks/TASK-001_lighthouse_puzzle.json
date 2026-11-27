@@ -1,0 +1,45 @@
+{
+  "id": "TASK-001",
+  "title": "Implement Intersecting Lighthouse Light-Refraction Puzzle in PlayScene2",
+  "description": "Upgrade the twin lighthouse stage (Misty Marsh) in PlayScene2 to feature a cooperative light beam refraction puzzle with carryable items (Ignition Crank and Ancient Prism), asymmetric Father/Child coordination, and laser alignment to unlock the Giant Watermill.",
+  "owner": "codex",
+  "status": "READY_FOR_DEV",
+  "dependencies": [],
+  "context_files": [
+    "Docs/tasks/TASK_LIGHTHOUSE_PUZZLE_CODEX.md",
+    "Assets/Core/Scripts/Runtime/Components/MarshBeaconTrigger.cs",
+    "Assets/Core/Scripts/Runtime/Components/GiantWatermillObstacle.cs",
+    "Assets/Core/Scripts/Runtime/Components/LevelTwoClimaxManager.cs",
+    "Assets/Core/Scripts/Runtime/Components/LevelTwoActors.cs",
+    "Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs",
+    "Assets/Core/Scripts/Editor/LevelTwoValidation.cs"
+  ],
+  "acceptance_criteria": [
+    "CoopCarryableItem enables picking up, carrying, dropping, and socketing items over Unity Netcode.",
+    "Child can retrieve Ignition Crank from narrow rocks; Father cranks West Tower Dynamo to cast primary light beam.",
+    "Father lifts fallen log; Child crawls through CoopCrawlVolume to retrieve Ancient Prism from chest.",
+    "Child sockets Prism on East Tower; West beam hitting Prism spawns secondary refracted beam.",
+    "Aligning refracted beam with LuminaMillSensor triggers BeaconsLit = true, disperses marsh fog, and opens Giant Watermill safety boom.",
+    "LevelTwoValidation and batch tests compile and pass cleanly."
+  ],
+  "test_command": "Unity Editor MenuItem: 'Hold My Hand/Level 2/Wire Beacons Watermill and Victory'",
+  "token_budget": {
+    "max_input_tokens": 8192,
+    "max_output_tokens": 4096
+  },
+  "max_retries": 2,
+  "result_summary": "",
+  "files_changed": [
+    "Assets/Core/Scripts/Runtime/Components/CoopCarryableItem.cs",
+    "Assets/Core/Scripts/Runtime/Components/LighthouseLightBeam.cs",
+    "Assets/Core/Scripts/Runtime/Components/LighthouseTurnWheel.cs",
+    "Assets/Core/Scripts/Runtime/Components/LuminaMillSensor.cs",
+    "Assets/Core/Scripts/Runtime/Components/MarshBeaconTrigger.cs",
+    "Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs",
+    "Assets/Core/Scripts/Editor/LevelTwoValidation.cs"
+  ],
+  "risks": [
+    "Ensure LineRenderer raycasts use layer masks that don't collide prematurely with player colliders.",
+    "Ensure backward compatibility of MarshBeaconTrigger.Lit property so GiantWatermillObstacle is unaffected."
+  ]
+}

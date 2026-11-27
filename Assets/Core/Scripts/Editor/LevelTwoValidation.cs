@@ -143,44 +143,60 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 boat.DismountPlayer(true); boat.DismountPlayer(false); boat.enabled = false;
                 boat.transform.position = new Vector3(100, 0.53f, 175);
                 Check(!climax.TryComplete(), "altar cannot skip river challenges");
-                dad.CoreMovement.SetPosition(west.throwPad.position);
-                child.CoreMovement.SetPosition(west.landing.position);
-                Check(!west.TryCollect(child), "crystal rejects arrival without Dad throw");
-                child.CoreMovement.SetPosition(west.throwPad.position + Vector3.right * 0.65f);
+                var crank = UnityEngine.Object.FindObjectsByType<CoopCarryableItem>(FindObjectsSortMode.None)
+                    .Single(i => i.itemType == CoopCarryableItem.ItemType.IgnitionCrank);
+                var prism = UnityEngine.Object.FindObjectsByType<CoopCarryableItem>(FindObjectsSortMode.None)
+                    .Single(i => i.itemType == CoopCarryableItem.ItemType.RefractionPrism);
+                Check(west.requiredItem == crank && east.requiredItem == prism, "beacons require authored crank and prism");
+                Check(west.beam != null && east.beam != null && west.turnWheel != null && east.turnWheel != null,
+                    "both lighthouses have network beams and steering wheels");
+                child.CoreMovement.SetPosition(crank.transform.position);
+                Check(crank.TryPickup(child), "Child picks up Ignition Crank");
+                crank.Drop();
+                dad.CoreMovement.SetPosition(crank.transform.position);
+                Check(crank.TryPickup(dad), "Child can hand Ignition Crank to Dad");
+                dad.CoreMovement.SetPosition(west.itemSocket.position);
+                crank.InsertIntoSocket(west.itemSocket);
+                Check(crank.IsSocketed && !west.Lit, "crank powers west beam without prematurely completing puzzle");
                 Next(); return;
             }
-            if ((step == 3 || step == 5) && elapsed > 0.25)
+            if (step == 3 && elapsed > 0.25)
             {
-                var beacon = step == 3 ? west : east;
-                var boost = dad.GetComponent<CoopBoostThrowAbility>();
-                boost.AssistedLandingTarget = beacon.landing;
-                Set(boost, "m_PartnerBoostAbility", child.GetComponent<CoopBoostThrowAbility>());
-                Set(boost, "m_PartnerTransform", child.transform);
-                typeof(CoopBoostThrowAbility).GetMethod("ExecuteDadThrow", BindingFlags.Instance | BindingFlags.NonPublic)
-                    .Invoke(boost, new object[] { 1f, Vector3.left, Vector3.forward });
-                Check(!beacon.Lit, "beacon waits for landing after actual BoostThrow launch");
+                Check(west.beam.IsEmitting, "socketed crank activates primary west beam");
+                var log = UnityEngine.Object.FindAnyObjectByType<LighthouseFallenLog>();
+                dad.CoreMovement.SetPosition(log.dadGrip.position);
+                Check(log.TryLift(dad), "Dad lifts fallen log at east shore");
                 Next(); return;
             }
-            if (step == 4 && west.Lit)
+            if (step == 4 && elapsed > 0.4)
             {
-                Check(!west.crystal.activeSelf && west.beaconLight.enabled, "west crystal collected and lighthouse illuminated");
-                dad.CoreMovement.SetPosition(east.throwPad.position);
-                child.CoreMovement.SetPosition(east.throwPad.position + Vector3.right * 0.65f);
+                var log = UnityEngine.Object.FindAnyObjectByType<LighthouseFallenLog>();
+                Check(log.IsLifted && log.crawl.gameObject.activeSelf, "lifted log opens Child-only crawl route");
+                var prism = UnityEngine.Object.FindObjectsByType<CoopCarryableItem>(FindObjectsSortMode.None)
+                    .Single(i => i.itemType == CoopCarryableItem.ItemType.RefractionPrism);
+                child.CoreMovement.SetPosition(prism.transform.position);
+                Check(prism.TryPickup(child), "Child retrieves Ancient Prism behind crawl route");
+                child.CoreMovement.SetPosition(east.itemSocket.position);
+                prism.InsertIntoSocket(east.itemSocket);
+                Check(prism.IsSocketed && east.beam.IsEmitting == false, "east beam waits for west ray to strike prism");
                 Next(); return;
             }
-            if (step == 6 && east.Lit)
+            if (step == 5)
             {
-                Check(mill.BeaconsLit, "both real throws and grounded landings light both beacons");
+                var sensor = UnityEngine.Object.FindAnyObjectByType<LuminaMillSensor>();
+                if (!sensor.IsPowered || mill.safetyBoom.position.y <= mill.transform.position.y + 3f) return;
+                Check(mill.BeaconsLit && west.Lit && east.Lit, "refracted beam powers sensor and completes both beacons");
+                Check(mill.safetyBoom.position.y > mill.transform.position.y + 3f, "powered sensor raises watermill safety boom");
                 Next(); return;
             }
-            if (step == 7 && elapsed > 3)
+            if (step == 6 && elapsed > 3)
             {
                 Check(RenderSettings.fogDensity < 0.015f, "two lighthouses clear marsh fog gradually");
                 Check(mill.wheel.childCount >= 5 && mill.cycleSeconds == 8 && mill.openingSeconds == 2.5f, "four-paddle 8 s cycle with 2.5 s clearance authored");
                 boat.MountPlayer(dad.gameObject, true); boat.MountPlayer(child.gameObject, false);
                 boat.transform.rotation = Quaternion.Euler(-90, 180, 0);
                 boat.transform.position = new Vector3(100, 0.53f, 223);
-                Next(); return;
+                Next(); Next(); return;
             }
             if (step == 8 && !mill.IsOpenWindow)
             {
