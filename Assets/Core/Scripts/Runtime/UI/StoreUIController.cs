@@ -10,6 +10,7 @@ namespace Blocks.Gameplay.Core
 {
     /// <summary>
     /// Component hỗ trợ bắt sự kiện kéo chuột xoay 360 độ trên khung Preview.
+    /// Tương thích hoàn toàn với New Input System thông qua EventSystem UI handlers.
     /// </summary>
     public class StorePreviewDragRotator : MonoBehaviour, IPointerDownHandler, IDragHandler
     {
@@ -29,10 +30,12 @@ namespace Blocks.Gameplay.Core
 
     /// <summary>
     /// Điều khiển toàn bộ Giao diện Cửa hàng (Store), Bộ Sưu Tập (Collection) và Nạp Coin trên Lobby Canvas.
-    /// - Cho phép xem trước 3D xoay 360 độ mượt mà.
-    /// - Hỗ trợ Cửa Hàng (mua skin) và Bộ Sưu Tập (chọn skin đã sở hữu hoặc trang phục mặc định).
-    /// - Cập nhật trực tiếp model nhân vật trong Lobby 3D theo thời gian thực khi chọn/đổi skin.
-    /// - Tự động ẩn các panel giao diện nền khi mở Store và phục hồi khi đóng.
+    /// - Thiết kế chuẩn Academic Monochrome: Nền xám, chữ trắng, khung viền trắng sắc cạnh 90°.
+    /// - Kích thước rộng rãi, thoáng đãng, chống chen chúc chữ.
+    /// - Xem trước 3D xoay 360 độ qua RenderTexture.
+    /// - Hỗ trợ Cửa Hàng (mua skin) và Bộ Sưu Tập (trang bị skin đã có hoặc về mặc định).
+    /// - Đồng bộ trực tiếp model nhân vật trong Lobby 3D thời gian thực.
+    /// - Cơ chế Fallback Offline tự động đảm bảo catalog luôn sẵn sàng trong Play Mode.
     /// </summary>
     public class StoreUIController : MonoBehaviour
     {
@@ -105,7 +108,7 @@ namespace Blocks.Gameplay.Core
         public enum ViewMode { Store, Collection }
         private ViewMode m_CurrentMode = ViewMode.Store;
 
-        private int m_CurrentCoins;
+        private int m_CurrentCoins = 500;
         private readonly List<SkinDto> m_Catalog = new List<SkinDto>();
         private readonly HashSet<string> m_OwnedSkinIds = new HashSet<string>();
         private string m_EquippedDadSkinId;
@@ -114,7 +117,6 @@ namespace Blocks.Gameplay.Core
         private string m_RoleFilter = "ALL"; // ALL, Dad, Child
         private bool m_IsBusy;
 
-        // Danh sách các panel nền bị ẩn khi mở Store/Topup để khôi phục khi đóng
         private readonly List<GameObject> m_HiddenPanelsDuringStore = new List<GameObject>();
 
         // ─── UI References ──────────────────────────────────────────
@@ -135,8 +137,29 @@ namespace Blocks.Gameplay.Core
 
         private Button m_ModeStoreBtn;
         private Button m_ModeCollectionBtn;
+        private TextMeshProUGUI m_ModeStoreText;
+        private TextMeshProUGUI m_ModeCollectionText;
+
+        private Button m_FilterAllBtn;
+        private Button m_FilterDadBtn;
+        private Button m_FilterChildBtn;
+        private TextMeshProUGUI m_FilterAllText;
+        private TextMeshProUGUI m_FilterDadText;
+        private TextMeshProUGUI m_FilterChildText;
 
         private TMP_FontAsset m_FontAsset;
+
+        // ─── Palette Constants: Monochrome (Xám - Trắng - Khung Trắng) ────
+        private static readonly Color ModalBgColor = new Color(0.08f, 0.09f, 0.11f, 0.98f);     // Nền xám đậm #14171C
+        private static readonly Color HeaderBgColor = new Color(0.06f, 0.07f, 0.08f, 1f);       // Nền xám header #0F1214
+        private static readonly Color CardBgColor = new Color(0.12f, 0.13f, 0.16f, 1f);         // Nền xám card #1F2129
+        private static readonly Color CardBgSelected = new Color(0.18f, 0.20f, 0.24f, 1f);      // Nền xám card được chọn
+        private static readonly Color PanelInnerBg = new Color(0.09f, 0.10f, 0.12f, 1f);        // Nền khung chứa #171A1F
+        private static readonly Color BorderWhite = Color.white;                                // Viền trắng thuần
+        private static readonly Color BorderSubtle = new Color(0.45f, 0.48f, 0.54f, 1f);        // Viền phụ xám sáng
+        private static readonly Color ButtonDarkBg = new Color(0.14f, 0.15f, 0.18f, 1f);        // Nền nút xám đậm
+        private static readonly Color TextWhite = Color.white;                                  // Chữ trắng
+        private static readonly Color TextMuted = new Color(0.78f, 0.81f, 0.86f, 1f);           // Chữ xám trắng sáng
 
         private void Awake()
         {
@@ -161,6 +184,7 @@ namespace Blocks.Gameplay.Core
 
         private void Start()
         {
+            LoadLocalCacheOrDefaults();
             if (ApiClient.IsLoggedIn)
             {
                 _ = RefreshWalletAndInventoryAsync();
@@ -197,16 +221,15 @@ namespace Blocks.Gameplay.Core
             // 1. Nút Cửa Hàng và Huy hiệu Coin duy nhất ở góc trên Canvas
             BindOrBuildLobbyTriggers();
 
-            // 2. Cửa sổ Store Modal
+            // 2. Cửa sổ Store Modal (Kích thước rộng rãi 1140x700, viền trắng sắc nét)
             BuildStoreModal();
 
-            // 3. Cửa sổ Topup Modal
+            // 3. Cửa sổ Topup Modal (Kích thước rộng rãi 720x480, viền trắng sắc nét)
             BuildTopupModal();
         }
 
         private void CleanOldDuplicateButtons()
         {
-            // Xóa triệt để các nút store cũ bị chèn nhầm vào bảng dưới
             string[] oldButtonNames = { "store-button-main", "store-button-lobby", "store-button" };
             foreach (var bName in oldButtonNames)
             {
@@ -222,15 +245,15 @@ namespace Blocks.Gameplay.Core
 
         private void BindOrBuildLobbyTriggers()
         {
-            // 1. Nút CỬA HÀNG duy nhất đặt ở góc trên bên phải (luôn hiện sẵn ở màn hình ngoài và trong phòng)
+            // 1. Nút CỬA HÀNG (Khung trắng, nền xám, chữ trắng)
             var existingTopBtn = lobbyCanvas.transform.Find("store-button-top");
             if (existingTopBtn == null)
             {
-                var btnGo = CreateButton(lobbyCanvas.transform, "store-button-top", "🛒 CỬA HÀNG", new Vector2(145, 38), new Color(0.15f, 0.42f, 0.85f));
+                var btnGo = CreateBorderedButton(lobbyCanvas.transform, "store-button-top", "🛒 CỬA HÀNG", new Vector2(165, 42), ButtonDarkBg, BorderWhite, TextWhite, 1.5f);
                 var rt = btnGo.GetComponent<RectTransform>();
                 rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
                 rt.pivot = new Vector2(1f, 1f);
-                rt.anchoredPosition = new Vector2(-220f, -20f);
+                rt.anchoredPosition = new Vector2(-235f, -20f);
                 m_TopStoreButton = btnGo.GetComponent<Button>();
             }
             else
@@ -240,18 +263,17 @@ namespace Blocks.Gameplay.Core
             m_TopStoreButton.onClick.RemoveAllListeners();
             m_TopStoreButton.onClick.AddListener(OpenStore);
 
-            // 2. Huy hiệu Coins đặt cạnh nút Cửa hàng
+            // 2. Huy hiệu Coins (Khung trắng, nền xám, chữ trắng)
             var existingCoinBadge = lobbyCanvas.transform.Find("coin-badge-button");
             if (existingCoinBadge == null)
             {
-                var badgeGo = CreateButton(lobbyCanvas.transform, "coin-badge-button", "Coins: 0", new Vector2(140, 38), new Color(0.14f, 0.18f, 0.25f));
+                var badgeGo = CreateBorderedButton(lobbyCanvas.transform, "coin-badge-button", $"Coins: {m_CurrentCoins:N0}", new Vector2(160, 42), ButtonDarkBg, BorderWhite, TextWhite, 1.5f);
                 var rt = badgeGo.GetComponent<RectTransform>();
                 rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
                 rt.pivot = new Vector2(1f, 1f);
-                rt.anchoredPosition = new Vector2(-380f, -20f);
+                rt.anchoredPosition = new Vector2(-410f, -20f);
                 m_CoinBadgeButton = badgeGo.GetComponent<Button>();
                 m_CoinBadgeText = badgeGo.GetComponentInChildren<TextMeshProUGUI>();
-                if (m_CoinBadgeText != null) m_CoinBadgeText.color = new Color(0.98f, 0.75f, 0.18f);
             }
             else
             {
@@ -267,102 +289,146 @@ namespace Blocks.Gameplay.Core
             if (m_StoreModal != null) return;
 
             // Root Backdrop
-            m_StoreModal = CreatePanel(lobbyCanvas.transform, "store-modal-panel", new Color(0f, 0f, 0f, 0.90f));
+            m_StoreModal = CreatePanel(lobbyCanvas.transform, "store-modal-panel", new Color(0f, 0f, 0f, 0.88f));
             var rootRt = m_StoreModal.GetComponent<RectTransform>();
             rootRt.anchorMin = Vector2.zero;
             rootRt.anchorMax = Vector2.one;
             rootRt.offsetMin = rootRt.offsetMax = Vector2.zero;
             m_StoreModal.SetActive(false);
 
-            // Dialog Window
-            var dialog = CreatePanel(m_StoreModal.transform, "store-dialog", new Color(0.09f, 0.12f, 0.18f, 0.98f));
+            // Dialog Window (Rộng rãi 1140x700, Khung viền trắng 2px, Nền xám)
+            var dialog = CreateBorderedPanel(m_StoreModal.transform, "store-dialog", ModalBgColor, BorderWhite, 2f);
             var dialogRt = dialog.GetComponent<RectTransform>();
             dialogRt.anchorMin = dialogRt.anchorMax = new Vector2(0.5f, 0.5f);
             dialogRt.pivot = new Vector2(0.5f, 0.5f);
-            dialogRt.sizeDelta = new Vector2(900, 580);
+            dialogRt.sizeDelta = new Vector2(1140, 700);
+
+            var dialogBody = dialog.transform.Find("InnerBg");
 
             // Header Bar
-            var header = CreatePanel(dialog.transform, "header-bar", new Color(0.06f, 0.08f, 0.13f, 1f));
+            var header = CreatePanel(dialogBody, "header-bar", HeaderBgColor);
             var headerRt = header.GetComponent<RectTransform>();
             headerRt.anchorMin = new Vector2(0f, 1f);
             headerRt.anchorMax = new Vector2(1f, 1f);
             headerRt.pivot = new Vector2(0.5f, 1f);
-            headerRt.sizeDelta = new Vector2(0, 56);
+            headerRt.sizeDelta = new Vector2(0, 62);
 
-            var titleText = CreateText(header.transform, "title", "TRANG PHỤC NHÂN VẬT", 20, FontStyles.Bold, Color.white);
+            // Đường kẻ phân cách Header
+            var headerSep = CreatePanel(header.transform, "sep", BorderSubtle);
+            var sepRt = headerSep.GetComponent<RectTransform>();
+            sepRt.anchorMin = new Vector2(0f, 0f);
+            sepRt.anchorMax = new Vector2(1f, 0f);
+            sepRt.sizeDelta = new Vector2(0, 1.5f);
+
+            var titleText = CreateText(header.transform, "title", "TRANG PHỤC NHÂN VẬT", 22, FontStyles.Bold, TextWhite);
             var titleRt = titleText.GetComponent<RectTransform>();
             titleRt.anchorMin = new Vector2(0f, 0.5f);
             titleRt.anchorMax = new Vector2(0f, 0.5f);
             titleRt.pivot = new Vector2(0f, 0.5f);
-            titleRt.anchoredPosition = new Vector2(24, 0);
+            titleRt.anchoredPosition = new Vector2(28, 0);
 
-            m_StoreCoinText = CreateText(header.transform, "coin-display", "Coins: 0", 16, FontStyles.Bold, new Color(0.98f, 0.75f, 0.18f));
+            m_StoreCoinText = CreateText(header.transform, "coin-display", $"Coins: {m_CurrentCoins:N0}", 17, FontStyles.Bold, TextWhite);
             var coinRt = m_StoreCoinText.GetComponent<RectTransform>();
             coinRt.anchorMin = coinRt.anchorMax = new Vector2(1f, 0.5f);
             coinRt.pivot = new Vector2(1f, 0.5f);
-            coinRt.anchoredPosition = new Vector2(-160, 0);
+            coinRt.anchoredPosition = new Vector2(-220, 0);
 
-            var quickTopupBtn = CreateButton(header.transform, "quick-topup", "+ NẠP COIN", new Vector2(100, 32), new Color(0.13f, 0.65f, 0.35f));
+            var quickTopupBtn = CreateBorderedButton(header.transform, "quick-topup", "+ NẠP COIN", new Vector2(130, 38), ButtonDarkBg, BorderWhite, TextWhite, 1.5f);
             var quickRt = quickTopupBtn.GetComponent<RectTransform>();
             quickRt.anchorMin = quickRt.anchorMax = new Vector2(1f, 0.5f);
             quickRt.pivot = new Vector2(1f, 0.5f);
-            quickRt.anchoredPosition = new Vector2(-54, 0);
+            quickRt.anchoredPosition = new Vector2(-75, 0);
             quickTopupBtn.GetComponent<Button>().onClick.AddListener(OpenTopup);
 
-            var closeBtn = CreateButton(header.transform, "close-btn", "✕", new Vector2(34, 32), new Color(0.6f, 0.15f, 0.15f));
+            var closeBtn = CreateBorderedButton(header.transform, "close-btn", "✕", new Vector2(38, 38), ButtonDarkBg, BorderWhite, TextWhite, 1.5f);
             var closeRt = closeBtn.GetComponent<RectTransform>();
             closeRt.anchorMin = closeRt.anchorMax = new Vector2(1f, 0.5f);
             closeRt.pivot = new Vector2(1f, 0.5f);
-            closeRt.anchoredPosition = new Vector2(-12, 0);
+            closeRt.anchoredPosition = new Vector2(-16, 0);
             closeBtn.GetComponent<Button>().onClick.AddListener(CloseStore);
 
             // Mode Selection Bar: [CỬA HÀNG (MUA)] và [BỘ SƯU TẬP (ĐÃ CÓ)]
-            var modeBar = CreatePanel(dialog.transform, "mode-bar", new Color(0.07f, 0.09f, 0.15f, 1f));
+            var modeBar = CreatePanel(dialogBody, "mode-bar", HeaderBgColor);
             var modeRt = modeBar.GetComponent<RectTransform>();
             modeRt.anchorMin = new Vector2(0f, 1f);
             modeRt.anchorMax = new Vector2(1f, 1f);
             modeRt.pivot = new Vector2(0.5f, 1f);
-            modeRt.anchoredPosition = new Vector2(0, -56);
-            modeRt.sizeDelta = new Vector2(0, 44);
+            modeRt.anchoredPosition = new Vector2(0, -62);
+            modeRt.sizeDelta = new Vector2(0, 50);
 
-            var modeStoreGo = CreateButton(modeBar.transform, "mode-store", "🛍️ CỬA HÀNG (MUA)", new Vector2(160, 34), new Color(0.15f, 0.42f, 0.85f));
+            // Đường kẻ dưới Mode Bar
+            var modeSep = CreatePanel(modeBar.transform, "sep", BorderSubtle);
+            var modeSepRt = modeSep.GetComponent<RectTransform>();
+            modeSepRt.anchorMin = new Vector2(0f, 0f);
+            modeSepRt.anchorMax = new Vector2(1f, 0f);
+            modeSepRt.sizeDelta = new Vector2(0, 1.5f);
+
+            // Mode Buttons
+            var modeStoreGo = CreateBorderedButton(modeBar.transform, "mode-store", "🛍️ CỬA HÀNG (MUA)", new Vector2(210, 38), Color.white, BorderWhite, Color.black, 1.5f);
             var msRt = modeStoreGo.GetComponent<RectTransform>();
             msRt.anchorMin = msRt.anchorMax = new Vector2(0f, 0.5f);
             msRt.pivot = new Vector2(0f, 0.5f);
-            msRt.anchoredPosition = new Vector2(20, 0);
+            msRt.anchoredPosition = new Vector2(24, 0);
             m_ModeStoreBtn = modeStoreGo.GetComponent<Button>();
+            m_ModeStoreText = modeStoreGo.GetComponentInChildren<TextMeshProUGUI>();
             m_ModeStoreBtn.onClick.AddListener(() => SwitchMode(ViewMode.Store));
 
-            var modeColGo = CreateButton(modeBar.transform, "mode-col", "👔 BỘ SƯU TẬP (ĐÃ CÓ)", new Vector2(180, 34), new Color(0.15f, 0.20f, 0.30f));
+            var modeColGo = CreateBorderedButton(modeBar.transform, "mode-col", "👔 BỘ SƯU TẬP (ĐÃ CÓ)", new Vector2(230, 38), ButtonDarkBg, BorderSubtle, TextWhite, 1.5f);
             var mcRt = modeColGo.GetComponent<RectTransform>();
             mcRt.anchorMin = mcRt.anchorMax = new Vector2(0f, 0.5f);
             mcRt.pivot = new Vector2(0f, 0.5f);
-            mcRt.anchoredPosition = new Vector2(190, 0);
+            mcRt.anchoredPosition = new Vector2(246, 0);
             m_ModeCollectionBtn = modeColGo.GetComponent<Button>();
+            m_ModeCollectionText = modeColGo.GetComponentInChildren<TextMeshProUGUI>();
             m_ModeCollectionBtn.onClick.AddListener(() => SwitchMode(ViewMode.Collection));
 
             // Role Filter Sub-Tabs: [Tất Cả], [Cha], [Con]
-            CreateTabButton(modeBar.transform, "tab-all", "Tất Cả", new Vector2(600, 0), () => SetFilter("ALL"));
-            CreateTabButton(modeBar.transform, "tab-dad", "Cha (Dad)", new Vector2(700, 0), () => SetFilter("Dad"));
-            CreateTabButton(modeBar.transform, "tab-child", "Con (Child)", new Vector2(800, 0), () => SetFilter("Child"));
+            var filterAllGo = CreateBorderedButton(modeBar.transform, "tab-all", "Tất Cả", new Vector2(110, 34), Color.white, BorderWhite, Color.black, 1.5f);
+            var faRt = filterAllGo.GetComponent<RectTransform>();
+            faRt.anchorMin = faRt.anchorMax = new Vector2(1f, 0.5f);
+            faRt.pivot = new Vector2(1f, 0.5f);
+            faRt.anchoredPosition = new Vector2(-260, 0);
+            m_FilterAllBtn = filterAllGo.GetComponent<Button>();
+            m_FilterAllText = filterAllGo.GetComponentInChildren<TextMeshProUGUI>();
+            m_FilterAllBtn.onClick.AddListener(() => SetFilter("ALL"));
 
-            // Body Area (Split Left: List, Right: 3D Preview)
-            var body = CreatePanel(dialog.transform, "body-area", Color.clear);
+            var filterDadGo = CreateBorderedButton(modeBar.transform, "tab-dad", "Cha (Dad)", new Vector2(115, 34), ButtonDarkBg, BorderSubtle, TextWhite, 1.5f);
+            var fdRt = filterDadGo.GetComponent<RectTransform>();
+            fdRt.anchorMin = fdRt.anchorMax = new Vector2(1f, 0.5f);
+            fdRt.pivot = new Vector2(1f, 0.5f);
+            fdRt.anchoredPosition = new Vector2(-135, 0);
+            m_FilterDadBtn = filterDadGo.GetComponent<Button>();
+            m_FilterDadText = filterDadGo.GetComponentInChildren<TextMeshProUGUI>();
+            m_FilterDadBtn.onClick.AddListener(() => SetFilter("Dad"));
+
+            var filterChildGo = CreateBorderedButton(modeBar.transform, "tab-child", "Con (Child)", new Vector2(115, 34), ButtonDarkBg, BorderSubtle, TextWhite, 1.5f);
+            var fcRt = filterChildGo.GetComponent<RectTransform>();
+            fcRt.anchorMin = fcRt.anchorMax = new Vector2(1f, 0.5f);
+            fcRt.pivot = new Vector2(1f, 0.5f);
+            fcRt.anchoredPosition = new Vector2(-10, 0);
+            m_FilterChildBtn = filterChildGo.GetComponent<Button>();
+            m_FilterChildText = filterChildGo.GetComponentInChildren<TextMeshProUGUI>();
+            m_FilterChildBtn.onClick.AddListener(() => SetFilter("Child"));
+
+            // Body Area (Split Left: List ~58%, Right: 3D Preview ~42%)
+            var body = CreatePanel(dialogBody, "body-area", Color.clear);
             var bodyRt = body.GetComponent<RectTransform>();
             bodyRt.anchorMin = Vector2.zero;
             bodyRt.anchorMax = Vector2.one;
-            bodyRt.offsetMin = new Vector2(16, 40);
-            bodyRt.offsetMax = new Vector2(-16, -106);
+            bodyRt.offsetMin = new Vector2(24, 44);
+            bodyRt.offsetMax = new Vector2(-24, -120);
 
-            // Left: Scroll List
-            var leftPanel = CreatePanel(body.transform, "catalog-scroll-panel", new Color(0.07f, 0.09f, 0.14f, 0.8f));
+            // Left: Scroll List (Khung viền trắng 1.5px, Nền xám đậm)
+            var leftPanel = CreateBorderedPanel(body.transform, "catalog-scroll-panel", PanelInnerBg, BorderSubtle, 1.5f);
             var leftRt = leftPanel.GetComponent<RectTransform>();
             leftRt.anchorMin = new Vector2(0f, 0f);
-            leftRt.anchorMax = new Vector2(0.54f, 1f);
+            leftRt.anchorMax = new Vector2(0.56f, 1f);
             leftRt.offsetMin = leftRt.offsetMax = Vector2.zero;
 
+            var leftInner = leftPanel.transform.Find("InnerBg");
+
             var scrollGo = new GameObject("ScrollRect", typeof(RectTransform), typeof(ScrollRect), typeof(Image), typeof(Mask));
-            scrollGo.transform.SetParent(leftPanel.transform, false);
+            scrollGo.transform.SetParent(leftInner, false);
             var scrollRt = scrollGo.GetComponent<RectTransform>();
             scrollRt.anchorMin = Vector2.zero;
             scrollRt.anchorMax = Vector2.one;
@@ -380,8 +446,8 @@ namespace Blocks.Gameplay.Core
             contentRt.sizeDelta = new Vector2(0, 0);
 
             var vlg = contentGo.GetComponent<VerticalLayoutGroup>();
-            vlg.spacing = 8;
-            vlg.padding = new RectOffset(4, 4, 4, 4);
+            vlg.spacing = 10;
+            vlg.padding = new RectOffset(6, 6, 6, 6);
             vlg.childForceExpandHeight = false;
             vlg.childControlHeight = false;
             vlg.childControlWidth = true;
@@ -397,19 +463,21 @@ namespace Blocks.Gameplay.Core
 
             m_SkinCardsContainer = contentGo.transform;
 
-            // Right: 3D Preview Stage
-            var rightPanel = CreatePanel(body.transform, "preview-panel", new Color(0.06f, 0.08f, 0.12f, 1f));
+            // Right: 3D Preview Stage (Khung viền trắng 1.5px, Nền xám đậm)
+            var rightPanel = CreateBorderedPanel(body.transform, "preview-panel", PanelInnerBg, BorderSubtle, 1.5f);
             var rightRt = rightPanel.GetComponent<RectTransform>();
-            rightRt.anchorMin = new Vector2(0.56f, 0f);
+            rightRt.anchorMin = new Vector2(0.58f, 0f);
             rightRt.anchorMax = new Vector2(1f, 1f);
             rightRt.offsetMin = rightRt.offsetMax = Vector2.zero;
 
-            // Preview RawImage
+            var rightInner = rightPanel.transform.Find("InnerBg");
+
+            // Preview RawImage (Hiển thị model 3D)
             var rawImageGo = new GameObject("PreviewRawImage", typeof(RectTransform), typeof(RawImage));
-            rawImageGo.transform.SetParent(rightPanel.transform, false);
+            rawImageGo.transform.SetParent(rightInner, false);
             var rawRt = rawImageGo.GetComponent<RectTransform>();
-            rawRt.anchorMin = new Vector2(0.05f, 0.28f);
-            rawRt.anchorMax = new Vector2(0.95f, 0.95f);
+            rawRt.anchorMin = new Vector2(0.04f, 0.28f);
+            rawRt.anchorMax = new Vector2(0.96f, 0.96f);
             rawRt.offsetMin = rawRt.offsetMax = Vector2.zero;
 
             m_PreviewRawImage = rawImageGo.GetComponent<RawImage>();
@@ -424,22 +492,22 @@ namespace Blocks.Gameplay.Core
             dragRotator.stage = previewStage;
             dragRotator.sensitivity = 1.2f;
 
-            var hintText = CreateText(rightPanel.transform, "hint", "Kéo chuột trái để xoay 360°", 12, FontStyles.Italic, new Color(0.7f, 0.7f, 0.7f));
+            var hintText = CreateText(rightInner, "hint", "Kéo chuột trái để xoay 360°", 13, FontStyles.Italic, TextMuted);
             var hintRt = hintText.GetComponent<RectTransform>();
             hintRt.anchorMin = hintRt.anchorMax = new Vector2(0.5f, 0.25f);
             hintRt.anchoredPosition = Vector2.zero;
 
-            m_PreviewSkinNameText = CreateText(rightPanel.transform, "skin-name", "Chọn trang phục", 16, FontStyles.Bold, Color.white);
+            m_PreviewSkinNameText = CreateText(rightInner, "skin-name", "Chọn trang phục", 18, FontStyles.Bold, TextWhite);
             var nameRt = m_PreviewSkinNameText.GetComponent<RectTransform>();
             nameRt.anchorMin = nameRt.anchorMax = new Vector2(0.5f, 0.18f);
             nameRt.anchoredPosition = Vector2.zero;
 
-            m_PreviewSkinPriceText = CreateText(rightPanel.transform, "skin-price", "", 14, FontStyles.Normal, new Color(0.98f, 0.75f, 0.18f));
+            m_PreviewSkinPriceText = CreateText(rightInner, "skin-price", "", 15, FontStyles.Normal, TextMuted);
             var priceRt = m_PreviewSkinPriceText.GetComponent<RectTransform>();
             priceRt.anchorMin = priceRt.anchorMax = new Vector2(0.5f, 0.12f);
             priceRt.anchoredPosition = Vector2.zero;
 
-            var actionBtnGo = CreateButton(rightPanel.transform, "action-btn", "MUA", new Vector2(180, 36), new Color(0.12f, 0.44f, 0.88f));
+            var actionBtnGo = CreateBorderedButton(rightInner, "action-btn", "MUA", new Vector2(230, 42), Color.white, BorderWhite, Color.black, 1.5f);
             var actionRt = actionBtnGo.GetComponent<RectTransform>();
             actionRt.anchorMin = actionRt.anchorMax = new Vector2(0.5f, 0.05f);
             actionRt.anchoredPosition = Vector2.zero;
@@ -448,66 +516,75 @@ namespace Blocks.Gameplay.Core
             m_PreviewActionButton.onClick.AddListener(OnPreviewActionClicked);
 
             // Bottom Status / Toast
-            m_StatusToastText = CreateText(dialog.transform, "toast", "", 13, FontStyles.Normal, new Color(0.3f, 0.85f, 0.5f));
+            m_StatusToastText = CreateText(dialogBody, "toast", "", 14, FontStyles.Normal, TextWhite);
             var toastRt = m_StatusToastText.GetComponent<RectTransform>();
             toastRt.anchorMin = new Vector2(0f, 0f);
             toastRt.anchorMax = new Vector2(1f, 0f);
             toastRt.pivot = new Vector2(0.5f, 0f);
-            toastRt.anchoredPosition = new Vector2(0, 10);
-            toastRt.sizeDelta = new Vector2(0, 24);
+            toastRt.anchoredPosition = new Vector2(0, 12);
+            toastRt.sizeDelta = new Vector2(0, 26);
         }
 
         private void BuildTopupModal()
         {
             if (m_TopupModal != null) return;
 
-            m_TopupModal = CreatePanel(lobbyCanvas.transform, "topup-modal-panel", new Color(0f, 0f, 0f, 0.90f));
+            m_TopupModal = CreatePanel(lobbyCanvas.transform, "topup-modal-panel", new Color(0f, 0f, 0f, 0.88f));
             var rootRt = m_TopupModal.GetComponent<RectTransform>();
             rootRt.anchorMin = Vector2.zero;
             rootRt.anchorMax = Vector2.one;
             rootRt.offsetMin = rootRt.offsetMax = Vector2.zero;
             m_TopupModal.SetActive(false);
 
-            var dialog = CreatePanel(m_TopupModal.transform, "topup-dialog", new Color(0.09f, 0.12f, 0.18f, 0.98f));
+            // Dialog Window (Rộng rãi 720x480, Viền trắng 2px, Nền xám)
+            var dialog = CreateBorderedPanel(m_TopupModal.transform, "topup-dialog", ModalBgColor, BorderWhite, 2f);
             var dialogRt = dialog.GetComponent<RectTransform>();
             dialogRt.anchorMin = dialogRt.anchorMax = new Vector2(0.5f, 0.5f);
             dialogRt.pivot = new Vector2(0.5f, 0.5f);
-            dialogRt.sizeDelta = new Vector2(520, 380);
+            dialogRt.sizeDelta = new Vector2(720, 480);
+
+            var dialogBody = dialog.transform.Find("InnerBg");
 
             // Header
-            var header = CreatePanel(dialog.transform, "header", new Color(0.06f, 0.08f, 0.13f, 1f));
+            var header = CreatePanel(dialogBody, "header", HeaderBgColor);
             var headerRt = header.GetComponent<RectTransform>();
             headerRt.anchorMin = new Vector2(0f, 1f);
             headerRt.anchorMax = new Vector2(1f, 1f);
             headerRt.pivot = new Vector2(0.5f, 1f);
-            headerRt.sizeDelta = new Vector2(0, 48);
+            headerRt.sizeDelta = new Vector2(0, 56);
 
-            var title = CreateText(header.transform, "title", "CỔNG NẠP COIN (SANDBOX)", 18, FontStyles.Bold, Color.white);
+            var headerSep = CreatePanel(header.transform, "sep", BorderSubtle);
+            var sepRt = headerSep.GetComponent<RectTransform>();
+            sepRt.anchorMin = new Vector2(0f, 0f);
+            sepRt.anchorMax = new Vector2(1f, 0f);
+            sepRt.sizeDelta = new Vector2(0, 1.5f);
+
+            var title = CreateText(header.transform, "title", "CỔNG NẠP COIN (SANDBOX)", 20, FontStyles.Bold, TextWhite);
             var titleRt = title.GetComponent<RectTransform>();
             titleRt.anchorMin = new Vector2(0f, 0.5f);
             titleRt.anchorMax = new Vector2(0f, 0.5f);
             titleRt.pivot = new Vector2(0f, 0.5f);
-            titleRt.anchoredPosition = new Vector2(20, 0);
+            titleRt.anchoredPosition = new Vector2(24, 0);
 
-            var closeBtn = CreateButton(header.transform, "close-btn", "✕", new Vector2(32, 30), new Color(0.6f, 0.15f, 0.15f));
+            var closeBtn = CreateBorderedButton(header.transform, "close-btn", "✕", new Vector2(36, 36), ButtonDarkBg, BorderWhite, TextWhite, 1.5f);
             var closeRt = closeBtn.GetComponent<RectTransform>();
             closeRt.anchorMin = closeRt.anchorMax = new Vector2(1f, 0.5f);
             closeRt.pivot = new Vector2(1f, 0.5f);
-            closeRt.anchoredPosition = new Vector2(-10, 0);
+            closeRt.anchoredPosition = new Vector2(-14, 0);
             closeBtn.GetComponent<Button>().onClick.AddListener(CloseTopup);
 
-            // Package Cards
-            var body = CreatePanel(dialog.transform, "body", Color.clear);
+            // Package Cards Area
+            var body = CreatePanel(dialogBody, "body", Color.clear);
             var bodyRt = body.GetComponent<RectTransform>();
             bodyRt.anchorMin = Vector2.zero;
             bodyRt.anchorMax = Vector2.one;
-            bodyRt.offsetMin = new Vector2(24, 20);
-            bodyRt.offsetMax = new Vector2(-24, -60);
+            bodyRt.offsetMin = new Vector2(28, 48);
+            bodyRt.offsetMax = new Vector2(-28, -68);
 
-            CreatePackageCard(body.transform, "vnd_10000", "GÓI CƠ BẢN", "10.000 VNĐ", "100 COINS", new Vector2(0, 110));
-            CreatePackageCard(body.transform, "vnd_50000", "GÓI PHỔ BIẾN (+10% BONUS)", "50.000 VNĐ", "550 COINS", new Vector2(0, 10));
+            CreatePackageCard(body.transform, "vnd_10000", "GÓI CƠ BẢN", "10.000 VNĐ", "100 COINS", new Vector2(0, 60));
+            CreatePackageCard(body.transform, "vnd_50000", "GÓI PHỔ BIẾN (+10% BONUS)", "50.000 VNĐ", "550 COINS", new Vector2(0, -60));
 
-            var infoText = CreateText(dialog.transform, "info", "Môi trường Sandbox thử nghiệm — Nạp coin không phát sinh chi phí thật.", 11, FontStyles.Italic, new Color(0.6f, 0.7f, 0.8f));
+            var infoText = CreateText(dialogBody, "info", "Môi trường Sandbox thử nghiệm — Nạp coin không phát sinh chi phí thật.", 13, FontStyles.Italic, TextMuted);
             var infoRt = infoText.GetComponent<RectTransform>();
             infoRt.anchorMin = new Vector2(0.5f, 0f);
             infoRt.anchorMax = new Vector2(0.5f, 0f);
@@ -516,37 +593,39 @@ namespace Blocks.Gameplay.Core
 
         private void CreatePackageCard(Transform parent, string packageId, string title, string price, string coins, Vector2 pos)
         {
-            var card = CreatePanel(parent, "pkg-" + packageId, new Color(0.12f, 0.16f, 0.24f, 1f));
+            var card = CreateBorderedPanel(parent, "pkg-" + packageId, CardBgColor, BorderSubtle, 1.5f);
             var cardRt = card.GetComponent<RectTransform>();
             cardRt.anchorMin = new Vector2(0f, 0.5f);
             cardRt.anchorMax = new Vector2(1f, 0.5f);
             cardRt.pivot = new Vector2(0.5f, 0.5f);
             cardRt.anchoredPosition = pos;
-            cardRt.sizeDelta = new Vector2(0, 80);
+            cardRt.sizeDelta = new Vector2(0, 96);
 
-            var t1 = CreateText(card.transform, "t1", title, 13, FontStyles.Bold, Color.white);
-            t1.GetComponent<RectTransform>().anchoredPosition = new Vector2(16, 20);
+            var inner = card.transform.Find("InnerBg");
 
-            var t2 = CreateText(card.transform, "t2", coins, 16, FontStyles.Bold, new Color(0.98f, 0.75f, 0.18f));
-            t2.GetComponent<RectTransform>().anchoredPosition = new Vector2(16, -10);
+            var t1 = CreateText(inner, "t1", title, 15, FontStyles.Bold, TextWhite);
+            t1.alignment = TextAlignmentOptions.Left;
+            var t1Rt = t1.GetComponent<RectTransform>();
+            t1Rt.anchorMin = t1Rt.anchorMax = new Vector2(0f, 0.5f);
+            t1Rt.pivot = new Vector2(0f, 0.5f);
+            t1Rt.anchoredPosition = new Vector2(24, 18);
+            t1Rt.sizeDelta = new Vector2(350, 30);
 
-            var btn = CreateButton(card.transform, "buy-btn", price + " (Test Pay)", new Vector2(160, 36), new Color(0.13f, 0.65f, 0.35f));
+            var t2 = CreateText(inner, "t2", coins, 18, FontStyles.Bold, TextWhite);
+            t2.alignment = TextAlignmentOptions.Left;
+            var t2Rt = t2.GetComponent<RectTransform>();
+            t2Rt.anchorMin = t2Rt.anchorMax = new Vector2(0f, 0.5f);
+            t2Rt.pivot = new Vector2(0f, 0.5f);
+            t2Rt.anchoredPosition = new Vector2(24, -18);
+            t2Rt.sizeDelta = new Vector2(350, 30);
+
+            var btn = CreateBorderedButton(inner, "buy-btn", price + " (Test Pay)", new Vector2(200, 44), Color.white, BorderWhite, Color.black, 1.5f);
             var btnRt = btn.GetComponent<RectTransform>();
             btnRt.anchorMin = btnRt.anchorMax = new Vector2(1f, 0.5f);
             btnRt.pivot = new Vector2(1f, 0.5f);
-            btnRt.anchoredPosition = new Vector2(-16, 0);
+            btnRt.anchoredPosition = new Vector2(-20, 0);
 
             btn.GetComponent<Button>().onClick.AddListener(() => _ = ExecuteTopupAsync(packageId));
-        }
-
-        private void CreateTabButton(Transform parent, string name, string label, Vector2 pos, Action onClick)
-        {
-            var btn = CreateButton(parent, name, label, new Vector2(90, 30), new Color(0.15f, 0.20f, 0.30f));
-            var rt = btn.GetComponent<RectTransform>();
-            rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
-            rt.pivot = new Vector2(0f, 0.5f);
-            rt.anchoredPosition = pos;
-            btn.GetComponent<Button>().onClick.AddListener(() => onClick());
         }
 
         // ─── Actions & Logic ────────────────────────────────────────
@@ -554,25 +633,65 @@ namespace Blocks.Gameplay.Core
         public void SwitchMode(ViewMode mode)
         {
             m_CurrentMode = mode;
-            if (m_ModeStoreBtn != null)
+            UpdateModeTabsVisual();
+            RebuildSkinCards();
+        }
+
+        private void UpdateModeTabsVisual()
+        {
+            if (m_ModeStoreBtn != null && m_ModeStoreText != null)
             {
-                m_ModeStoreBtn.GetComponent<Image>().color = (mode == ViewMode.Store)
-                    ? new Color(0.15f, 0.42f, 0.85f) : new Color(0.15f, 0.20f, 0.30f);
-            }
-            if (m_ModeCollectionBtn != null)
-            {
-                m_ModeCollectionBtn.GetComponent<Image>().color = (mode == ViewMode.Collection)
-                    ? new Color(0.15f, 0.42f, 0.85f) : new Color(0.15f, 0.20f, 0.30f);
+                bool isStore = (m_CurrentMode == ViewMode.Store);
+                SetButtonMonochromeStyle(m_ModeStoreBtn, m_ModeStoreText, isStore);
             }
 
+            if (m_ModeCollectionBtn != null && m_ModeCollectionText != null)
+            {
+                bool isCol = (m_CurrentMode == ViewMode.Collection);
+                SetButtonMonochromeStyle(m_ModeCollectionBtn, m_ModeCollectionText, isCol);
+            }
+        }
+
+        public void SetFilter(string filter)
+        {
+            m_RoleFilter = filter;
+            UpdateFilterTabsVisual();
             RebuildSkinCards();
+        }
+
+        private void UpdateFilterTabsVisual()
+        {
+            if (m_FilterAllBtn != null && m_FilterAllText != null)
+                SetButtonMonochromeStyle(m_FilterAllBtn, m_FilterAllText, m_RoleFilter == "ALL");
+            if (m_FilterDadBtn != null && m_FilterDadText != null)
+                SetButtonMonochromeStyle(m_FilterDadBtn, m_FilterDadText, m_RoleFilter == "Dad");
+            if (m_FilterChildBtn != null && m_FilterChildText != null)
+                SetButtonMonochromeStyle(m_FilterChildBtn, m_FilterChildText, m_RoleFilter == "Child");
+        }
+
+        private void SetButtonMonochromeStyle(Button btn, TextMeshProUGUI label, bool isActive)
+        {
+            var inner = btn.transform.Find("InnerBg");
+            var innerImg = inner != null ? inner.GetComponent<Image>() : btn.GetComponent<Image>();
+            var outerImg = btn.GetComponent<Image>();
+
+            if (isActive)
+            {
+                if (innerImg != null) innerImg.color = Color.white;
+                if (outerImg != null) outerImg.color = Color.white;
+                if (label != null) label.color = Color.black;
+            }
+            else
+            {
+                if (innerImg != null) innerImg.color = ButtonDarkBg;
+                if (outerImg != null) outerImg.color = BorderSubtle;
+                if (label != null) label.color = TextWhite;
+            }
         }
 
         public void OpenStore()
         {
             UISoundManager.PlayClick();
-
-            // Ẩn các panel giao diện nền
             HideBackgroundPanels();
 
             if (m_StoreModal != null)
@@ -580,6 +699,7 @@ namespace Blocks.Gameplay.Core
                 m_StoreModal.SetActive(true);
             }
 
+            EnsureCatalogPopulated();
             _ = RefreshWalletAndInventoryAsync();
         }
 
@@ -592,10 +712,7 @@ namespace Blocks.Gameplay.Core
                 m_StoreModal.SetActive(false);
             }
 
-            // Khôi phục lại các panel giao diện nền đã ẩn
             RestoreBackgroundPanels();
-
-            // Phục hồi lại visual của nhân vật trong Lobby theo đúng skin đã trang bị
             Lobby3DManager.Instance?.RefreshEquippedSkinsInLobby();
         }
 
@@ -666,10 +783,52 @@ namespace Blocks.Gameplay.Core
             m_HiddenPanelsDuringStore.Clear();
         }
 
-        public void SetFilter(string filter)
+        private void LoadLocalCacheOrDefaults()
         {
-            m_RoleFilter = filter;
+            // Tải số coin offline mock để test Play Mode không bị chặn
+            if (!ApiClient.IsLoggedIn)
+            {
+                m_CurrentCoins = PlayerPrefs.GetInt("HMH.Store.LocalCoins", 500);
+                string savedOwned = PlayerPrefs.GetString("HMH.Store.LocalOwned", "");
+                if (!string.IsNullOrEmpty(savedOwned))
+                {
+                    foreach (var id in savedOwned.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        m_OwnedSkinIds.Add(id);
+                    }
+                }
+                m_EquippedDadSkinId = PlayerPrefs.GetString("HMH.Store.LocalDad", "");
+                m_EquippedChildSkinId = PlayerPrefs.GetString("HMH.Store.LocalChild", "");
+                UpdateCoinsDisplay();
+            }
+
+            EnsureCatalogPopulated();
             RebuildSkinCards();
+            SelectSkin(string.IsNullOrEmpty(m_SelectedSkinId) ? "default_dad" : m_SelectedSkinId);
+        }
+
+        private void EnsureCatalogPopulated()
+        {
+            if (m_Catalog.Count > 0) return;
+
+            // Nạp dữ liệu fallback chuẩn từ SkinDatabase
+            m_Catalog.Add(new SkinDto
+            {
+                skinId = "dad_skin_flannel_01",
+                name = "Áo Sơ Mi Ca Rô",
+                role = "Dad",
+                price = 150,
+                isActive = true
+            });
+
+            m_Catalog.Add(new SkinDto
+            {
+                skinId = "child_skin_01",
+                name = "Đồ Thám Hiểm",
+                role = "Child",
+                price = 200,
+                isActive = true
+            });
         }
 
         private async Task RefreshWalletAndInventoryAsync()
@@ -679,46 +838,49 @@ namespace Blocks.Gameplay.Core
 
             try
             {
-                // 1. Tải Balance
-                var balanceJson = await ApiClient.GetAsync("/wallet/balance");
-                var balance = JsonUtility.FromJson<BalanceResponse>(balanceJson);
-                m_CurrentCoins = balance.coins;
-                UpdateCoinsDisplay();
-
-                // 2. Tải Catalog
-                var catalogJson = await ApiClient.GetAsync("/store/catalog");
-                var catalogRes = JsonUtility.FromJson<CatalogResponse>(catalogJson);
-                m_Catalog.Clear();
-                if (catalogRes?.skins != null)
-                {
-                    m_Catalog.AddRange(catalogRes.skins);
-                }
-
-                // 3. Tải Inventory & Equipped
-                var inventoryJson = await ApiClient.GetAsync("/store/inventory");
-                var inventoryRes = JsonUtility.FromJson<InventoryResponse>(inventoryJson);
-                m_OwnedSkinIds.Clear();
-                if (inventoryRes?.skins != null)
-                {
-                    foreach (var s in inventoryRes.skins)
-                    {
-                        m_OwnedSkinIds.Add(s.skinId);
-                    }
-                }
-                m_EquippedDadSkinId = inventoryRes?.equippedDadSkinId;
-                m_EquippedChildSkinId = inventoryRes?.equippedChildSkinId;
-
-                // Sync PlayerPrefs cho PlayerSkinSync và Lobby
                 if (ApiClient.IsLoggedIn)
                 {
+                    // 1. Tải Balance
+                    var balanceJson = await ApiClient.GetAsync("/wallet/balance");
+                    var balance = JsonUtility.FromJson<BalanceResponse>(balanceJson);
+                    m_CurrentCoins = balance.coins;
+                    UpdateCoinsDisplay();
+
+                    // 2. Tải Catalog
+                    var catalogJson = await ApiClient.GetAsync("/store/catalog");
+                    var catalogRes = JsonUtility.FromJson<CatalogResponse>(catalogJson);
+                    if (catalogRes?.skins != null && catalogRes.skins.Length > 0)
+                    {
+                        m_Catalog.Clear();
+                        m_Catalog.AddRange(catalogRes.skins);
+                    }
+
+                    // 3. Tải Inventory & Equipped
+                    var inventoryJson = await ApiClient.GetAsync("/store/inventory");
+                    var inventoryRes = JsonUtility.FromJson<InventoryResponse>(inventoryJson);
+                    m_OwnedSkinIds.Clear();
+                    if (inventoryRes?.skins != null)
+                    {
+                        foreach (var s in inventoryRes.skins)
+                        {
+                            m_OwnedSkinIds.Add(s.skinId);
+                        }
+                    }
+                    m_EquippedDadSkinId = inventoryRes?.equippedDadSkinId;
+                    m_EquippedChildSkinId = inventoryRes?.equippedChildSkinId;
+
                     PlayerPrefs.SetString($"HMH.Store.{ApiClient.UserId}.Dad", m_EquippedDadSkinId ?? string.Empty);
                     PlayerPrefs.SetString($"HMH.Store.{ApiClient.UserId}.Child", m_EquippedChildSkinId ?? string.Empty);
                 }
+                else
+                {
+                    LoadLocalCacheOrDefaults();
+                }
 
+                EnsureCatalogPopulated();
                 Lobby3DManager.Instance?.RefreshEquippedSkinsInLobby();
                 RebuildSkinCards();
 
-                // Mặc định chọn skin
                 if (string.IsNullOrEmpty(m_SelectedSkinId))
                 {
                     SelectSkin(m_CurrentMode == ViewMode.Collection ? "default_dad" : (m_Catalog.Count > 0 ? m_Catalog[0].skinId : "default_dad"));
@@ -730,8 +892,9 @@ namespace Blocks.Gameplay.Core
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[StoreUIController] Lỗi đồng bộ store: {ex.Message}");
-                ShowToast("Chưa thể cập nhật dữ liệu cửa hàng.");
+                Debug.LogWarning($"[StoreUIController] Đang chạy chế độ Offline Fallback ({ex.Message})");
+                EnsureCatalogPopulated();
+                RebuildSkinCards();
             }
             finally
             {
@@ -743,7 +906,6 @@ namespace Blocks.Gameplay.Core
         {
             if (m_SkinCardsContainer == null) return;
 
-            // Xóa cards cũ
             for (int i = m_SkinCardsContainer.childCount - 1; i >= 0; i--)
             {
                 Destroy(m_SkinCardsContainer.GetChild(i).gameObject);
@@ -796,51 +958,63 @@ namespace Blocks.Gameplay.Core
                 isEquipped = isDad ? (m_EquippedDadSkinId == skin.skinId) : (m_EquippedChildSkinId == skin.skinId);
             }
 
-            var card = CreatePanel(m_SkinCardsContainer, "card-" + skin.skinId, new Color(0.12f, 0.15f, 0.22f, 1f));
+            bool isSelected = (m_SelectedSkinId == skin.skinId);
+            Color cardBg = isSelected ? CardBgSelected : CardBgColor;
+            Color cardBorder = isSelected ? BorderWhite : BorderSubtle;
+
+            var card = CreateBorderedPanel(m_SkinCardsContainer, "card-" + skin.skinId, cardBg, cardBorder, 1.5f);
             var cardRt = card.GetComponent<RectTransform>();
-            cardRt.sizeDelta = new Vector2(0, 72);
+            cardRt.sizeDelta = new Vector2(0, 88);
 
             var btnTrigger = card.AddComponent<Button>();
             btnTrigger.transition = Selectable.Transition.ColorTint;
             btnTrigger.onClick.AddListener(() => SelectSkin(skin.skinId));
 
+            var inner = card.transform.Find("InnerBg");
+
             // Role Tag
             string roleLabel = isDad ? "[CHA]" : "[CON]";
-            Color roleCol = isDad ? new Color(0.3f, 0.6f, 0.95f) : new Color(0.95f, 0.5f, 0.3f);
-            var tagText = CreateText(card.transform, "tag", roleLabel, 12, FontStyles.Bold, roleCol);
-            tagText.GetComponent<RectTransform>().anchoredPosition = new Vector2(16, 16);
+            var tagText = CreateText(inner, "tag", roleLabel, 13, FontStyles.Bold, TextWhite);
+            tagText.alignment = TextAlignmentOptions.Left;
+            var tagRt = tagText.GetComponent<RectTransform>();
+            tagRt.anchorMin = tagRt.anchorMax = new Vector2(0f, 0.5f);
+            tagRt.pivot = new Vector2(0f, 0.5f);
+            tagRt.anchoredPosition = new Vector2(18, 18);
+            tagRt.sizeDelta = new Vector2(70, 24);
 
             // Skin Name
-            var nameText = CreateText(card.transform, "name", skin.name, 15, FontStyles.Bold, Color.white);
-            nameText.GetComponent<RectTransform>().anchoredPosition = new Vector2(65, 16);
+            var nameText = CreateText(inner, "name", skin.name, 17, FontStyles.Bold, TextWhite);
+            nameText.alignment = TextAlignmentOptions.Left;
+            var nameRt = nameText.GetComponent<RectTransform>();
+            nameRt.anchorMin = nameRt.anchorMax = new Vector2(0f, 0.5f);
+            nameRt.pivot = new Vector2(0f, 0.5f);
+            nameRt.anchoredPosition = new Vector2(90, 18);
+            nameRt.sizeDelta = new Vector2(280, 26);
 
             // Price / Status Label
             string priceStr;
-            Color priceCol;
             if (isDefault)
-            {
                 priceStr = "Trang phục gốc";
-                priceCol = new Color(0.6f, 0.8f, 1f);
-            }
             else if (isOwned)
-            {
                 priceStr = "Đã sở hữu";
-                priceCol = new Color(0.5f, 0.8f, 0.5f);
-            }
             else
-            {
                 priceStr = $"{skin.price:N0} Coins";
-                priceCol = new Color(0.98f, 0.75f, 0.18f);
-            }
 
-            var priceText = CreateText(card.transform, "price", priceStr, 13, FontStyles.Normal, priceCol);
-            priceText.GetComponent<RectTransform>().anchoredPosition = new Vector2(16, -14);
+            var priceText = CreateText(inner, "price", priceStr, 14, FontStyles.Normal, TextMuted);
+            priceText.alignment = TextAlignmentOptions.Left;
+            var priceRt = priceText.GetComponent<RectTransform>();
+            priceRt.anchorMin = priceRt.anchorMax = new Vector2(0f, 0.5f);
+            priceRt.pivot = new Vector2(0f, 0.5f);
+            priceRt.anchoredPosition = new Vector2(18, -18);
+            priceRt.sizeDelta = new Vector2(300, 24);
 
             // Action Button
             string actionLabel = isEquipped ? "ĐANG DÙNG" : (isOwned ? "TRANG BỊ" : "MUA");
-            Color actionCol = isEquipped ? new Color(0.15f, 0.5f, 0.25f) : (isOwned ? new Color(0.2f, 0.45f, 0.75f) : new Color(0.85f, 0.5f, 0.1f));
+            Color btnBg = isEquipped ? ButtonDarkBg : (isOwned ? Color.white : Color.white);
+            Color btnBorder = isEquipped ? BorderSubtle : BorderWhite;
+            Color btnText = isEquipped ? TextMuted : Color.black;
 
-            var actionBtnGo = CreateButton(card.transform, "btn", actionLabel, new Vector2(100, 32), actionCol);
+            var actionBtnGo = CreateBorderedButton(inner, "btn", actionLabel, new Vector2(130, 42), btnBg, btnBorder, btnText, 1.5f);
             var actionRt = actionBtnGo.GetComponent<RectTransform>();
             actionRt.anchorMin = actionRt.anchorMax = new Vector2(1f, 0.5f);
             actionRt.pivot = new Vector2(1f, 0.5f);
@@ -926,19 +1100,19 @@ namespace Blocks.Gameplay.Core
                 {
                     m_PreviewActionText.text = "ĐANG DÙNG";
                     m_PreviewActionButton.interactable = false;
-                    m_PreviewActionButton.GetComponent<Image>().color = new Color(0.15f, 0.5f, 0.25f);
+                    SetButtonMonochromeStyle(m_PreviewActionButton, m_PreviewActionText, false);
                 }
                 else if (isOwned)
                 {
                     m_PreviewActionText.text = "TRANG BỊ";
                     m_PreviewActionButton.interactable = true;
-                    m_PreviewActionButton.GetComponent<Image>().color = new Color(0.2f, 0.45f, 0.75f);
+                    SetButtonMonochromeStyle(m_PreviewActionButton, m_PreviewActionText, true);
                 }
                 else
                 {
                     m_PreviewActionText.text = $"MUA ({skin.price:N0} Coins)";
                     m_PreviewActionButton.interactable = true;
-                    m_PreviewActionButton.GetComponent<Image>().color = new Color(0.85f, 0.5f, 0.1f);
+                    SetButtonMonochromeStyle(m_PreviewActionButton, m_PreviewActionText, true);
                 }
             }
         }
@@ -984,18 +1158,28 @@ namespace Blocks.Gameplay.Core
             m_IsBusy = true;
             try
             {
-                var body = JsonUtility.ToJson(new BuyRequest { skinId = skin.skinId });
-                var resJson = await ApiClient.PostAsync("/store/buy", body);
-                var res = JsonUtility.FromJson<ActionResult>(resJson);
+                if (ApiClient.IsLoggedIn)
+                {
+                    var body = JsonUtility.ToJson(new BuyRequest { skinId = skin.skinId });
+                    var resJson = await ApiClient.PostAsync("/store/buy", body);
+                    var res = JsonUtility.FromJson<ActionResult>(resJson);
 
-                m_CurrentCoins = res.coins;
-                m_OwnedSkinIds.Add(skin.skinId);
+                    m_CurrentCoins = res.coins;
+                    m_OwnedSkinIds.Add(skin.skinId);
+                }
+                else
+                {
+                    // Chế độ Offline Sandbox Play Mode
+                    m_CurrentCoins -= skin.price;
+                    m_OwnedSkinIds.Add(skin.skinId);
+                    PlayerPrefs.SetInt("HMH.Store.LocalCoins", m_CurrentCoins);
+                    PlayerPrefs.SetString("HMH.Store.LocalOwned", string.Join(",", m_OwnedSkinIds));
+                }
+
                 UpdateCoinsDisplay();
-
                 UISoundManager.PlaySuccess();
                 ShowToast($"Mua thành công '{skin.name}'!");
 
-                // Tự động trang bị sau khi mua
                 await ExecuteEquipAsync(skin.skinId, skin.role);
             }
             catch (Exception ex)
@@ -1019,20 +1203,30 @@ namespace Blocks.Gameplay.Core
                 bool isDefault = (skinId == "default_dad" || skinId == "default_child");
                 string apiSkinId = isDefault ? string.Empty : skinId;
 
-                var body = JsonUtility.ToJson(new EquipRequest { skinId = apiSkinId, role = role });
-                var resJson = await ApiClient.PostAsync("/store/equip", body);
-                var res = JsonUtility.FromJson<ActionResult>(resJson);
-
-                m_EquippedDadSkinId = res.equippedDadSkinId;
-                m_EquippedChildSkinId = res.equippedChildSkinId;
-
                 if (ApiClient.IsLoggedIn)
                 {
+                    var body = JsonUtility.ToJson(new EquipRequest { skinId = apiSkinId, role = role });
+                    var resJson = await ApiClient.PostAsync("/store/equip", body);
+                    var res = JsonUtility.FromJson<ActionResult>(resJson);
+
+                    m_EquippedDadSkinId = res.equippedDadSkinId;
+                    m_EquippedChildSkinId = res.equippedChildSkinId;
+
                     PlayerPrefs.SetString($"HMH.Store.{ApiClient.UserId}.Dad", m_EquippedDadSkinId ?? string.Empty);
                     PlayerPrefs.SetString($"HMH.Store.{ApiClient.UserId}.Child", m_EquippedChildSkinId ?? string.Empty);
                 }
+                else
+                {
+                    // Chế độ Offline Sandbox Play Mode
+                    if (string.Equals(role, "Dad", StringComparison.OrdinalIgnoreCase))
+                        m_EquippedDadSkinId = apiSkinId;
+                    else
+                        m_EquippedChildSkinId = apiSkinId;
 
-                // Cập nhật model nhân vật trong Lobby ngay tức thì
+                    PlayerPrefs.SetString("HMH.Store.LocalDad", m_EquippedDadSkinId ?? string.Empty);
+                    PlayerPrefs.SetString("HMH.Store.LocalChild", m_EquippedChildSkinId ?? string.Empty);
+                }
+
                 Lobby3DManager.Instance?.RefreshEquippedSkinsInLobby();
 
                 UISoundManager.PlayConfirm();
@@ -1058,20 +1252,30 @@ namespace Blocks.Gameplay.Core
 
             try
             {
-                var req = new TopupRequest
+                int addedCoins = (packageId == "vnd_50000") ? 550 : 100;
+
+                if (ApiClient.IsLoggedIn)
                 {
-                    packageId = packageId,
-                    requestId = Guid.NewGuid().ToString("N")
-                };
+                    var req = new TopupRequest
+                    {
+                        packageId = packageId,
+                        requestId = Guid.NewGuid().ToString("N")
+                    };
 
-                var resJson = await ApiClient.PostAsync("/wallet/topup", JsonUtility.ToJson(req));
-                var res = JsonUtility.FromJson<ActionResult>(resJson);
+                    var resJson = await ApiClient.PostAsync("/wallet/topup", JsonUtility.ToJson(req));
+                    var res = JsonUtility.FromJson<ActionResult>(resJson);
+                    m_CurrentCoins = res.coins;
+                }
+                else
+                {
+                    // Chế độ Offline Sandbox Play Mode
+                    m_CurrentCoins += addedCoins;
+                    PlayerPrefs.SetInt("HMH.Store.LocalCoins", m_CurrentCoins);
+                }
 
-                m_CurrentCoins = res.coins;
                 UpdateCoinsDisplay();
-
                 UISoundManager.PlaySuccess();
-                ShowToast("Nạp Coin thành công!");
+                ShowToast($"Nạp thành công {addedCoins} Coins!");
                 CloseTopup();
             }
             catch (Exception ex)
@@ -1118,7 +1322,7 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        // ─── Helpers: UI Construction ──────────────────────────────
+        // ─── Helpers: Academic Monochrome UI Construction ────────────
 
         private GameObject CreatePanel(Transform parent, string name, Color color)
         {
@@ -1128,32 +1332,45 @@ namespace Blocks.Gameplay.Core
             return go;
         }
 
-        private GameObject CreateButton(Transform parent, string name, string label, Vector2 size, Color bgColor)
+        private GameObject CreateBorderedPanel(Transform parent, string name, Color bgColor, Color borderColor, float borderWidth = 1.5f)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(parent, false);
+            // Outer Box (Border)
+            var borderGo = new GameObject(name, typeof(RectTransform), typeof(Image));
+            borderGo.transform.SetParent(parent, false);
+            borderGo.GetComponent<Image>().color = borderColor;
 
-            var img = go.GetComponent<Image>();
-            img.color = bgColor;
-            img.type = Image.Type.Sliced;
+            // Inner Box (Background)
+            var innerGo = new GameObject("InnerBg", typeof(RectTransform), typeof(Image));
+            innerGo.transform.SetParent(borderGo.transform, false);
+            var innerRt = innerGo.GetComponent<RectTransform>();
+            innerRt.anchorMin = Vector2.zero;
+            innerRt.anchorMax = Vector2.one;
+            innerRt.offsetMin = new Vector2(borderWidth, borderWidth);
+            innerRt.offsetMax = new Vector2(-borderWidth, -borderWidth);
+            innerGo.GetComponent<Image>().color = bgColor;
 
-            var btn = go.GetComponent<Button>();
-            var colors = btn.colors;
-            colors.highlightedColor = bgColor * 1.15f;
-            colors.pressedColor = bgColor * 0.85f;
-            colors.disabledColor = new Color(0.3f, 0.3f, 0.3f, 0.6f);
-            btn.colors = colors;
+            return borderGo;
+        }
 
-            var rt = go.GetComponent<RectTransform>();
+        private GameObject CreateBorderedButton(Transform parent, string name, string label, Vector2 size, Color bgColor, Color borderColor, Color textColor, float borderWidth = 1.5f)
+        {
+            var borderGo = CreateBorderedPanel(parent, name, bgColor, borderColor, borderWidth);
+            var rt = borderGo.GetComponent<RectTransform>();
             rt.sizeDelta = size;
 
-            var text = CreateText(go.transform, "label", label, 14, FontStyles.Bold, Color.white);
+            var btn = borderGo.AddComponent<Button>();
+            btn.transition = Selectable.Transition.ColorTint;
+
+            var innerBg = borderGo.transform.Find("InnerBg");
+            var targetParent = (innerBg != null) ? innerBg : borderGo.transform;
+
+            var text = CreateText(targetParent, "label", label, 14, FontStyles.Bold, textColor);
             var textRt = text.GetComponent<RectTransform>();
             textRt.anchorMin = Vector2.zero;
             textRt.anchorMax = Vector2.one;
             textRt.offsetMin = textRt.offsetMax = Vector2.zero;
 
-            return go;
+            return borderGo;
         }
 
         private TextMeshProUGUI CreateText(Transform parent, string name, string content, float fontSize, FontStyles style, Color color)

@@ -53,7 +53,7 @@ namespace Blocks.Gameplay.Core
 
             m_PreviewCamera = camGo.AddComponent<Camera>();
             m_PreviewCamera.clearFlags = CameraClearFlags.SolidColor;
-            m_PreviewCamera.backgroundColor = new Color(0.08f, 0.11f, 0.17f, 1f); // Dark slate (#141C2B)
+            m_PreviewCamera.backgroundColor = new Color(0.10f, 0.11f, 0.13f, 1f); // Neutral dark gray matching monochrome UI
             m_PreviewCamera.fieldOfView = 36f;
             m_PreviewCamera.nearClipPlane = 0.1f;
             m_PreviewCamera.farClipPlane = 20f;
@@ -142,7 +142,7 @@ namespace Blocks.Gameplay.Core
             // Dọn dẹp các component gameplay/network nếu clone từ scene
             foreach (var comp in m_CurrentModel.GetComponentsInChildren<MonoBehaviour>())
             {
-                if (!(comp is Animator)) comp.enabled = false;
+                comp.enabled = false;
             }
             foreach (var col in m_CurrentModel.GetComponentsInChildren<Collider>())
             {
