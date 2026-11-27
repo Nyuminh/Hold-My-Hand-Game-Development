@@ -150,12 +150,27 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 Check(west.requiredItem == crank && east.requiredItem == prism, "beacons require authored crank and prism");
                 Check(west.beam != null && east.beam != null && west.turnWheel != null && east.turnWheel != null,
                     "both lighthouses have network beams and steering wheels");
-                Check(west.beam.emitter.position.y > 8f && east.beam.emitter.position.y > 8f,
-                    "both light beams originate from the top lanterns");
-                Check(west.turnWheel.interactionPoint.position.y < 2f && east.turnWheel.interactionPoint.position.y < 2f,
-                    "both steering wheels are reachable at the ground consoles");
-                Check(west.itemSocket.position.y < 2f && east.itemSocket.position.y < 2f,
-                    "both item sockets are reachable at the ground consoles");
+                Check(Vector3.Distance(west.beam.emitter.position, new Vector3(82.99f, 7.56f, 174.99f)) < 0.02f &&
+                      Vector3.Distance(east.beam.emitter.position, new Vector3(117.01f, 7.56f, 190.01f)) < 0.02f,
+                    "both light beams originate at the authored top-lantern positions");
+                Check(Vector3.Distance(west.turnWheel.interactionPoint.position, new Vector3(85.2f, 1.6f, 175.8f)) < 0.02f &&
+                      Vector3.Distance(east.turnWheel.interactionPoint.position, new Vector3(114.8f, 1.6f, 189.2f)) < 0.02f,
+                    "both steering wheels are reachable on the stone pedestals");
+                Check(Vector3.Distance(west.itemSocket.position, new Vector3(84.6f, 1.7f, 175.8f)) < 0.02f &&
+                      Vector3.Distance(east.itemSocket.position, new Vector3(115.4f, 1.7f, 189.2f)) < 0.02f,
+                    "both item sockets are reachable on the stone pedestals");
+                var sensorCollider = UnityEngine.Object.FindAnyObjectByType<LuminaMillSensor>().GetComponent<SphereCollider>();
+                Check(sensorCollider != null && sensorCollider.isTrigger &&
+                      Mathf.Abs(sensorCollider.radius - LuminaMillSensor.SensorRadius) < 0.001f,
+                    "Lumina eye uses an exact 0.55 m spherical trigger");
+                var westLine = west.beam.GetComponent<LineRenderer>();
+                var eastLine = east.beam.GetComponent<LineRenderer>();
+                Check(Mathf.Abs(westLine.startWidth - 0.85f) < 0.001f && Mathf.Abs(westLine.endWidth - 1.15f) < 0.001f &&
+                      Mathf.Abs(eastLine.startWidth - 0.85f) < 0.001f && Mathf.Abs(eastLine.endWidth - 1.15f) < 0.001f,
+                    "both lighthouse beams use the 0.85-1.15 m profile");
+                Check(westLine.sharedMaterial != null && eastLine.sharedMaterial != null &&
+                      westLine.sharedMaterial.shader.name.Contains("Unlit") && eastLine.sharedMaterial.shader.name.Contains("Unlit"),
+                    "both lighthouse beams use the authored emissive unlit material");
                 child.CoreMovement.SetPosition(crank.transform.position);
                 Check(crank.TryPickup(child), "Child picks up Ignition Crank with [F]");
                 crank.Drop();

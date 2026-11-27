@@ -104,7 +104,7 @@ namespace Blocks.Gameplay.Core
                 : !eastSocketed
                     ? "MỤC TIÊU 2: Ba nâng giữ thân cây, Con chui qua hốc nhặt Lăng Kính Cổ [F], gắn vào console Tháp Đông."
                     : !beaconsLit
-                        ? "MỤC TIÊU 3: Cả hai cầm vô-lăng [F], lia chuột trái/phải để căn tia sáng vào Mắt Ngọc Cối Xay!"
+                        ? "MỤC TIÊU 3: Cầm vô-lăng [F], lăn chuột lên/xuống (hoặc A/D) để căn tia sáng vào Mắt Ngọc Cối Xay!"
                         : "HOÀN THÀNH: Hai hải đăng đã sáng rực, sương mù tan biến! Cùng lên thuyền vượt cối xay.";
             LighthouseHud.DrawObjective(objective);
         }

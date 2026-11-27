@@ -58,19 +58,20 @@ namespace Blocks.Gameplay.Core
                 ReleaseControlRpc();
                 return;
             }
-            if (Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.fKey.wasPressedThisFrame ||
-                Keyboard.current.spaceKey.wasPressedThisFrame)
+            if (Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame)
             {
                 localSteering = false;
                 ReleaseControlRpc();
                 return;
             }
 
-            float mouseDeltaX = Mouse.current != null ? Mouse.current.delta.x.ReadValue() : 0f;
+            float scroll = Mouse.current != null ? Mouse.current.scroll.y.ReadValue() : 0f;
             float keyInput = (Keyboard.current.dKey.isPressed ? 1f : 0f) -
                              (Keyboard.current.aKey.isPressed ? 1f : 0f);
-            float turnInput = Mathf.Abs(mouseDeltaX) > 0.1f ? mouseDeltaX * 0.15f : keyInput;
-            if (Mathf.Abs(turnInput) > 0.01f)
+            float turnInput = 0f;
+            if (Mathf.Abs(scroll) > 0.05f) turnInput = Mathf.Sign(scroll) * 1.5f;
+            else if (keyInput != 0f) turnInput = keyInput;
+            if (turnInput != 0f)
                 RotateRpc(turnInput, Mathf.Min(Time.deltaTime, 0.1f));
         }
 
@@ -106,7 +107,9 @@ namespace Blocks.Gameplay.Core
             if (controller.Value != rpc.Receive.SenderClientId) return;
             var actor = LevelTwoActors.Sender(NetworkManager, rpc.Receive.SenderClientId);
             if (!LevelTwoActors.Near(actor, interactionPoint != null ? interactionPoint : transform, 2.5f)) { controller.Value = ulong.MaxValue; return; }
-            currentAngle.Value = Mathf.Clamp(currentAngle.Value + Mathf.Clamp(input, -1, 1) * rotationSpeed * Mathf.Clamp(deltaTime, 0, 0.1f), minimumAngle, maximumAngle);
+            // Scroll input intentionally uses a 1.5x step. Keep that multiplier on the
+            // authoritative side instead of silently clamping it back to keyboard speed.
+            currentAngle.Value = Mathf.Clamp(currentAngle.Value + Mathf.Clamp(input, -1.5f, 1.5f) * rotationSpeed * Mathf.Clamp(deltaTime, 0, 0.1f), minimumAngle, maximumAngle);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
@@ -122,7 +125,7 @@ namespace Blocks.Gameplay.Core
             if (!IsSpawned || local == null) return;
 
             if (localSteering && controller.Value == local.OwnerClientId)
-                LighthouseHud.DrawWorldHint(point.position, "Lia Chuột [◄ ►] để xoay tia sáng · [F / Space] Rời vô-lăng");
+                LighthouseHud.DrawWorldHint(point.position, "Lăn chuột [▲ ▼] hoặc phím A/D để xoay tia sáng · [F / Space] Rời vô-lăng");
             else if (LevelTwoActors.Near(local, point, 2.5f))
                 LighthouseHud.DrawWorldHint(point.position, "[F] Cầm lái Vô-lăng căn tia sáng");
         }

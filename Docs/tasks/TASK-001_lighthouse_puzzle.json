@@ -1,25 +1,27 @@
 {
-  "id": "TASK-001-REV2",
-  "title": "Refine Lighthouse Puzzle: Mouse Steering, [F] Key Interaction, Ground Pedestal and Top-Lantern Beam",
-  "description": "Refine the twin lighthouse light-refraction puzzle in PlayScene2 based on playtest feedback: change beam steering to horizontal mouse movement, change item pickup and socketing to [F] key, ground the steering wheel and socket pedestals firmly at foot level under the lighthouse, and emit the light beams from the very top of the lighthouse lantern room.",
+  "id": "TASK-001-REV3",
+  "title": "Refine Lighthouse Puzzle: Scroll-Wheel Steering, Dynamic Fog Realtime Contact, Grounded Stone Pedestal and Top-Lantern Beam",
+  "description": "Critical polish for lighthouse puzzle in PlayScene2 based on playtest feedback & screenshots: increase beam thickness and brightness, implement dynamic fog/gate response that returns when beam wanders off the sensor, ground the wheel and socket on a stone pedestal on the island floor beside the lighthouse entrance, emit beams directly from the high lantern room at the summit of the towers, and map steering to the mouse scroll wheel.",
   "owner": "codex",
   "status": "READY_FOR_DEV",
   "dependencies": [],
   "context_files": [
     "Docs/tasks/TASK_LIGHTHOUSE_PUZZLE_CODEX.md",
-    "Assets/Core/Scripts/Runtime/Components/CoopCarryableItem.cs",
     "Assets/Core/Scripts/Runtime/Components/LighthouseTurnWheel.cs",
+    "Assets/Core/Scripts/Runtime/Components/LuminaMillSensor.cs",
     "Assets/Core/Scripts/Runtime/Components/LighthouseLightBeam.cs",
     "Assets/Core/Scripts/Runtime/Components/MarshBeaconTrigger.cs",
+    "Assets/Core/Scripts/Runtime/Components/LevelTwoClimaxManager.cs",
     "Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs",
     "Assets/Core/Scripts/Editor/LevelTwoValidation.cs"
   ],
   "acceptance_criteria": [
-    "Player can pick up and socket items (Ignition Crank and Ancient Prism) using [F] key.",
-    "Steering wheel and socket pedestals are positioned on the ground/island floor beside the lighthouse entrance (y ~ 1.3m - 1.7m), with no mid-air floating elements.",
-    "Light beams emit from the high lantern room at the top of the lighthouses (y > 8m), angling dynamically across the marsh.",
-    "Rotating mouse horizontally while controlling the turn wheel steers the lighthouse beam angle smoothly.",
-    "LevelTwoValidation passes cleanly with the new input mapping and top-lantern emitter positions."
+    "Light beams are visually prominent (width 0.85m - 1.15m) with bright emission and contact hit marker.",
+    "Marsh fog and watermill boom dynamically respond to beam contact: clears when hitting sensor, re-thickens if beam wanders off before boat passes.",
+    "Steering wheel and socket pedestals are firmly planted on the stone island floor beside lighthouse doors (y ~ 1.3m - 1.7m), with zero mid-air floating.",
+    "Beams emit directly from the top lantern rooms at the summit of both lighthouses (y ~ 7.56m - 9.0m).",
+    "Scrolling mouse wheel up/down rotates the active lighthouse beam smoothly.",
+    "LevelTwoValidation passes cleanly with all new adjustments."
   ],
   "test_command": "Unity Editor MenuItem: 'Hold My Hand/Level 2/Wire Beacons Watermill and Victory'",
   "token_budget": {
@@ -30,14 +32,14 @@
   "result_summary": "",
   "files_changed": [
     "Assets/Core/Scenes/PlayScene2.unity",
-    "Assets/Core/Scripts/Runtime/Components/CoopCarryableItem.cs",
     "Assets/Core/Scripts/Runtime/Components/LighthouseTurnWheel.cs",
+    "Assets/Core/Scripts/Runtime/Components/LuminaMillSensor.cs",
     "Assets/Core/Scripts/Runtime/Components/LighthouseLightBeam.cs",
     "Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs",
     "Assets/Core/Scripts/Editor/LevelTwoValidation.cs"
   ],
   "risks": [
-    "Ensure mouse delta sensitivity is calibrated so steering feels responsive without jitter.",
-    "Ensure top lantern raycast ignores lighthouse body geometry when shooting downwards."
+    "Ensure sensor collider strictly bounds the jewel lens sphere so hits require actual visual alignment.",
+    "Ensure mouse scroll delta handles both smooth and notched mouse wheels."
   ]
 }

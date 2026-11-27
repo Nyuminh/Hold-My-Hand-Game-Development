@@ -3,21 +3,35 @@ using UnityEngine;
 
 namespace Blocks.Gameplay.Core
 {
-    [RequireComponent(typeof(NetworkObject), typeof(Collider))]
+    [RequireComponent(typeof(NetworkObject), typeof(SphereCollider))]
     public sealed class LuminaMillSensor : NetworkBehaviour
     {
+        public const float SensorRadius = 0.55f;
         public Renderer lensRenderer;
         public MarshBeaconTrigger west;
         public MarshBeaconTrigger east;
         public AudioSource chime;
-        public float requiredHitSeconds = 0.5f;
+        public float requiredHitSeconds = 0.3f;
         public Color unpoweredColor = new(1f, 0.08f, 0.03f);
         public Color poweredColor = new(0.15f, 1f, 0.9f);
 
         private readonly NetworkVariable<bool> isPowered = new();
         private float hitDuration;
+        private GiantWatermillObstacle watermill;
         private MaterialPropertyBlock properties;
         public bool IsPowered => isPowered.Value;
+
+        private void Reset() => ConfigureCollider();
+
+        private void OnValidate() => ConfigureCollider();
+
+        private void ConfigureCollider()
+        {
+            var sensorCollider = GetComponent<SphereCollider>();
+            if (sensorCollider == null) return;
+            sensorCollider.radius = SensorRadius;
+            sensorCollider.isTrigger = true;
+        }
 
         public override void OnNetworkSpawn()
         {
@@ -29,13 +43,26 @@ namespace Blocks.Gameplay.Core
 
         public void NotifySensorActivated(bool active)
         {
-            if (!IsServer || IsPowered) return;
-            hitDuration = active ? hitDuration + Time.deltaTime : 0f;
-            if (hitDuration < requiredHitSeconds) return;
-            isPowered.Value = true;
-            west?.SetLit(true);
-            east?.SetLit(true);
-            PoweredClientRpc();
+            if (!IsServer) return;
+            if (active)
+            {
+                hitDuration += Time.deltaTime;
+                if (hitDuration < requiredHitSeconds || isPowered.Value) return;
+                isPowered.Value = true;
+                west?.SetLit(true);
+                east?.SetLit(true);
+                PoweredClientRpc(true);
+                return;
+            }
+
+            hitDuration = 0f;
+            if (!isPowered.Value) return;
+            watermill ??= Object.FindAnyObjectByType<GiantWatermillObstacle>();
+            if (watermill != null && watermill.Passed) return;
+            isPowered.Value = false;
+            west?.SetLit(false);
+            east?.SetLit(false);
+            PoweredClientRpc(false);
         }
 
         public void RestoreCheckpoint(bool powered)
@@ -61,10 +88,16 @@ namespace Blocks.Gameplay.Core
         }
 
         [Rpc(SendTo.Everyone)]
-        private void PoweredClientRpc()
+        private void PoweredClientRpc(bool powered)
         {
-            ApplyVisual(true);
-            if (chime != null && !chime.isPlaying) chime.Play();
+            ApplyVisual(powered);
+            if (powered && chime != null && !chime.isPlaying) chime.Play();
+            if (!powered)
+            {
+                RenderSettings.fog = true;
+                RenderSettings.fogMode = FogMode.ExponentialSquared;
+                RenderSettings.fogDensity = 0.065f;
+            }
         }
     }
 }

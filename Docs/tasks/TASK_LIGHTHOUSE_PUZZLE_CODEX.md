@@ -1,141 +1,183 @@
-# 📋 TASK REVISION: LIGHTHOUSE CONTROLS, MOUSE STEERING & TOP-LANTERN BEAM
+# 📋 TASK REVISION 3: CRITICAL PUZZLE REFINEMENTS & DYNAMIC FOG LOGIC
 > **Dành cho**: OpenAI Codex / Lập trình viên  
 > **Dự án**: Hold My Hand · Nắm tay cha (Unity 6 / Netcode for GameObjects)  
 > **Scene mục tiêu**: `Assets/Core/Scenes/PlayScene2.unity` (Stage 4: Misty Marsh & Twin Beacons)  
-> **Nhiệm vụ**: Tinh chỉnh điều khiển chuột, phím F, hạ bệ điều khiển xuống chân tháp và phát tia sáng từ ĐỈNH hải đăng.
+> **Trạng thái**: KHẮC PHỤC 5 ĐIỂM BẤT CẬP THEO ẢNH CHỤP THỰC TẾ CỦA NGƯỜI CHƠI
 
 ---
 
-## 📌 1. BỐI CẢNH & CÁC LỖI THỰC TẾ CẦN SỬA (THE 4 CRITICAL REFINEMENTS)
+## 📌 1. NĂM ĐIỂM BẤT CẬP CẦN KHẮC PHỤC TRIỆT ĐỂ (THE 5 CORE REFINEMENTS)
 
-Dựa trên phản hồi và ảnh chụp trực tiếp từ người chơi:
-
-1. **Đổi phím điều khiển**:
-   - **Xoay tia sáng**: Đổi từ phím `A / D` sang **Xoay chuột ngang (Mouse X movement)**. Khi đang lái vô-lăng, người chơi lia chuột trái/phải để xoay góc đèn mượt mà như góc nhìn thứ ba/thứ nhất.
-   - **Nhặt & Gắn vật phẩm**: Đổi từ phím `[E]` sang phím **`[F]`** (nhặt `[F]`, gắn vào bệ `[F]`, giữ `[G]` để thả).
-2. **Khắc phục vị trí lơ lửng, khó đứng lên (Ảnh 1)**:
-   - Hiện tại: Vô-lăng và Ổ cắm đang bị đặt ở $y = 3.2m$, lơ lửng giữa trời, nhân vật đứng dưới nước không chạm tới được và rất khó nhảy lên.
-   - Sửa lại: Đặt **Bệ Máy Điều Khiển (Beacon Console Pedestal)** nằm vững vàng trên mặt sàn bệ đá đảo hải đăng ($y \approx 1.25f - 1.5f$). Vô-lăng và ổ cắm gắn trên bệ này, ngang tầm tay nhân vật (ngang ngực). Thêm cầu dốc bước chân để đi từ thuyền lên sàn đảo dễ dàng.
-3. **Phát tia sáng từ ĐỈNH của ngọn hải đăng (Ảnh 2)**:
-   - Hiện tại: Tia sáng phóng ra từ chiếc hộp lơ lửng ngang hông tháp ở $y = 3.5m$.
-   - Sửa lại: Tia sáng phải phát ra từ **Lồng Kính trên ĐỈNH tháp hải đăng** (vị trí `tower.GetComponentInChildren<Light>(true).transform.position` ở độ cao $y \approx 9m$).
-   - Bánh lái ở dưới đất xoay cơ cấu đài đèn trên đỉnh tháp. Khi xoay chuột dưới đất, chùm sáng từ trên đỉnh tháp quét ngang trời cực kỳ tráng lệ.
+### 🔴 Điểm 1: Tia sáng bị mờ, không thấy rõ ở một số góc nhìn (Ảnh 1)
+- **Hiện trạng**: `LineRenderer` chỉ rộng $0.35\text{m}$, dùng `Default-Line.mat` không có phát sáng (Emission), bị chìm vào nền trời/nước.
+- **Yêu cầu sửa**:
+  - Tăng độ rộng tia sáng: `startWidth = 0.8f`, `endWidth = 1.1f`.
+  - Tạo/gán Material phát quang rực rỡ (Shader `Universal Render Pipeline/Unlit`, màu vàng kim có HDR Intensity $\times 3$).
+  - Thêm một vầng sáng / Flare Marker tại điểm va chạm `hit.point` để người chơi thấy rõ điểm tiếp xúc của tia sáng trên địa hình/mục tiêu.
 
 ---
 
-## 🛠️ 2. CHI TIẾT KỸ THUẬT CẦN SỬA (FILE-BY-FILE CODE CHANGES)
+### 🔴 Điểm 2: Sương mù phải biến mất / xuất hiện lại ĐỘNG theo tia sáng (Ảnh 2)
+- **Hiện trạng**:
+  - Collider của Mắt Ngọc Cối Xay quá to ($2.2\text{m} \times 2.2\text{m}$), tia sáng mới chiếu chệch sang bên trái đã kích hoạt trúng collider tàng hình.
+  - Khi đã kích hoạt, biến `isPowered` bị khóa vĩnh viễn, người chơi xoay tia sáng lệch ra ngoài mà sương mù vẫn không quay trở lại!
+- **Yêu cầu sửa**:
+  - Đổi collider của `LuminaMillSensor` sang `SphereCollider` gắn trực tiếp vào quả cầu cảm biến với bán kính $r = 0.55\text{m}$ (khớp chuẩn xác với mắt ngọc).
+  - **Cơ chế sương mù động thời gian thực (Dynamic Fog & Safety Boom)**:
+    - **Khi tia sáng chiếu TRÚNG Mắt Ngọc**: Mắt Ngọc sáng xanh, sau $0.3\text{s}$ sương mù bắt đầu tan dần, rào chắn an toàn cối xay nâng lên.
+    - **Khi xoay tia sáng LỆCH RA NGOÀI Mắt Ngọc**: Mắt Ngọc tắt về màu đỏ, **SƯƠNG MÙ LẬP TỨC QUAY TRỞ LẠI DÀY ĐẶC** (`fogDensity` tăng lại mức $0.065$), rào chắn an toàn hạ xuống!
+    - *(Chỉ khi người chơi duy trì tia sáng đúng vị trí VÀ chèo thuyền vượt qua cổng cối xay `watermill.Passed == true` thì chặng đầm lầy mới khóa hoàn thành vĩnh viễn)*.
 
-### File 1: `Assets/Core/Scripts/Runtime/Components/CoopCarryableItem.cs`
-- **Đổi phím Nhặt và Gắn sang `[F]`**:
+---
+
+### 🔴 Điểm 3: Bệ Lăng Kính và Vô-Lăng phải nằm vững trên BỆ ĐÁ dưới chân hải đăng, KHÔNG được lơ lửng ngoài mép (Ảnh 3)
+- **Hiện trạng**: Bệ socket và vô-lăng đặt ở $x=110$ và $y=3.2\text{m}$, nằm ngoài rìa bán kính đảo đá ($x=117$) nên bị thò ra ngoài nước và lơ lửng giữa trời.
+- **Yêu cầu sửa**:
+  - Tọa độ tâm đảo đá: Tháp Tây tại $(83.0f, 0.9f, 175.0f)$, Tháp Đông tại $(117.0f, 0.9f, 190.0f)$. Mặt sàn bệ đá phẳng ở độ cao $y \approx 1.3\text{m}$.
+  - Tạo khối bệ đá mỹ thuật `BeaconPedestal` đặt vững vàng trên sàn đảo, ngay trước lối vào hải đăng:
+    - **Tháp Tây**: Vị trí `Vector3(84.6f, 1.3f, 175.8f)`.
+    - **Tháp Đông**: Vị trí `Vector3(115.4f, 1.3f, 189.2f)`.
+  - Trên bệ đá này:
+    - Ổ cắm Lăng Kính / Tay Quay đặt phẳng trên mặt bệ đá ở $y = 1.7\text{m}$.
+    - Bánh lái vô-lăng dựng đứng trên mặt bệ đá ở $y = 1.6\text{m}$.
+    - Nhân vật đứng trên sàn bệ đá phẳng, ngang tầm tay bấm **`[F]`** để cắm hoặc cầm lái, không còn bất kỳ chi tiết nào lơ lửng ngoài không trung!
+
+---
+
+### 🔴 Điểm 4: Tia sáng phải phát ra từ ÁNH ĐÈN Ở ĐỈNH NGỌN HẢI ĐĂNG (Ảnh 4)
+- **Hiện trạng**: Emitter tia sáng đang bị gắn ngang hông bệ dưới đất ở $y = 3.5\text{m}$.
+- **Yêu cầu sửa**:
+  - Điểm phát tia sáng (`beam.emitter`) phải gắn trực tiếp vào **Lồng Kính trên ĐỈNH tháp hải đăng** (vị trí `Light` của prefab tại $y = 7.56\text{m}$ đến $9.0\text{m}$ như trong Ảnh 4):
+    - Đỉnh Tháp Tây: `Vector3(82.99f, 7.56f, 174.99f)`.
+    - Đỉnh Tháp Đông: `Vector3(117.01f, 7.56f, 190.01f)`.
+  - Vô-lăng ở dưới chân tháp điều khiển xoay đài đèn / lăng kính trên đỉnh tháp (`lanternHead`).
+  - Tia sáng phóng ra từ vòm kính rực sáng ở đỉnh tháp, quét từ trên cao qua mặt đầm lầy xuống mục tiêu.
+
+---
+
+### 🔴 Điểm 5: Đổi điều khiển vô-lăng từ xoay chuột sang LĂN CHUỘT (Mouse Scroll Wheel)
+- **Hiện trạng**: Lia chuột ngang dễ xung đột với camera xoay góc nhìn.
+- **Yêu cầu sửa**:
+  - Khi đang cầm lái vô-lăng:
+    - **Lăn chuột LÊN (Scroll Up > 0)**: Xoay tia sáng sang Phải.
+    - **Lăn chuột XUỐNG (Scroll Down < 0)**: Xoay tia sáng sang Trái.
+    - Giữ phím `A / D` làm phương án hỗ trợ phụ.
+    - Bấm **`[F]`** hoặc **`[Space]`** để rời khỏi vô-lăng.
+
+---
+
+## 🛠️ 2. CHI TIẾT THAY ĐỔI CODE & BAKE SCENE
+
+### File 1: `Assets/Core/Scripts/Runtime/Components/LighthouseTurnWheel.cs`
+- Cập nhật hàm `Update()`:
   ```csharp
-  // Khi đang cầm vật phẩm:
-  if (Keyboard.current.gKey.wasPressedThisFrame) RequestDropRpc();
-  else if (Keyboard.current.fKey.wasPressedThisFrame && CanSocket(local)) RequestSocketRpc();
-
-  // Khi chưa cầm vật phẩm:
-  if (!IsCarried && !IsSocketed && Keyboard.current.fKey.wasPressedThisFrame &&
-      Vector3.Distance(local.transform.position, transform.position) < 2.5f && IsClosestPickup(local))
+  // Thoát lái:
+  if (Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame)
   {
-      RequestPickupRpc();
+      localSteering = false;
+      ReleaseControlRpc();
+      return;
+  }
+
+  // Đọc lăn chuột:
+  float scroll = Mouse.current != null ? Mouse.current.scroll.y.ReadValue() : 0f;
+  float keyInput = (Keyboard.current.dKey.isPressed ? 1f : 0f) - (Keyboard.current.aKey.isPressed ? 1f : 0f);
+  
+  float turnInput = 0f;
+  if (Mathf.Abs(scroll) > 0.05f) turnInput = Mathf.Sign(scroll) * 1.5f;
+  else if (keyInput != 0f) turnInput = keyInput;
+
+  if (turnInput != 0f) RotateRpc(turnInput, Mathf.Min(Time.deltaTime, 0.1f));
+  ```
+- Cập nhật text hiển thị:
+  `"Lăn chuột [▲ ▼] hoặc phím A/D để xoay tia sáng · [F / Space] Rời vô-lăng"`
+
+---
+
+### File 2: `Assets/Core/Scripts/Runtime/Components/LuminaMillSensor.cs`
+- Cập nhật hàm kích hoạt động:
+  ```csharp
+  public void NotifySensorActivated(bool active)
+  {
+      if (!IsServer) return;
+      if (active)
+      {
+          hitDuration += Time.deltaTime;
+          if (hitDuration >= requiredHitSeconds && !isPowered.Value)
+          {
+              isPowered.Value = true;
+              west?.SetLit(true);
+              east?.SetLit(true);
+              PoweredClientRpc(true);
+          }
+      }
+      else
+      {
+          hitDuration = 0f;
+          // NẾU TIA SÁNG BỊ XOAY LỆCH RA NGOÀI VÀ THUYỀN CHƯA VƯỢT QUA CỐI XAY:
+          if (isPowered.Value && (west != null && east != null))
+          {
+              var mill = UnityEngine.Object.FindAnyObjectByType<GiantWatermillObstacle>();
+              if (mill == null || !mill.Passed)
+              {
+                  isPowered.Value = false;
+                  west.SetLit(false);
+                  east.SetLit(false);
+                  PoweredClientRpc(false);
+              }
+          }
+      }
   }
   ```
-- **Cập nhật UI Prompt**:
-  - Gần vật phẩm: `"[F] Nhặt " + (itemType == ItemType.IgnitionCrank ? "Tay Quay" : "Lăng Kính Cổ")`
-  - Đang cầm và gần ổ cắm: `"[F] Gắn vào Ổ Cắm Hải Đăng"`
-  - Đang cầm tự do: `"[G] Thả vật phẩm"`
 
 ---
 
-### File 2: `Assets/Core/Scripts/Runtime/Components/LighthouseTurnWheel.cs`
-- **Chuyển sang điều khiển xoay bằng Chuột (Mouse Delta X)**:
-  - Khi bắt đầu lái (bấm `[E]` hoặc `[F]` tại vô-lăng):
-    - Khóa con trỏ hoặc đọc `Mouse.current.delta.x.ReadValue()`.
-  - Trong hàm `Update()`:
-    ```csharp
-    // Phím thoát chế độ lái: [E], [F] hoặc [Space]
-    if (Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame)
-    {
-        localSteering = false;
-        ReleaseControlRpc();
-        return;
-    }
-
-    // Đọc di chuyển chuột ngang
-    float mouseDeltaX = Mouse.current != null ? Mouse.current.delta.x.ReadValue() : 0f;
-    // Hỗ trợ thêm A/D làm fallback nhẹ nếu không có chuột
-    float keyInput = (Keyboard.current.dKey.isPressed ? 1f : 0f) - (Keyboard.current.aKey.isPressed ? 1f : 0f);
-    float turnInput = Mathf.Abs(mouseDeltaX) > 0.1f ? mouseDeltaX * 0.15f : keyInput;
-
-    if (Mathf.Abs(turnInput) > 0.01f)
-    {
-        RotateRpc(turnInput, Mathf.Min(Time.deltaTime, 0.1f));
-    }
-    ```
-- **Cập nhật UI Prompt**:
-  - Khi đứng gần vô-lăng: `"[F] Cầm lái Vô-lăng căn tia sáng"`
-  - Khi đang lái: `"Lia Chuột [◄ ►] để xoay tia sáng · [F / Space] Rời vô-lăng"`
-
----
-
-### File 3: `Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs`
-Cập nhật hàm `WireStageThree()`:
-
-#### A. Hạ Bệ Điều Khiển & Vô-Lăng xuống chân tháp (Console Pedestal):
-- Vị trí chân tháp trên đảo:
-  - Tháp Tây: Đảo tại $x=83, z=175$. Đặt bệ console tại `Vector3(85.5f, 1.25f, 175f)`.
-  - Tháp Đông: Đảo tại $x=117, z=190$. Đặt bệ console tại `Vector3(114.5f, 1.25f, 190f)`.
-- Tạo một khối bệ đá console vững chắc:
+### File 3: `Assets/Core/Scripts/Runtime/Components/LighthouseLightBeam.cs`
+- Độ rộng tia sáng:
   ```csharp
-  var console = Box(side + "_BeaconConsole", root, consolePos, new Vector3(1.6f, 0.9f, 1.2f), stoneMat);
+  line.startWidth = 0.85f;
+  line.endWidth = 1.15f;
+  line.startColor = new Color(1f, 0.88f, 0.35f, 1f);
+  line.endColor = new Color(1f, 0.7f, 0.2f, 0.85f);
   ```
-- **Ổ cắm (`itemSocket`)**: Đặt trên đỉnh bệ console tại `consolePos + Vector3.up * 0.5f` ($y \approx 1.75f$), người chơi đứng trên bệ đảo là bấm **[F]** cắm vào được ngay!
-- **Bánh lái (`turnWheel`)**: Gắn vào mặt trước bệ console tại `consolePos + Vector3.up * 0.4f + forward * 0.6f`, xoay dựng đứng, ngang tầm tay nhân vật.
-- Thêm đường dốc / cầu gỗ (`WoodenRamp`) từ mạn thuyền nối thẳng lên bệ đá đảo để người chơi đi bộ lên êm ái.
-
-#### B. Đưa Emitter và Tia Sáng lên ĐỈNH Hải Đăng:
-- Tìm đèn trên đỉnh tháp hải đăng:
-  ```csharp
-  var tower = Find(side + "Beacon_Tower");
-  var lamp = tower.GetComponentInChildren<Light>(true);
-  Vector3 topLanternPosition = lamp.transform.position; // Cao ~9m
-  ```
-- **Pivot xoay (`lanternHead`)**:
-  - Gắn tại đỉnh tháp `topLanternPosition`.
-  - Vô-lăng dưới đất sẽ điều khiển xoay góc của `lanternHead` trên đỉnh tháp!
-- **`beam.emitter`**:
-  - Đặt tại `topLanternPosition`.
-  - Tháp Tây: Emitter trên đỉnh Tháp Tây chiếu chùm sáng từ trên cao hướng sang đỉnh Tháp Đông.
-  - Tháp Đông: Khối Lăng Kính tiếp nhận đặt tại đỉnh Tháp Đông. Khi nhận được tia sáng Tây, tia sáng thứ cấp phóng từ đỉnh Tháp Đông rọi xuống `LuminaMillSensor` của Cối Xay Nước!
-- Xóa bỏ hoàn toàn các khối hộp lơ lửng cũ ở giữa không trung!
+- Tạo một Flare Marker / Sphere sáng nhỏ tại `hit.point` để hiển thị chấm sáng va chạm rõ ràng.
 
 ---
 
-### File 4: `Assets/Core/Scripts/Editor/LevelTwoValidation.cs`
-- Cập nhật test step 2 & 4: kiểm tra nhặt và gắn bằng phím `[F]`.
-- Kiểm tra `west.beam.emitter.position.y > 6.0f` (xác nhận tia sáng phát ra từ đỉnh tháp cao).
-- Kiểm tra `west.turnWheel.interactionPoint.position.y < 2.0f` (xác nhận vô-lăng đặt ở tầm tay dưới đất).
+### File 4: `Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs`
+- Đặt bệ đá vững chãi trên sàn đảo:
+  - Tháp Tây: `consolePos = new Vector3(84.6f, 1.3f, 175.8f)`
+  - Tháp Đông: `consolePos = new Vector3(115.4f, 1.3f, 189.2f)`
+  - Kích thước bệ: `Box(side + "_BeaconPedestal", root, consolePos, new Vector3(1.5f, 0.8f, 1.2f), stoneMat);`
+  - Ổ cắm `itemSocket` đặt trên mặt bệ đá ở $y = 1.7\text{m}$.
+  - Vô-lăng `turnWheel` gắn trên mặt bệ đá ở $y = 1.6\text{m}$.
+- Gắn `emitter` và `lanternHead` vào đúng **đèn trên đỉnh tháp**:
+  - `westLampPos = new Vector3(82.99f, 7.56f, 174.99f)`
+  - `eastLampPos = new Vector3(117.01f, 7.56f, 190.01f)`
+- Thu nhỏ collider của `LuminaMillSensor` thành `SphereCollider` bán kính $r = 0.55\text{m}$.
+- **Bắt buộc**: Chạy `EditorSceneManager.MarkSceneDirty` và `EditorSceneManager.SaveScene` để lưu đè `Assets/Core/Scenes/PlayScene2.unity`.
 
 ---
 
-## 🎮 3. HƯỚNG DẪN CHƠI CẬP NHẬT (UPDATED PLAYER GUIDE)
+## 🎮 3. HƯỚNG DẪN CHƠI HOÀN CHỈNH (UPDATED PLAYER GUIDE)
 
-1. **Nhặt và Gắn vật phẩm**:
-   - Sử dụng phím **`[F]`** để nhặt **Tay Quay Khởi Động** và **Lăng Kính Cổ**.
-   - Mang lại bệ console đá dưới chân hải đăng, bấm **`[F]`** để gắn vào ổ cắm.
-2. **Lái Vô-lăng & Căn chỉnh tia sáng**:
-   - Lại gần bánh lái dưới chân hải đăng, bấm **`[F]`** để cầm lái.
-   - **Di chuyển chuột sang Trái / Phải** để xoay góc chùm sáng phát ra từ đỉnh ngọn hải đăng.
-   - Bấm **`[F]`** hoặc **`[Space]`** để buông tay lái.
-3. **Mục tiêu**:
-   - Ba xoay chuột Tháp Tây nhắm tia sáng từ đỉnh Tháp Tây trúng lồng kính đỉnh Tháp Đông.
-   - Con xoay chuột Tháp Đông nhắm tia phản xạ trúng Mắt Ngọc Cối Xay $\rightarrow$ Hoàn thành màn chơi!
+1. **Nhặt và Cắm vật phẩm**:
+   - Dùng phím **`[F]`** để nhặt **Tay Quay Khởi Động** (ở bờ đá Tây) và **Lăng Kính Cổ** (trong hốc cây Đông khi Ba nâng cây).
+   - Đứng cạnh bệ đá dưới chân hải đăng $\rightarrow$ Bấm **`[F]`** để cắm vào bệ.
+2. **Lái Vô-lăng & Căn tia sáng**:
+   - Lại gần bánh lái trên bệ đá dưới chân tháp $\rightarrow$ Bấm **`[F]`** để cầm lái.
+   - **LĂN CHUỘT LÊN / XUỐNG** : Chùm sáng rực rỡ từ **ĐỈNH THÁP** sẽ quét qua lại.
+   - Bấm **`[F]`** hoặc **`[Space]`** để rời vô-lăng.
+3. **Cơ chế Sương mù Động**:
+   - Căn tia sáng từ đỉnh Tháp Đông chiếu trúng Mắt Ngọc Cối Xay $\rightarrow$ Mắt Ngọc sáng xanh, sương mù bắt đầu tan, cổng cối xay mở ra!
+   - Nếu xoay tia sáng lệch ra ngoài trước khi thuyền qua cổng $\rightarrow$ Sương mù sẽ tràn lại và cổng cối xay đóng lại! Hãy phối hợp giữ tia sáng đúng vị trí để thuyền vượt cối xay an toàn.
 
 ---
 
 ## 🏁 ACCEPTANCE CRITERIA
-1. [ ] Phím `[F]` hoạt động trơn tru cho cả Nhặt và Cắm vật phẩm (không dùng E cho item nữa).
-2. [ ] Bánh lái vô-lăng và Ổ cắm đặt vững trên bệ đá dưới chân hải đăng ($y \approx 1.3f - 1.7f$), không còn lơ lửng giữa trời như Hình 1.
-3. [ ] Chùm sáng phát ra từ đỉnh lồng kính của ngọn hải đăng trên cao ($y > 8m$) như Hình 2.
-4. [ ] Xoay chuột trái/phải điều khiển góc tia sáng mượt mà.
-5. [ ] Căn tia sáng trúng Cối Xay mở rào chắn an toàn thành công.
-6. [ ] Chạy `LevelTwoValidation.RunStageThree()` kiểm tra PASS 100%.
+1. [ ] Tia sáng dày $0.85\text{m} - 1.15\text{m}$, sáng rõ rực rỡ từ mọi góc nhìn với vệt sáng va chạm tại điểm tiếp xúc.
+2. [ ] Sương mù tan khi tia sáng chiếu trúng mắt ngọc, và **quay trở lại ngay khi xoay tia sáng lệch ra ngoài**.
+3. [ ] Bệ cắm và bánh lái đặt vững vàng trên bệ đá dưới chân tháp ($y \approx 1.3\text{m} - 1.7\text{m}$), nhân vật đứng trên sàn đảo tương tác dễ dàng, không còn chi tiết nào lơ lửng ngoài mép.
+4. [ ] Tia sáng phóng ra từ đỉnh lồng kính của ngọn hải đăng ($y \approx 7.56\text{m} - 9.0\text{m}$).
+5. [ ] Lăn chuột lên/xuống xoay tia sáng mượt mà.
+6. [ ] Chạy `LevelTwoValidation.RunStageThree()` đạt kết quả PASS 100%.

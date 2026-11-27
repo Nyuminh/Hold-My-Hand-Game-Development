@@ -49,7 +49,11 @@ namespace Blocks.Gameplay.Core
             RenderSettings.fogMode = inMarsh ? FogMode.ExponentialSquared : originalMode;
             RenderSettings.fogColor = inMarsh ? new Color(0.65f, 0.7f, 0.73f) : originalColor;
             float density = inMarsh ? Mathf.Lerp(0.065f, 0.005f, ((west.Lit ? 1 : 0) + (east.Lit ? 1 : 0)) / 2f) : originalDensity;
-            RenderSettings.fogDensity = Mathf.MoveTowards(RenderSettings.fogDensity, density, Time.deltaTime * 0.018f);
+            // Losing the sensor target is a safety failure: restore dense fog immediately.
+            // Clearing remains gradual so the successful hit has readable visual feedback.
+            RenderSettings.fogDensity = inMarsh && !watermill.Passed && (!west.Lit || !east.Lit)
+                ? density
+                : Mathf.MoveTowards(RenderSettings.fogDensity, density, Time.deltaTime * 0.018f);
             if (IsServer)
             {
                 if (watermill.Passed && boat.HasCoopCrew && harbor.bounds.Contains(boat.transform.position)) docked.Value = true;

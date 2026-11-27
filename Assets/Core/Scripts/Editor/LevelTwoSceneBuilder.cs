@@ -196,6 +196,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             var wood = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Wood.mat");
             var gold = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Gold.mat");
             var stone = AssetDatabase.LoadAssetAtPath<Material>("Assets/Core/Materials/LVL2_Stone.mat");
+            var beamMaterial = LighthouseBeamMaterial();
             var stage4 = Find("05_MistyMarsh_Stage4");
             // Remove every remnant of the superseded lily-pad/throw puzzle. This is
             // repeatable, so rewiring an older scene cannot leave duplicate props.
@@ -213,29 +214,32 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             for (int i = 0; i < 2; i++)
             {
                 string side = i == 0 ? "West" : "East";
-                float z = i == 0 ? 175 : 190;
-                Vector3 consolePosition = new Vector3(i == 0 ? 85.5f : 114.5f, 1.25f, z);
+                Vector3 consolePosition = i == 0
+                    ? new Vector3(84.6f, 1.3f, 175.8f)
+                    : new Vector3(115.4f, 1.3f, 189.2f);
                 Vector3 forward = i == 0 ? Vector3.right : Vector3.left;
                 string rootName = side + "_BeaconGameplay";
                 var root = stage4.Find(rootName) ?? Marker(rootName, stage4, Vector3.zero);
                 var beacon = Ensure<MarshBeaconTrigger>(root.gameObject); beacons[i] = beacon;
                 Ensure<NetworkObject>(root.gameObject);
 
-                var consoleObject = root.Find(side + "_BeaconConsole") != null
-                    ? root.Find(side + "_BeaconConsole").gameObject
-                    : Box(side + "_BeaconConsole", root, consolePosition, new Vector3(1.6f, 0.9f, 1.2f), stone);
+                var existingPedestal = root.Find(side + "_BeaconPedestal") ?? root.Find(side + "_BeaconConsole");
+                var consoleObject = existingPedestal != null
+                    ? existingPedestal.gameObject
+                    : Box(side + "_BeaconPedestal", root, consolePosition, new Vector3(1.5f, 0.8f, 1.2f), stone);
+                consoleObject.name = side + "_BeaconPedestal";
                 consoleObject.transform.position = consolePosition;
-                consoleObject.transform.localScale = new Vector3(1.6f, 0.9f, 1.2f);
+                consoleObject.transform.localScale = new Vector3(1.5f, 0.8f, 1.2f);
                 consoleObject.GetComponent<Renderer>().sharedMaterial = stone;
 
-                Vector3 socketPosition = consolePosition + Vector3.up * 0.5f;
+                Vector3 socketPosition = new Vector3(consolePosition.x, 1.7f, consolePosition.z);
                 var socketObject = root.Find(side + "_ItemSocket") != null
                     ? root.Find(side + "_ItemSocket").gameObject
                     : Cylinder(side + "_ItemSocket", root, socketPosition, new Vector3(0.65f, 0.16f, 0.65f), gold);
                 socketObject.transform.position = socketPosition;
                 beacon.itemSocket = socketObject.transform; sockets[i] = socketObject.transform;
 
-                Vector3 wheelPosition = consolePosition + Vector3.up * 0.4f + forward * 0.6f;
+                Vector3 wheelPosition = new Vector3(consolePosition.x, 1.6f, consolePosition.z) + forward * 0.6f;
                 var wheelObject = root.Find(side + "_TurnWheel") != null
                     ? root.Find(side + "_TurnWheel").gameObject
                     : Cylinder(side + "_TurnWheel", root, wheelPosition, new Vector3(0.75f, 0.12f, 0.75f), wood);
@@ -245,8 +249,12 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 var tower = Find(side + "Beacon_Tower");
                 var lamp = tower.GetComponentInChildren<Light>(true);
                 if (lamp == null) throw new System.InvalidOperationException(side + " beacon tower has no top lantern Light.");
-                Vector3 topLanternPosition = lamp.transform.position;
-                var pivot = root.Find(side + "_BeamEmitter") ?? Marker(side + "_BeamEmitter", root, topLanternPosition);
+                Vector3 topLanternPosition = i == 0
+                    ? new Vector3(82.99f, 7.56f, 174.99f)
+                    : new Vector3(117.01f, 7.56f, 190.01f);
+                var pivot = lamp.transform.Find(side + "_BeamEmitter") ?? root.Find(side + "_BeamEmitter");
+                if (pivot == null) pivot = Marker(side + "_BeamEmitter", lamp.transform, topLanternPosition);
+                pivot.SetParent(lamp.transform, true);
                 pivot.position = topLanternPosition;
                 var wheel = Ensure<LighthouseTurnWheel>(root.gameObject);
                 wheel.interactionPoint = wheelObject.transform; wheel.lanternHead = pivot;
@@ -254,7 +262,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 beacon.turnWheel = wheel;
 
                 var line = Ensure<LineRenderer>(root.gameObject);
-                line.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Default-Line.mat");
+                line.sharedMaterial = beamMaterial;
                 line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 var beam = Ensure<LighthouseLightBeam>(root.gameObject); beams[i] = beam;
                 beam.beamKind = i == 0 ? LighthouseLightBeam.BeamKind.Primary : LighthouseLightBeam.BeamKind.Refracted;
@@ -267,7 +275,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 beacon.crystal = null;
                 Feedback(root.gameObject, "Assets/Core/Audio/LVL2_Chime.wav", Color.yellow, socketPosition);
 
-                Vector3 rampPosition = new Vector3(i == 0 ? 88f : 112f, 0.95f, z);
+                Vector3 rampPosition = new Vector3(i == 0 ? 88f : 112f, 0.95f, consolePosition.z);
                 var rampObject = root.Find(side + "_WoodenRamp") != null
                     ? root.Find(side + "_WoodenRamp").gameObject
                     : Box(side + "_WoodenRamp", root, rampPosition, new Vector3(5f, 0.25f, 1.8f), wood);
@@ -336,12 +344,17 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 Ensure<RiverRockHazard>(boom);
             }
             mill.safetyBoom = controller.Find("Watermill_SafetyBoom");
-            var sensorCollider = Ensure<BoxCollider>(controller.gameObject);
-            sensorCollider.center = new Vector3(0, 4.5f, -5f); sensorCollider.size = new Vector3(2.2f, 2.2f, 0.7f); sensorCollider.isTrigger = true;
+            var oldSensorCollider = controller.GetComponent<BoxCollider>();
+            if (oldSensorCollider != null) Object.DestroyImmediate(oldSensorCollider);
+            var sensorCollider = Ensure<SphereCollider>(controller.gameObject);
+            sensorCollider.center = new Vector3(0, 4.5f, -5f);
+            sensorCollider.radius = LuminaMillSensor.SensorRadius;
+            sensorCollider.isTrigger = true;
             var lens = controller.Find("LuminaMillSensor_Lens") != null ? controller.Find("LuminaMillSensor_Lens").gameObject :
                 Cylinder("LuminaMillSensor_Lens", controller, new Vector3(0, 4.5f, -5f), new Vector3(0.8f, 0.2f, 0.8f), gold);
             lens.transform.localRotation = Quaternion.Euler(90, 0, 0);
             var sensor = Ensure<LuminaMillSensor>(controller.gameObject);
+            sensor.requiredHitSeconds = 0.3f;
             sensor.lensRenderer = lens.GetComponent<Renderer>(); sensor.west = beacons[0]; sensor.east = beacons[1];
             sensor.chime = Ensure<AudioSource>(lens); sensor.chime.clip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Core/Audio/LVL2_Chime.wav");
             sensor.chime.playOnAwake = false; sensor.chime.spatialBlend = 1;
@@ -605,6 +618,28 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
             return mat;
+        }
+
+        public static Material LighthouseBeamMaterial()
+        {
+            const string path = "Assets/Core/Materials/LVL2_LighthouseBeam.mat";
+            var shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Unlit/Color");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != shader) material.shader = shader;
+
+            // HDR gold (3x intensity) keeps the beam readable against sky, water and fog.
+            Color hdrGold = new Color(1f, 0.82f, 0.24f, 1f) * 3f;
+            hdrGold.a = 1f;
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", hdrGold);
+            if (material.HasProperty("_Color")) material.SetColor("_Color", hdrGold);
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         [MenuItem("Hold My Hand/Level 2/Build Complete River Map")]
