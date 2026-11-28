@@ -62,7 +62,10 @@ namespace Blocks.Gameplay.Core
                 CancelConversation();
             }
 
-            if (isPlayerNearby && Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+            bool interactPressed = (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+                || (Gamepad.current != null && (Gamepad.current.buttonWest.wasPressedThisFrame || Gamepad.current.buttonSouth.wasPressedThisFrame));
+
+            if (isPlayerNearby && interactPressed)
             {
                 if (Time.time >= nextInputTime)
                 {
@@ -75,6 +78,12 @@ namespace Blocks.Gameplay.Core
         private void FindLocalPlayer()
         {
             if (localPlayerTransform != null) return;
+
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient?.PlayerObject != null)
+            {
+                localPlayerTransform = NetworkManager.Singleton.LocalClient.PlayerObject.transform;
+                return;
+            }
 
             var players = Object.FindObjectsByType<CorePlayerManager>(FindObjectsSortMode.None);
             foreach (var p in players)
@@ -99,7 +108,7 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        [Rpc(SendTo.Server)]
+        [Rpc(SendTo.Server, RequireOwnership = false)]
         private void InteractServerRpc()
         {
             var quest = CastleCourtyardQuestManager.Instance;

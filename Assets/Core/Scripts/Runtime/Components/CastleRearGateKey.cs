@@ -66,7 +66,10 @@ namespace Blocks.Gameplay.Core
             float dist = Vector3.Distance(transform.position, localPlayerTransform.position);
             isPlayerNearby = dist <= interactionDistance;
 
-            if (isPlayerNearby && Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+            bool interactPressed = (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+                || (Gamepad.current != null && (Gamepad.current.buttonWest.wasPressedThisFrame || Gamepad.current.buttonSouth.wasPressedThisFrame));
+
+            if (isPlayerNearby && interactPressed)
             {
                 var quest = CastleCourtyardQuestManager.Instance;
                 // Only allow pickup if quest has reached FindKey stage or earlier
@@ -81,6 +84,12 @@ namespace Blocks.Gameplay.Core
         {
             if (localPlayerTransform != null) return;
 
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient?.PlayerObject != null)
+            {
+                localPlayerTransform = NetworkManager.Singleton.LocalClient.PlayerObject.transform;
+                return;
+            }
+
             var players = Object.FindObjectsByType<CorePlayerManager>(FindObjectsSortMode.None);
             foreach (var p in players)
             {
@@ -92,7 +101,7 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        [Rpc(SendTo.Server)]
+        [Rpc(SendTo.Server, RequireOwnership = false)]
         private void CollectKeyServerRpc()
         {
             if (isCollected) return;

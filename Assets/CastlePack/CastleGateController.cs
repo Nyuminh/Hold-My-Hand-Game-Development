@@ -78,6 +78,11 @@ public class CastleGateController : MonoBehaviour, Blocks.Gameplay.Core.ILevelOn
             if (rg != null) rearGatePosition = rg;
         }
 
+        EnsureDoorReferences();
+    }
+
+    private void EnsureDoorReferences()
+    {
         if (rearDoorInnerLeft == null)
             rearDoorInnerLeft = transform.Find("Rear_Gatehouse_Assembly/Rear_Door_Inner_Left");
         if (rearDoorInnerRight == null)
@@ -153,12 +158,36 @@ public class CastleGateController : MonoBehaviour, Blocks.Gameplay.Core.ILevelOn
 
     public void SetRearGate(bool open)
     {
+        EnsureDoorReferences();
         rearGateOpen = open;
         UpdateAnimator();
 
         if (rearDoorCoroutine != null)
             StopCoroutine(rearDoorCoroutine);
         rearDoorCoroutine = StartCoroutine(AnimateRearDoors(open, rearDoorOpenDuration));
+    }
+
+    public void SetRearGateImmediate(bool open)
+    {
+        EnsureDoorReferences();
+        rearGateOpen = open;
+        UpdateAnimator();
+
+        if (rearDoorCoroutine != null)
+        {
+            StopCoroutine(rearDoorCoroutine);
+            rearDoorCoroutine = null;
+        }
+
+        Quaternion targetLeft = open ? Quaternion.Euler(0f, 0f, 275.2f) : Quaternion.identity;
+        Quaternion targetRight = open ? Quaternion.Euler(0f, 0f, 84.8f) : Quaternion.identity;
+        Quaternion targetOuter = open ? Quaternion.Euler(0f, 0f, 275.2f) : Quaternion.identity;
+
+        if (rearDoorInnerLeft != null) rearDoorInnerLeft.localRotation = targetLeft;
+        if (rearDoorInnerRight != null) rearDoorInnerRight.localRotation = targetRight;
+        if (rearDoorOuter != null) rearDoorOuter.localRotation = targetOuter;
+
+        SetDoorCollidersTrigger(open);
     }
 
     private System.Collections.IEnumerator AnimateRearDoors(bool open, float duration)

@@ -16,7 +16,7 @@ namespace Blocks.Gameplay.Core
             if (triggered) return;
 
             var player = other.GetComponentInParent<CorePlayerManager>();
-            if (player == null) return;
+            if (player == null || !player.IsOwner) return;
 
             var quest = CastleCourtyardQuestManager.Instance;
             if (quest != null && quest.CurrentStep == CourtyardQuestStep.RearGateUnlocked)

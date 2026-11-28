@@ -50,14 +50,54 @@ namespace Blocks.Gameplay.Core
                 return;
             }
             Instance = this;
+            EnsureGateDriverRef();
         }
 
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
+            EnsureGateDriverRef();
             if (climaxManager == null)
             {
                 climaxManager = Object.FindFirstObjectByType<CastleGateClimaxManager>();
+            }
+
+            currentStep.OnValueChanged += OnStepChanged;
+
+            // If client spawns into a session where gate was already unlocked, open immediately
+            if (CurrentStep >= CourtyardQuestStep.RearGateUnlocked)
+            {
+                ApplyRearGateState(true, immediate: true);
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            currentStep.OnValueChanged -= OnStepChanged;
+            base.OnNetworkDespawn();
+        }
+
+        private void OnStepChanged(int oldStep, int newStep)
+        {
+            if (newStep >= (int)CourtyardQuestStep.RearGateUnlocked)
+            {
+                // Ensure gate is open if RPC was missed or late
+                ApplyRearGateState(true, immediate: false);
+            }
+        }
+
+        private void EnsureGateDriverRef()
+        {
+            if (gateDriver == null)
+            {
+                foreach (var mb in Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+                {
+                    if (mb is ILevelOneGateDriver)
+                    {
+                        gateDriver = mb;
+                        break;
+                    }
+                }
             }
         }
 
@@ -108,13 +148,48 @@ namespace Blocks.Gameplay.Core
         {
             if (!IsServer) return;
             AdvanceStep(CourtyardQuestStep.RearGateUnlocked);
-            (gateDriver as ILevelOneGateDriver)?.SetRearGate(true);
+            OpenRearGateWithAnimationRpc();
             ShowDialogueRpc("Đội Trưởng Cổng Sau", "Cổng sau đã mở! Mau bước qua cầu đá phía sau để thoát khỏi lâu đài!", 6f);
+        }
+
+        [Rpc(SendTo.Everyone)]
+        public void OpenRearGateWithAnimationRpc()
+        {
+            ApplyRearGateState(true, immediate: false);
+        }
+
+        private void ApplyRearGateState(bool open, bool immediate)
+        {
+            EnsureGateDriverRef();
+            if (gateDriver is ILevelOneGateDriver driver)
+            {
+                if (immediate)
+                    driver.SetRearGateImmediate(open);
+                else
+                    driver.SetRearGate(open);
+            }
         }
 
         public void ReachExit()
         {
-            if (!IsServer) return;
+            if (IsServer)
+            {
+                ProcessReachExit();
+            }
+            else
+            {
+                ReachExitServerRpc();
+            }
+        }
+
+        [Rpc(SendTo.Server, RequireOwnership = false)]
+        private void ReachExitServerRpc()
+        {
+            ProcessReachExit();
+        }
+
+        private void ProcessReachExit()
+        {
             if (CurrentStep == CourtyardQuestStep.RearGateUnlocked)
             {
                 currentStep.Value = (int)CourtyardQuestStep.Completed;
