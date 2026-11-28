@@ -20,6 +20,13 @@ public class CastleGateController : MonoBehaviour, Blocks.Gameplay.Core.ILevelOn
     [SerializeField] private Transform frontGatePosition;
     [SerializeField] private Transform rearGatePosition;
 
+    [Header("Rear Door Objects")]
+    [SerializeField] private Transform rearDoorInnerLeft;
+    [SerializeField] private Transform rearDoorInnerRight;
+    [SerializeField] private Transform rearDoorOuter;
+    [SerializeField] private float rearDoorOpenDuration = 1.8f;
+    private Coroutine rearDoorCoroutine;
+
     private Transform playerTransform;
     private bool climaxControlled;
     private Transform[] climaxGates;
@@ -70,6 +77,13 @@ public class CastleGateController : MonoBehaviour, Blocks.Gameplay.Core.ILevelOn
             var rg = transform.Find("Rear_Gatehouse_Assembly");
             if (rg != null) rearGatePosition = rg;
         }
+
+        if (rearDoorInnerLeft == null)
+            rearDoorInnerLeft = transform.Find("Rear_Gatehouse_Assembly/Rear_Door_Inner_Left");
+        if (rearDoorInnerRight == null)
+            rearDoorInnerRight = transform.Find("Rear_Gatehouse_Assembly/Rear_Door_Inner_Right");
+        if (rearDoorOuter == null)
+            rearDoorOuter = transform.Find("Rear_Gatehouse_Assembly/Rear_Door_Outer");
     }
 
     private void Start()
@@ -141,6 +155,70 @@ public class CastleGateController : MonoBehaviour, Blocks.Gameplay.Core.ILevelOn
     {
         rearGateOpen = open;
         UpdateAnimator();
+
+        if (rearDoorCoroutine != null)
+            StopCoroutine(rearDoorCoroutine);
+        rearDoorCoroutine = StartCoroutine(AnimateRearDoors(open, rearDoorOpenDuration));
+    }
+
+    private System.Collections.IEnumerator AnimateRearDoors(bool open, float duration)
+    {
+        // Target Euler rotations (Z axis rotation in local coordinates)
+        Quaternion targetLeft = open ? Quaternion.Euler(0f, 0f, 275.2f) : Quaternion.identity;
+        Quaternion targetRight = open ? Quaternion.Euler(0f, 0f, 84.8f) : Quaternion.identity;
+        Quaternion targetOuter = open ? Quaternion.Euler(0f, 0f, 275.2f) : Quaternion.identity;
+
+        Quaternion startLeft = rearDoorInnerLeft != null ? rearDoorInnerLeft.localRotation : Quaternion.identity;
+        Quaternion startRight = rearDoorInnerRight != null ? rearDoorInnerRight.localRotation : Quaternion.identity;
+        Quaternion startOuter = rearDoorOuter != null ? rearDoorOuter.localRotation : Quaternion.identity;
+
+        // When opening, convert colliders to trigger so players can walk through unobstructed
+        if (open)
+        {
+            SetDoorCollidersTrigger(true);
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+
+            if (rearDoorInnerLeft != null)
+                rearDoorInnerLeft.localRotation = Quaternion.Slerp(startLeft, targetLeft, t);
+            if (rearDoorInnerRight != null)
+                rearDoorInnerRight.localRotation = Quaternion.Slerp(startRight, targetRight, t);
+            if (rearDoorOuter != null)
+                rearDoorOuter.localRotation = Quaternion.Slerp(startOuter, targetOuter, t);
+
+            yield return null;
+        }
+
+        if (rearDoorInnerLeft != null) rearDoorInnerLeft.localRotation = targetLeft;
+        if (rearDoorInnerRight != null) rearDoorInnerRight.localRotation = targetRight;
+        if (rearDoorOuter != null) rearDoorOuter.localRotation = targetOuter;
+
+        if (!open)
+        {
+            SetDoorCollidersTrigger(false);
+        }
+
+        rearDoorCoroutine = null;
+    }
+
+    private void SetDoorCollidersTrigger(bool isTrigger)
+    {
+        Transform[] doors = new Transform[] { rearDoorInnerLeft, rearDoorInnerRight, rearDoorOuter };
+        foreach (var door in doors)
+        {
+            if (door != null)
+            {
+                foreach (var col in door.GetComponentsInChildren<Collider>())
+                {
+                    col.isTrigger = isTrigger;
+                }
+            }
+        }
     }
 
     public void PlayFullSequence()
