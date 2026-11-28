@@ -37,6 +37,8 @@ namespace Blocks.Gameplay.Core
         // Subtitle UI State
         private string activeSpeaker = "";
         private string activeSubtitle = "";
+        private int activePage = 1;
+        private int activeTotalPages = 1;
         private float subtitleTimer = 0f;
         private Coroutine subtitleCoroutine;
 
@@ -123,9 +125,25 @@ namespace Blocks.Gameplay.Core
         [Rpc(SendTo.Everyone)]
         public void ShowDialogueRpc(string speaker, string message, float duration)
         {
+            ShowDialoguePagedRpc(speaker, message, 1, 1, duration);
+        }
+
+        [Rpc(SendTo.Everyone)]
+        public void ShowDialoguePagedRpc(string speaker, string message, int page, int totalPages, float duration)
+        {
             activeSpeaker = speaker;
             activeSubtitle = message;
+            activePage = page;
+            activeTotalPages = totalPages;
             subtitleTimer = duration;
+        }
+
+        [Rpc(SendTo.Everyone)]
+        public void CloseDialogueRpc()
+        {
+            activeSpeaker = "";
+            activeSubtitle = "";
+            subtitleTimer = 0f;
         }
 
         [Rpc(SendTo.Everyone)]
@@ -211,6 +229,22 @@ namespace Blocks.Gameplay.Core
                     normal = { textColor = Color.white }
                 };
                 GUI.Label(new Rect(subRect.x + 20f, subRect.y + 36f, subWidth - 40f, 65f), activeSubtitle, textStyle);
+
+                if (activeTotalPages > 1)
+                {
+                    string pageHint = activePage < activeTotalPages
+                        ? $"[E] Tiếp tục ▶ ({activePage}/{activeTotalPages})"
+                        : $"[E] Đóng ✓ ({activePage}/{activeTotalPages})";
+
+                    var pageStyle = new GUIStyle(GUI.skin.label)
+                    {
+                        alignment = TextAnchor.MiddleRight,
+                        fontSize = 13,
+                        fontStyle = FontStyle.Bold,
+                        normal = { textColor = new Color(0.3f, 0.85f, 1f) }
+                    };
+                    GUI.Label(new Rect(subRect.x + subWidth - 240f, subRect.y + subHeight - 26f, 220f, 20f), pageHint, pageStyle);
+                }
             }
         }
     }

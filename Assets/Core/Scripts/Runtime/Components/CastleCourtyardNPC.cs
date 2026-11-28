@@ -12,7 +12,8 @@ namespace Blocks.Gameplay.Core
 
     /// <summary>
     /// Interactive NPC script for warrior_1 (Rear Gate) and warrior_2 (Front Gate).
-    /// Handles proximity detection, [E] interaction prompt, and quest-driven dialogue.
+    /// Handles proximity detection, multi-line sequence dialogues with [E] continuation,
+    /// reminder dialogues, and quest progression.
     /// </summary>
     public class CastleCourtyardNPC : NetworkBehaviour
     {
@@ -23,6 +24,12 @@ namespace Blocks.Gameplay.Core
 
         private Transform localPlayerTransform;
         private bool isPlayerNearby;
+        private float nextInputTime;
+
+        // Dialogue sequence state
+        private bool isConversing;
+        private string[] activeLines;
+        private int lineIndex;
 
         private void Start()
         {
@@ -43,15 +50,25 @@ namespace Blocks.Gameplay.Core
             if (localPlayerTransform == null)
             {
                 isPlayerNearby = false;
+                if (isConversing) CancelConversation();
                 return;
             }
 
             float dist = Vector3.Distance(transform.position, localPlayerTransform.position);
             isPlayerNearby = dist <= interactionDistance;
 
+            if (isConversing && dist > interactionDistance + 2f)
+            {
+                CancelConversation();
+            }
+
             if (isPlayerNearby && Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
             {
-                InteractServerRpc();
+                if (Time.time >= nextInputTime)
+                {
+                    nextInputTime = Time.time + 0.25f;
+                    InteractServerRpc();
+                }
             }
         }
 
@@ -70,82 +87,141 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        private void CancelConversation()
+        {
+            isConversing = false;
+            activeLines = null;
+            lineIndex = 0;
+            var quest = CastleCourtyardQuestManager.Instance;
+            if (quest != null)
+            {
+                quest.CloseDialogueRpc();
+            }
+        }
+
         [Rpc(SendTo.Server)]
         private void InteractServerRpc()
         {
             var quest = CastleCourtyardQuestManager.Instance;
             if (quest == null) return;
 
+            if (!isConversing)
+            {
+                // Begin new dialogue sequence based on current role and quest step
+                activeLines = GetDialogueLinesForCurrentState(quest);
+                if (activeLines == null || activeLines.Length == 0) return;
+
+                isConversing = true;
+                lineIndex = 0;
+                quest.ShowDialoguePagedRpc(npcTitle, activeLines[lineIndex], lineIndex + 1, activeLines.Length, 25f);
+            }
+            else
+            {
+                // Advance to next line or finish
+                lineIndex++;
+                if (activeLines != null && lineIndex < activeLines.Length)
+                {
+                    quest.ShowDialoguePagedRpc(npcTitle, activeLines[lineIndex], lineIndex + 1, activeLines.Length, 25f);
+                }
+                else
+                {
+                    // Completed dialogue sequence
+                    FinishConversation(quest);
+                }
+            }
+        }
+
+        private string[] GetDialogueLinesForCurrentState(CastleCourtyardQuestManager quest)
+        {
+            var step = quest.CurrentStep;
+
             if (role == CourtyardNPCRole.FrontGateGuard)
             {
-                HandleFrontGuardDialogue(quest);
+                if (step <= CourtyardQuestStep.TalkToFrontGuard)
+                {
+                    return new string[]
+                    {
+                        "Ơn trời, các bạn đã vào được bên trong an toàn!",
+                        "Nhưng quái vật ngoài kia đã đâm sập chốt cổng trước rồi, chúng ta không thể quay lại bằng đường đó đâu! Mau chạy về phía Cổng Sau gặp Người Gác Cổng để tìm đường rời khỏi đây!"
+                    };
+                }
+                else
+                {
+                    return new string[]
+                    {
+                        "Hãy mau đến Cổng Sau ở phía cuối sân thành! Người gác cổng ở đó sẽ chỉ cách cho các bạn."
+                    };
+                }
             }
             else if (role == CourtyardNPCRole.RearGateGuard)
             {
-                HandleRearGuardDialogue(quest);
+                if (step <= CourtyardQuestStep.TalkToRearGuard)
+                {
+                    // Initial conversation: Hint about key on castle walls + safety warning
+                    return new string[]
+                    {
+                        "Cổng sau đã bị khóa chặt để ngăn lũ quái vật bên ngoài tràn vào lâu đài!",
+                        "Lúc nãy tôi có trèo lên tường thành quan sát quái vật... hình như đã sơ ý đánh rơi Chùm Chìa Khóa ở trên đó!",
+                        "Hai người hãy trèo lên các bậc thang dẫn lên tường thành tìm giúp tôi! Nhưng nhớ tuyệt đối đừng để rơi ra ngoài thành, quái vật đang lảng vảng ngay dưới chân tường đấy!",
+                        "Tìm được chìa khóa đem lại đây, tôi sẽ lập tức mở cổng sau cho hai người ra ngoài an toàn!"
+                    };
+                }
+                else if (step == CourtyardQuestStep.FindKey)
+                {
+                    // Reminder conversation: Player accepted quest but hasn't found key yet
+                    return new string[]
+                    {
+                        "Hai người vẫn chưa tìm thấy sao? Hãy men theo cầu thang trèo lên tường thành tìm kỹ quanh các góc tường nhé!",
+                        "Có chìa khóa tôi mới mở cổng cho hai người thoát ra ngoài được. Nhớ chú ý an toàn, đừng nhảy ra ngoài thành!"
+                    };
+                }
+                else if (step == CourtyardQuestStep.ReturnKeyToRearGuard)
+                {
+                    // Turn in key conversation
+                    return new string[]
+                    {
+                        "Các bạn tìm thấy rồi sao? Đúng là chìa khóa cổng sau rồi, cảm ơn hai người rất nhiều!",
+                        "Mau lùi lại một chút, tôi mở cổng sau ngay đây! Chúc hai cha con lên đường bình an!"
+                    };
+                }
+                else
+                {
+                    // Gate already unlocked
+                    return new string[]
+                    {
+                        "Cổng đã mở rồi! Mau bước qua cầu đá phía sau để rời khỏi lâu đài!"
+                    };
+                }
             }
+
+            return null;
         }
 
-        private void HandleFrontGuardDialogue(CastleCourtyardQuestManager quest)
+        private void FinishConversation(CastleCourtyardQuestManager quest)
         {
             var step = quest.CurrentStep;
+            isConversing = false;
+            activeLines = null;
+            lineIndex = 0;
+            quest.CloseDialogueRpc();
 
-            if (step <= CourtyardQuestStep.TalkToFrontGuard)
+            if (role == CourtyardNPCRole.FrontGateGuard)
             {
-                quest.ShowDialogueRpc(
-                    npcTitle,
-                    "Ơn trời, các bạn đã vào được bên trong an toàn! Nhưng con quái vật đá ngoài kia đã đâm sập và làm hỏng hoàn toàn chốt cổng trước rồi, chúng ta không thể quay lại bằng đường đó đâu! Hãy mau chạy về phía Cổng Sau gặp Người Gác Cổng để tìm đường rời khỏi đây!",
-                    10f
-                );
-                quest.AdvanceStep(CourtyardQuestStep.TalkToRearGuard);
+                if (step <= CourtyardQuestStep.TalkToFrontGuard)
+                {
+                    quest.AdvanceStep(CourtyardQuestStep.TalkToRearGuard);
+                }
             }
-            else
+            else if (role == CourtyardNPCRole.RearGateGuard)
             {
-                quest.ShowDialogueRpc(
-                    npcTitle,
-                    "Hãy mau đến Cổng Sau ở phía cuối sân thành! Người gác cổng ở đó sẽ chỉ cách cho các bạn.",
-                    6f
-                );
-            }
-        }
-
-        private void HandleRearGuardDialogue(CastleCourtyardQuestManager quest)
-        {
-            var step = quest.CurrentStep;
-
-            if (step <= CourtyardQuestStep.TalkToRearGuard)
-            {
-                quest.ShowDialogueRpc(
-                    npcTitle,
-                    "Cổng sau đã bị khóa chặt để ngăn quái vật tràn vào! Nhưng chúng tôi đã đánh mất Chìa Khóa Cổng Sau ở khu vực Thành! Hai người làm ơn tìm giúp tôi với, có chìa khóa tôi mới mở cổng cho mọi người thoát được! Nên nhớ là trong lúc tìm hãy chú ý đừng để rơi ra khỏi Thành nếu như có tìm ở khu vực trên tường thành, quái vật có thể đang lảng vảng ở phía ngoài thành đấy! Phía cổng sau này thì sẽ an toàn hơn do không có ai hoạt động phía sau thành nên quái vật thường ở phía trước!",
-                    14f
-                );
-                quest.AdvanceStep(CourtyardQuestStep.FindKey);
-            }
-            else if (step == CourtyardQuestStep.FindKey)
-            {
-                quest.ShowDialogueRpc(
-                    npcTitle,
-                    "Hãy giúp tôi tìm chìa khóa, tôi sẽ mở cổng thành cho 2 người ra ngoài.",
-                    5f
-                );
-            }
-            else if (step == CourtyardQuestStep.ReturnKeyToRearGuard)
-            {
-                quest.ShowDialogueRpc(
-                    npcTitle,
-                    "Các bạn tìm thấy rồi sao? Tuyệt vời quá! Mau lùi lại một chút, tôi mở cổng sau ngay đây. Chúc hai cha con lên đường bình an!",
-                    7f
-                );
-                quest.UnlockRearGate();
-            }
-            else
-            {
-                quest.ShowDialogueRpc(
-                    npcTitle,
-                    "Cổng đã mở rồi! Mau bước qua cầu đá phía sau để thoát khỏi lâu đài!",
-                    5f
-                );
+                if (step <= CourtyardQuestStep.TalkToRearGuard)
+                {
+                    quest.AdvanceStep(CourtyardQuestStep.FindKey);
+                }
+                else if (step == CourtyardQuestStep.ReturnKeyToRearGuard)
+                {
+                    quest.UnlockRearGate();
+                }
             }
         }
 
@@ -172,7 +248,9 @@ namespace Blocks.Gameplay.Core
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = new Color(1f, 0.85f, 0.3f) }
             };
-            GUI.Label(rect, $"[E] Nói chuyện với {npcTitle}", style);
+
+            string promptText = isConversing ? "[E] Tiếp tục hội thoại" : $"[E] Nói chuyện với {npcTitle}";
+            GUI.Label(rect, promptText, style);
         }
     }
 }
