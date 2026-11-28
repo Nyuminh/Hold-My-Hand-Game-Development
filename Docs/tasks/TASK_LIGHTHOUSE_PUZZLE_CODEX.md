@@ -1,183 +1,134 @@
-# 📋 TASK REVISION 3: CRITICAL PUZZLE REFINEMENTS & DYNAMIC FOG LOGIC
+# 📋 TASK REVISION 4: CLIENT-HOST POSITION DESYNC FIX & RUNTIME TRANSFORM ENFORCEMENT
 > **Dành cho**: OpenAI Codex / Lập trình viên  
 > **Dự án**: Hold My Hand · Nắm tay cha (Unity 6 / Netcode for GameObjects)  
 > **Scene mục tiêu**: `Assets/Core/Scenes/PlayScene2.unity` (Stage 4: Misty Marsh & Twin Beacons)  
-> **Trạng thái**: KHẮC PHỤC 5 ĐIỂM BẤT CẬP THEO ẢNH CHỤP THỰC TẾ CỦA NGƯỜI CHƠI
+> **Lỗi cần giải quyết**: BÊN HOST ĐÃ THẤY SỬA VỊ TRÍ, NHƯNG BÊN CLIENT (BẠN CHƠI) VẪN THẤY VÔ-LĂNG & LĂNG KÍNH Ở VỊ TRÍ CŨ LƠ LỬNG.
 
 ---
 
-## 📌 1. NĂM ĐIỂM BẤT CẬP CẦN KHẮC PHỤC TRIỆT ĐỂ (THE 5 CORE REFINEMENTS)
+## 🔍 1. NGUYÊN NHÂN GÂY LỖI LỆCH VỊ TRÍ GIỮA HOST VÀ CLIENT (ROOT CAUSES)
 
-### 🔴 Điểm 1: Tia sáng bị mờ, không thấy rõ ở một số góc nhìn (Ảnh 1)
-- **Hiện trạng**: `LineRenderer` chỉ rộng $0.35\text{m}$, dùng `Default-Line.mat` không có phát sáng (Emission), bị chìm vào nền trời/nước.
-- **Yêu cầu sửa**:
-  - Tăng độ rộng tia sáng: `startWidth = 0.8f`, `endWidth = 1.1f`.
-  - Tạo/gán Material phát quang rực rỡ (Shader `Universal Render Pipeline/Unlit`, màu vàng kim có HDR Intensity $\times 3$).
-  - Thêm một vầng sáng / Flare Marker tại điểm va chạm `hit.point` để người chơi thấy rõ điểm tiếp xúc của tia sáng trên địa hình/mục tiêu.
-
----
-
-### 🔴 Điểm 2: Sương mù phải biến mất / xuất hiện lại ĐỘNG theo tia sáng (Ảnh 2)
-- **Hiện trạng**:
-  - Collider của Mắt Ngọc Cối Xay quá to ($2.2\text{m} \times 2.2\text{m}$), tia sáng mới chiếu chệch sang bên trái đã kích hoạt trúng collider tàng hình.
-  - Khi đã kích hoạt, biến `isPowered` bị khóa vĩnh viễn, người chơi xoay tia sáng lệch ra ngoài mà sương mù vẫn không quay trở lại!
-- **Yêu cầu sửa**:
-  - Đổi collider của `LuminaMillSensor` sang `SphereCollider` gắn trực tiếp vào quả cầu cảm biến với bán kính $r = 0.55\text{m}$ (khớp chuẩn xác với mắt ngọc).
-  - **Cơ chế sương mù động thời gian thực (Dynamic Fog & Safety Boom)**:
-    - **Khi tia sáng chiếu TRÚNG Mắt Ngọc**: Mắt Ngọc sáng xanh, sau $0.3\text{s}$ sương mù bắt đầu tan dần, rào chắn an toàn cối xay nâng lên.
-    - **Khi xoay tia sáng LỆCH RA NGOÀI Mắt Ngọc**: Mắt Ngọc tắt về màu đỏ, **SƯƠNG MÙ LẬP TỨC QUAY TRỞ LẠI DÀY ĐẶC** (`fogDensity` tăng lại mức $0.065$), rào chắn an toàn hạ xuống!
-    - *(Chỉ khi người chơi duy trì tia sáng đúng vị trí VÀ chèo thuyền vượt qua cổng cối xay `watermill.Passed == true` thì chặng đầm lầy mới khóa hoàn thành vĩnh viễn)*.
+Tại sao Host thấy vị trí mới trên bệ đá, còn Client (bạn cùng chơi) lại thấy vị trí cũ lơ lửng?
+1. **Scene `PlayScene2.unity` chưa được commit & push lên Git**:
+   - Host chạy lệnh bake scene `LevelTwoSceneBuilder.BakeStageThree()` trên máy cục bộ của mình.
+   - Nhưng file scene `Assets/Core/Scenes/PlayScene2.unity` hiện đang ở trạng thái `modified` (chưa commit trong commit `425d2b6`).
+   - Khi người bạn kéo code (`git pull`), Client **không nhận được scene mới** mà vẫn dùng file scene cũ từ trước!
+2. **In-Scene NetworkObjects không tự đồng bộ Transform tĩnh**:
+   - Các vật thể như `East_ItemSocket`, `East_TurnWheel`, `East_BeaconPedestal` là in-scene placed GameObjects không có component `NetworkTransform` riêng.
+   - Khi Client kết nối, Client tải vị trí từ file `.unity` cục bộ của Client. Nếu file scene của Client là bản cũ, Client sẽ hiển thị vật thể tại vị trí cũ ($y = 3.2\text{m}$ lơ lửng).
+   - Khi Lăng kính được cắm vào socket (`isSocketed = true`), hàm `CoopCarryableItem` thực thi trên Client:
+     `transform.SetPositionAndRotation(socketOwner.itemSocket.position, socketOwner.itemSocket.rotation);`
+     Do `itemSocket` trên máy Client ở vị trí cũ, Lăng kính trên màn hình của bạn chơi cũng bị kéo lên vị trí cũ lơ lửng!
 
 ---
 
-### 🔴 Điểm 3: Bệ Lăng Kính và Vô-Lăng phải nằm vững trên BỆ ĐÁ dưới chân hải đăng, KHÔNG được lơ lửng ngoài mép (Ảnh 3)
-- **Hiện trạng**: Bệ socket và vô-lăng đặt ở $x=110$ và $y=3.2\text{m}$, nằm ngoài rìa bán kính đảo đá ($x=117$) nên bị thò ra ngoài nước và lơ lửng giữa trời.
-- **Yêu cầu sửa**:
-  - Tọa độ tâm đảo đá: Tháp Tây tại $(83.0f, 0.9f, 175.0f)$, Tháp Đông tại $(117.0f, 0.9f, 190.0f)$. Mặt sàn bệ đá phẳng ở độ cao $y \approx 1.3\text{m}$.
-  - Tạo khối bệ đá mỹ thuật `BeaconPedestal` đặt vững vàng trên sàn đảo, ngay trước lối vào hải đăng:
-    - **Tháp Tây**: Vị trí `Vector3(84.6f, 1.3f, 175.8f)`.
-    - **Tháp Đông**: Vị trí `Vector3(115.4f, 1.3f, 189.2f)`.
-  - Trên bệ đá này:
-    - Ổ cắm Lăng Kính / Tay Quay đặt phẳng trên mặt bệ đá ở $y = 1.7\text{m}$.
-    - Bánh lái vô-lăng dựng đứng trên mặt bệ đá ở $y = 1.6\text{m}$.
-    - Nhân vật đứng trên sàn bệ đá phẳng, ngang tầm tay bấm **`[F]`** để cắm hoặc cầm lái, không còn bất kỳ chi tiết nào lơ lửng ngoài không trung!
+## 🛡️ 2. GIẢI PHÁP KÉP BẢO VỆ 100% (THE BULLETPROOF 2-LAYER FIX)
+
+Để giải quyết triệt để và đảm bảo **dù Client có bị lệch cache scene hay chưa kịp pull scene mới thì khi vào game vẫn hiển thị đúng 100%**, ta áp dụng 2 lớp giải pháp:
+
+### 🔹 LỚP 1: ÉP VỊ TRÍ CHUẨN XÁC KHI KHỞI CHẠY (RUNTIME ENFORCEMENT TRONG C#)
+Trong script `MarshBeaconTrigger.cs`, thêm hàm cưỡng chế vị trí chuẩn xác trong `Awake()` và `OnNetworkSpawn()`. Hàm này chạy trên cả Host và Client khi scene được tải, ngay lập tức di dời các Transform về đúng tọa độ mặt đất:
+
+#### Code cập nhật trong `Assets/Core/Scripts/Runtime/Components/MarshBeaconTrigger.cs`:
+```csharp
+public Transform pedestal;
+
+private void Awake()
+{
+    EnforceAuthoritativeTransforms();
+}
+
+public override void OnNetworkSpawn()
+{
+    base.OnNetworkSpawn();
+    EnforceAuthoritativeTransforms();
+    ...
+}
+
+public void EnforceAuthoritativeTransforms()
+{
+    bool isWest = (requiredItem != null && requiredItem.itemType == CoopCarryableItem.ItemType.IgnitionCrank) ||
+                  name.StartsWith("West");
+
+    // Tọa độ chuẩn xác trên bệ đá đảo hải đăng:
+    Vector3 targetPedestal = isWest ? new Vector3(84.6f, 1.3f, 175.8f) : new Vector3(115.4f, 1.3f, 189.2f);
+    Vector3 targetSocket   = isWest ? new Vector3(84.6f, 1.7f, 175.8f) : new Vector3(115.4f, 1.7f, 189.2f);
+    Vector3 targetWheel    = isWest ? new Vector3(85.2f, 1.6f, 175.8f) : new Vector3(114.8f, 1.6f, 189.2f);
+    Vector3 targetLamp     = isWest ? new Vector3(82.99f, 7.56f, 174.99f) : new Vector3(117.01f, 7.56f, 190.01f);
+
+    // 1. Cập nhật bệ đá (Pedestal)
+    if (pedestal == null)
+    {
+        var foundPedestal = transform.Find(isWest ? "West_BeaconPedestal" : "East_BeaconPedestal")
+                         ?? transform.Find(isWest ? "West_BeaconConsole" : "East_BeaconConsole");
+        if (foundPedestal != null) pedestal = foundPedestal;
+    }
+    if (pedestal != null) pedestal.position = targetPedestal;
+
+    // 2. Cập nhật ổ cắm Lăng kính / Tay quay (ItemSocket)
+    if (itemSocket != null) itemSocket.position = targetSocket;
+
+    // 3. Cập nhật vô-lăng và điểm tương tác (TurnWheel)
+    if (turnWheel != null)
+    {
+        if (turnWheel.interactionPoint != null) turnWheel.interactionPoint.position = targetWheel;
+        if (turnWheel.lanternHead != null) turnWheel.lanternHead.position = targetLamp;
+    }
+
+    // 4. Cập nhật emitter tia sáng trên đỉnh tháp
+    if (beam != null && beam.emitter != null)
+    {
+        beam.emitter.position = targetLamp;
+    }
+}
+```
+
+#### Code cập nhật trong `Assets/Core/Scripts/Runtime/Components/CoopCarryableItem.cs`:
+Khi vật phẩm đã được cắm vào socket, bảo đảm Client cập nhật vị trí theo tọa độ thực tế:
+```csharp
+private void LateUpdate()
+{
+    if (!IsSpawned) return;
+    if (IsSocketed && socketOwner != null && socketOwner.itemSocket != null)
+    {
+        transform.SetPositionAndRotation(socketOwner.itemSocket.position, socketOwner.itemSocket.rotation);
+        return;
+    }
+    ...
+}
+```
 
 ---
 
-### 🔴 Điểm 4: Tia sáng phải phát ra từ ÁNH ĐÈN Ở ĐỈNH NGỌN HẢI ĐĂNG (Ảnh 4)
-- **Hiện trạng**: Emitter tia sáng đang bị gắn ngang hông bệ dưới đất ở $y = 3.5\text{m}$.
-- **Yêu cầu sửa**:
-  - Điểm phát tia sáng (`beam.emitter`) phải gắn trực tiếp vào **Lồng Kính trên ĐỈNH tháp hải đăng** (vị trí `Light` của prefab tại $y = 7.56\text{m}$ đến $9.0\text{m}$ như trong Ảnh 4):
-    - Đỉnh Tháp Tây: `Vector3(82.99f, 7.56f, 174.99f)`.
-    - Đỉnh Tháp Đông: `Vector3(117.01f, 7.56f, 190.01f)`.
-  - Vô-lăng ở dưới chân tháp điều khiển xoay đài đèn / lăng kính trên đỉnh tháp (`lanternHead`).
-  - Tia sáng phóng ra từ vòm kính rực sáng ở đỉnh tháp, quét từ trên cao qua mặt đầm lầy xuống mục tiêu.
+### 🔹 LỚP 2: BAKE, COMMIT VÀ PUSH SCENE `PlayScene2.unity`
+1. Đảm bảo file `Assets/Core/Scenes/PlayScene2.unity` và các file liên quan được commit vào Git:
+   - `Assets/Core/Scenes/PlayScene2.unity`
+   - `Assets/Core/Materials/LVL2_LighthouseBeam.mat`
+   - `Assets/Core/Materials/LVL2_LighthouseBeam.mat.meta`
+2. Người bạn chơi (Client) sau khi pull code hoặc tải bản build mới sẽ có đúng 100% dữ liệu scene gốc.
 
 ---
 
-### 🔴 Điểm 5: Đổi điều khiển vô-lăng từ xoay chuột sang LĂN CHUỘT (Mouse Scroll Wheel)
-- **Hiện trạng**: Lia chuột ngang dễ xung đột với camera xoay góc nhìn.
-- **Yêu cầu sửa**:
-  - Khi đang cầm lái vô-lăng:
-    - **Lăn chuột LÊN (Scroll Up > 0)**: Xoay tia sáng sang Phải.
-    - **Lăn chuột XUỐNG (Scroll Down < 0)**: Xoay tia sáng sang Trái.
-    - Giữ phím `A / D` làm phương án hỗ trợ phụ.
-    - Bấm **`[F]`** hoặc **`[Space]`** để rời khỏi vô-lăng.
+## 🧪 3. KIỂM THỬ XÁC NHẬN (VERIFICATION PLAN)
 
----
-
-## 🛠️ 2. CHI TIẾT THAY ĐỔI CODE & BAKE SCENE
-
-### File 1: `Assets/Core/Scripts/Runtime/Components/LighthouseTurnWheel.cs`
-- Cập nhật hàm `Update()`:
-  ```csharp
-  // Thoát lái:
-  if (Keyboard.current.fKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame)
-  {
-      localSteering = false;
-      ReleaseControlRpc();
-      return;
-  }
-
-  // Đọc lăn chuột:
-  float scroll = Mouse.current != null ? Mouse.current.scroll.y.ReadValue() : 0f;
-  float keyInput = (Keyboard.current.dKey.isPressed ? 1f : 0f) - (Keyboard.current.aKey.isPressed ? 1f : 0f);
-  
-  float turnInput = 0f;
-  if (Mathf.Abs(scroll) > 0.05f) turnInput = Mathf.Sign(scroll) * 1.5f;
-  else if (keyInput != 0f) turnInput = keyInput;
-
-  if (turnInput != 0f) RotateRpc(turnInput, Mathf.Min(Time.deltaTime, 0.1f));
-  ```
-- Cập nhật text hiển thị:
-  `"Lăn chuột [▲ ▼] hoặc phím A/D để xoay tia sáng · [F / Space] Rời vô-lăng"`
-
----
-
-### File 2: `Assets/Core/Scripts/Runtime/Components/LuminaMillSensor.cs`
-- Cập nhật hàm kích hoạt động:
-  ```csharp
-  public void NotifySensorActivated(bool active)
-  {
-      if (!IsServer) return;
-      if (active)
-      {
-          hitDuration += Time.deltaTime;
-          if (hitDuration >= requiredHitSeconds && !isPowered.Value)
-          {
-              isPowered.Value = true;
-              west?.SetLit(true);
-              east?.SetLit(true);
-              PoweredClientRpc(true);
-          }
-      }
-      else
-      {
-          hitDuration = 0f;
-          // NẾU TIA SÁNG BỊ XOAY LỆCH RA NGOÀI VÀ THUYỀN CHƯA VƯỢT QUA CỐI XAY:
-          if (isPowered.Value && (west != null && east != null))
-          {
-              var mill = UnityEngine.Object.FindAnyObjectByType<GiantWatermillObstacle>();
-              if (mill == null || !mill.Passed)
-              {
-                  isPowered.Value = false;
-                  west.SetLit(false);
-                  east.SetLit(false);
-                  PoweredClientRpc(false);
-              }
-          }
-      }
-  }
-  ```
-
----
-
-### File 3: `Assets/Core/Scripts/Runtime/Components/LighthouseLightBeam.cs`
-- Độ rộng tia sáng:
-  ```csharp
-  line.startWidth = 0.85f;
-  line.endWidth = 1.15f;
-  line.startColor = new Color(1f, 0.88f, 0.35f, 1f);
-  line.endColor = new Color(1f, 0.7f, 0.2f, 0.85f);
-  ```
-- Tạo một Flare Marker / Sphere sáng nhỏ tại `hit.point` để hiển thị chấm sáng va chạm rõ ràng.
-
----
-
-### File 4: `Assets/Core/Scripts/Editor/LevelTwoSceneBuilder.cs`
-- Đặt bệ đá vững chãi trên sàn đảo:
-  - Tháp Tây: `consolePos = new Vector3(84.6f, 1.3f, 175.8f)`
-  - Tháp Đông: `consolePos = new Vector3(115.4f, 1.3f, 189.2f)`
-  - Kích thước bệ: `Box(side + "_BeaconPedestal", root, consolePos, new Vector3(1.5f, 0.8f, 1.2f), stoneMat);`
-  - Ổ cắm `itemSocket` đặt trên mặt bệ đá ở $y = 1.7\text{m}$.
-  - Vô-lăng `turnWheel` gắn trên mặt bệ đá ở $y = 1.6\text{m}$.
-- Gắn `emitter` và `lanternHead` vào đúng **đèn trên đỉnh tháp**:
-  - `westLampPos = new Vector3(82.99f, 7.56f, 174.99f)`
-  - `eastLampPos = new Vector3(117.01f, 7.56f, 190.01f)`
-- Thu nhỏ collider của `LuminaMillSensor` thành `SphereCollider` bán kính $r = 0.55\text{m}$.
-- **Bắt buộc**: Chạy `EditorSceneManager.MarkSceneDirty` và `EditorSceneManager.SaveScene` để lưu đè `Assets/Core/Scenes/PlayScene2.unity`.
-
----
-
-## 🎮 3. HƯỚNG DẪN CHƠI HOÀN CHỈNH (UPDATED PLAYER GUIDE)
-
-1. **Nhặt và Cắm vật phẩm**:
-   - Dùng phím **`[F]`** để nhặt **Tay Quay Khởi Động** (ở bờ đá Tây) và **Lăng Kính Cổ** (trong hốc cây Đông khi Ba nâng cây).
-   - Đứng cạnh bệ đá dưới chân hải đăng $\rightarrow$ Bấm **`[F]`** để cắm vào bệ.
-2. **Lái Vô-lăng & Căn tia sáng**:
-   - Lại gần bánh lái trên bệ đá dưới chân tháp $\rightarrow$ Bấm **`[F]`** để cầm lái.
-   - **LĂN CHUỘT LÊN / XUỐNG** : Chùm sáng rực rỡ từ **ĐỈNH THÁP** sẽ quét qua lại.
-   - Bấm **`[F]`** hoặc **`[Space]`** để rời vô-lăng.
-3. **Cơ chế Sương mù Động**:
-   - Căn tia sáng từ đỉnh Tháp Đông chiếu trúng Mắt Ngọc Cối Xay $\rightarrow$ Mắt Ngọc sáng xanh, sương mù bắt đầu tan, cổng cối xay mở ra!
-   - Nếu xoay tia sáng lệch ra ngoài trước khi thuyền qua cổng $\rightarrow$ Sương mù sẽ tràn lại và cổng cối xay đóng lại! Hãy phối hợp giữ tia sáng đúng vị trí để thuyền vượt cối xay an toàn.
+1. **Kiểm tra tự động với Netcode Host & Client**:
+   - Chạy `LevelTwoValidation.RunStageThree()`.
+   - Kiểm tra `west.itemSocket.position` và `east.itemSocket.position` chuẩn xác tại:
+     - West Socket: `(84.6, 1.7, 175.8)`
+     - East Socket: `(115.4, 1.7, 189.2)`
+   - Kiểm tra `west.turnWheel.interactionPoint.position` và `east.turnWheel.interactionPoint.position` tại:
+     - West Wheel: `(85.2, 1.6, 175.8)`
+     - East Wheel: `(114.8, 1.6, 189.2)`
+2. **Kiểm tra trực quan trên 2 máy**:
+   - Máy 1 (Host - Ba): Nhìn thấy bệ đá, ổ cắm và vô-lăng đặt ngay dưới chân tháp.
+   - Máy 2 (Client - Con): Kết nối vào phòng, nhìn thấy bệ đá, ổ cắm và vô-lăng **ở cùng vị trí chính xác dưới chân tháp, không còn bị lơ lửng**.
+   - Con cắm Lăng Kính vào ổ Tháp Đông: Cả hai máy đều thấy Lăng Kính nằm gọn trên bệ đá dưới chân tháp!
 
 ---
 
 ## 🏁 ACCEPTANCE CRITERIA
-1. [ ] Tia sáng dày $0.85\text{m} - 1.15\text{m}$, sáng rõ rực rỡ từ mọi góc nhìn với vệt sáng va chạm tại điểm tiếp xúc.
-2. [ ] Sương mù tan khi tia sáng chiếu trúng mắt ngọc, và **quay trở lại ngay khi xoay tia sáng lệch ra ngoài**.
-3. [ ] Bệ cắm và bánh lái đặt vững vàng trên bệ đá dưới chân tháp ($y \approx 1.3\text{m} - 1.7\text{m}$), nhân vật đứng trên sàn đảo tương tác dễ dàng, không còn chi tiết nào lơ lửng ngoài mép.
-4. [ ] Tia sáng phóng ra từ đỉnh lồng kính của ngọn hải đăng ($y \approx 7.56\text{m} - 9.0\text{m}$).
-5. [ ] Lăn chuột lên/xuống xoay tia sáng mượt mà.
-6. [ ] Chạy `LevelTwoValidation.RunStageThree()` đạt kết quả PASS 100%.
+1. [ ] `EnforceAuthoritativeTransforms()` được gọi trong `Awake()` và `OnNetworkSpawn()` của `MarshBeaconTrigger.cs`, bảo đảm Client tự động cập nhật vị trí vô-lăng và lăng kính khi tải scene.
+2. [ ] Máy Client (bạn cùng chơi) nhìn thấy vô-lăng và lăng kính đặt ngay trên bệ đá dưới chân hải đăng ($y \approx 1.6\text{m} - 1.7\text{m}$), trùng khớp 100% với màn hình của Host.
+3. [ ] `PlayScene2.unity` và `LVL2_LighthouseBeam.mat` được thêm vào commit Git.
+4. [ ] `LevelTwoValidation.RunStageThree()` tiếp tục pass 100%.
+idcc

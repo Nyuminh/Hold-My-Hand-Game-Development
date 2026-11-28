@@ -12,6 +12,7 @@ namespace Blocks.Gameplay.Core
         public GameObject flame;
         public Light beaconLight;
         public CoopCarryableItem requiredItem;
+        public Transform pedestal;
         public Transform itemSocket;
         public LighthouseLightBeam beam;
         public LighthouseTurnWheel turnWheel;
@@ -21,6 +22,45 @@ namespace Blocks.Gameplay.Core
         private float launchDeadline;
         public bool Lit => lit.Value;
         public bool RequiredItemSocketed => requiredItem != null && requiredItem.IsSocketed;
+
+        private void Awake()
+        {
+            EnforceAuthoritativeTransforms();
+        }
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            EnforceAuthoritativeTransforms();
+        }
+
+        public void EnforceAuthoritativeTransforms()
+        {
+            bool isWest = (requiredItem != null && requiredItem.itemType == CoopCarryableItem.ItemType.IgnitionCrank) ||
+                          name.StartsWith("West");
+
+            Vector3 targetPedestal = isWest ? new Vector3(84.6f, 1.3f, 175.8f) : new Vector3(115.4f, 1.3f, 189.2f);
+            Vector3 targetSocket = isWest ? new Vector3(84.6f, 1.7f, 175.8f) : new Vector3(115.4f, 1.7f, 189.2f);
+            Vector3 targetWheel = isWest ? new Vector3(85.2f, 1.6f, 175.8f) : new Vector3(114.8f, 1.6f, 189.2f);
+            Vector3 targetLamp = isWest ? new Vector3(82.99f, 7.56f, 174.99f) : new Vector3(117.01f, 7.56f, 190.01f);
+
+            if (pedestal == null)
+            {
+                pedestal = transform.Find(isWest ? "West_BeaconPedestal" : "East_BeaconPedestal") ??
+                           transform.Find(isWest ? "West_BeaconConsole" : "East_BeaconConsole");
+            }
+            if (pedestal != null) pedestal.position = targetPedestal;
+            if (itemSocket != null) itemSocket.position = targetSocket;
+
+            if (turnWheel != null)
+            {
+                if (turnWheel.interactionPoint != null) turnWheel.interactionPoint.position = targetWheel;
+                if (turnWheel.lanternHead != null) turnWheel.lanternHead.position = targetLamp;
+            }
+
+            if (beam != null && beam.emitter != null) beam.emitter.position = targetLamp;
+        }
+
         public void RestoreCheckpoint(bool value) { if (IsServer) { lit.Value = value; launchedChild = null; launchDeadline = 0; } }
         public void SetLit(bool value)
         {

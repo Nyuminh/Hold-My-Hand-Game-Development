@@ -231,6 +231,7 @@ namespace Blocks.Gameplay.Core.LevelTwoAuthoring
                 consoleObject.transform.position = consolePosition;
                 consoleObject.transform.localScale = new Vector3(1.5f, 0.8f, 1.2f);
                 consoleObject.GetComponent<Renderer>().sharedMaterial = stone;
+                beacon.pedestal = consoleObject.transform;
 
                 Vector3 socketPosition = new Vector3(consolePosition.x, 1.7f, consolePosition.z);
                 var socketObject = root.Find(side + "_ItemSocket") != null
